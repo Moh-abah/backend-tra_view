@@ -1,0 +1,96 @@
+# =============================================================================
+# Trading Backend API — .gitignore
+# =============================================================================
+
+# --- Secrets (NEVER commit real credentials) -----------------------------------
+.env
+.env.production
+.env*.local
+*.pem
+*.key
+
+
+# Large archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+
+# --- Python ---------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# --- Virtual environments ---------------------------------------------------------
+venv/
+venv*/
+.venv/
+env/
+ENV/
+
+# --- Databases / local state ------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# --- Logs & runtime output ----------------------------------------------------------
+logs/
+*.log
+reports/
+chart_storage/
+market_overview_stream.txt
+signals_stream.txt
+
+# --- Testing / coverage -----------------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# --- Tooling / caches ---------------------------------------------------------------------
+.mypy_cache/
+.ruff_cache/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Media / generated artifacts --------------------------------------------------------------
+media/
+*.json.bak
+chart_output.json
+chart_data.json
+
+# --- Node (if a frontend toolchain is ever colocated) -------------------------------------------
+node_modules/
+
+# --- Editors / OS --------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Celery / notebooks ----------------------------------------------------------------------------
+celerybeat-schedule
+celerybeat.pid
+.ipynb_checkpoints
+
+
+
+# --- Large data files ---
+*.parquet
+data/history/

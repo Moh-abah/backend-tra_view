@@ -1,0 +1,93 @@
+# =============================================================================
+# Trading Backend API — Docker Compose (LOCAL POSTGRES — NO NEON)
+#
+#   docker compose up -d --build           # start everything
+#   docker compose logs -f backend         # tail API logs
+#
+# Database: local PostgreSQL 17 container. Data survives restarts in the
+# postgres_data volume. DATABASE_URL in .env points to postgres:5432.
+# Redis has NO host port anymore (the old "SECURITY ATTACK" warnings came
+# from host processes hitting the exposed redis port — now impossible).
+# =============================================================================
+
+services:
+
+  # --- PostgreSQL 17 (local — replaces Neon permanently) ----------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: trading-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: trader_local_2024
+      POSTGRES_DB: trading_db
+    ports:
+      - "5433:5432"          # host access on 5433 (pgAdmin / psql) — optional
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader -d trading_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  # --- Redis (broker + cache) — internal only, no host port -------------------
+  redis:
+    image: redis:7-alpine
+    container_name: trading-redis
+    restart: unless-stopped
+    command: redis-server --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # --- FastAPI backend ---------------------------------------------------------
+  backend:
+    build: .
+    container_name: trading-backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+      - ./strategies:/app/strategies
+      - ./reports:/app/reports
+      - ./data/history:/app/data/history   # parquet kline cache — survives restarts
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # --- Celery worker (async backtests) --------------------------------------------
+  celery-worker:
+    build: .
+    container_name: trading-celery-worker
+    command: celery -A app.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data/history:/app/data/history   # share the kline cache with the backend
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

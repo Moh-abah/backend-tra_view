@@ -1,0 +1,4685 @@
+{
+    "type": "chart_initialized",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "market": "crypto",
+    "data": {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "candles": [
+            {
+                "open_time": 1766845920000,
+                "open": 2928.41,
+                "high": 2928.41,
+                "low": 2928.33,
+                "close": 2928.34,
+                "volume": 20.7175,
+                "close_time": 1766845979999,
+                "quote_volume": "60667.86793500",
+                "trades": 271,
+                "taker_buy_base": "17.96560000",
+                "taker_buy_quote": "52609.38510400",
+                "ignore": "0",
+                "time": 1766845920000
+            },
+            {
+                "open_time": 1766845980000,
+                "open": 2928.34,
+                "high": 2928.34,
+                "low": 2928.33,
+                "close": 2928.34,
+                "volume": 10.24,
+                "close_time": 1766846039999,
+                "quote_volume": "29986.16367000",
+                "trades": 269,
+                "taker_buy_base": "6.44700000",
+                "taker_buy_quote": "18879.00798000",
+                "ignore": "0",
+                "time": 1766845980000
+            },
+            {
+                "open_time": 1766846040000,
+                "open": 2928.33,
+                "high": 2930.22,
+                "low": 2928.33,
+                "close": 2929.85,
+                "volume": 172.5576,
+                "close_time": 1766846099999,
+                "quote_volume": "505516.28161500",
+                "trades": 1548,
+                "taker_buy_base": "119.54410000",
+                "taker_buy_quote": "350194.75702300",
+                "ignore": "0",
+                "time": 1766846040000
+            },
+            {
+                "open_time": 1766846100000,
+                "open": 2929.86,
+                "high": 2929.86,
+                "low": 2929.85,
+                "close": 2929.86,
+                "volume": 2.8497,
+                "close_time": 1766846159999,
+                "quote_volume": "8349.21642800",
+                "trades": 57,
+                "taker_buy_base": "2.28830000",
+                "taker_buy_quote": "6704.39863800",
+                "ignore": "0",
+                "time": 1766846100000
+            },
+            {
+                "open_time": 1766846160000,
+                "open": 2929.85,
+                "high": 2929.86,
+                "low": 2929.1,
+                "close": 2929.11,
+                "volume": 44.0714,
+                "close_time": 1766846219999,
+                "quote_volume": "129109.58632500",
+                "trades": 703,
+                "taker_buy_base": "4.59110000",
+                "taker_buy_quote": "13448.18065100",
+                "ignore": "0",
+                "time": 1766846160000
+            },
+            {
+                "open_time": 1766846220000,
+                "open": 2929.1,
+                "high": 2929.11,
+                "low": 2929.09,
+                "close": 2929.1,
+                "volume": 49.6528,
+                "close_time": 1766846279999,
+                "quote_volume": "145437.89349600",
+                "trades": 198,
+                "taker_buy_base": "3.83900000",
+                "taker_buy_quote": "11244.83233700",
+                "ignore": "0",
+                "time": 1766846220000
+            },
+            {
+                "open_time": 1766846280000,
+                "open": 2929.09,
+                "high": 2929.1,
+                "low": 2928.82,
+                "close": 2928.82,
+                "volume": 38.1877,
+                "close_time": 1766846339999,
+                "quote_volume": "111848.21312500",
+                "trades": 394,
+                "taker_buy_base": "27.78070000",
+                "taker_buy_quote": "81365.44889000",
+                "ignore": "0",
+                "time": 1766846280000
+            },
+            {
+                "open_time": 1766846340000,
+                "open": 2928.82,
+                "high": 2928.83,
+                "low": 2928.59,
+                "close": 2928.81,
+                "volume": 76.1201,
+                "close_time": 1766846399999,
+                "quote_volume": "222934.77194500",
+                "trades": 449,
+                "taker_buy_base": "18.41130000",
+                "taker_buy_quote": "53920.89380200",
+                "ignore": "0",
+                "time": 1766846340000
+            },
+            {
+                "open_time": 1766846400000,
+                "open": 2928.8,
+                "high": 2928.83,
+                "low": 2928.8,
+                "close": 2928.82,
+                "volume": 57.6635,
+                "close_time": 1766846459999,
+                "quote_volume": "168886.05533500",
+                "trades": 274,
+                "taker_buy_base": "7.01050000",
+                "taker_buy_quote": "20532.53829300",
+                "ignore": "0",
+                "time": 1766846400000
+            },
+            {
+                "open_time": 1766846460000,
+                "open": 2928.83,
+                "high": 2929.36,
+                "low": 2928.82,
+                "close": 2929.36,
+                "volume": 53.0503,
+                "close_time": 1766846519999,
+                "quote_volume": "155387.94616700",
+                "trades": 287,
+                "taker_buy_base": "44.32120000",
+                "taker_buy_quote": "129819.75596800",
+                "ignore": "0",
+                "time": 1766846460000
+            },
+            {
+                "open_time": 1766846520000,
+                "open": 2929.35,
+                "high": 2929.36,
+                "low": 2929.26,
+                "close": 2929.27,
+                "volume": 37.7449,
+                "close_time": 1766846579999,
+                "quote_volume": "110567.64528200",
+                "trades": 373,
+                "taker_buy_base": "0.41380000",
+                "taker_buy_quote": "1212.13284400",
+                "ignore": "0",
+                "time": 1766846520000
+            },
+            {
+                "open_time": 1766846580000,
+                "open": 2929.26,
+                "high": 2929.27,
+                "low": 2929.26,
+                "close": 2929.27,
+                "volume": 10.0389,
+                "close_time": 1766846639999,
+                "quote_volume": "29406.63245100",
+                "trades": 109,
+                "taker_buy_base": "8.42370000",
+                "taker_buy_quote": "24675.29169900",
+                "ignore": "0",
+                "time": 1766846580000
+            },
+            {
+                "open_time": 1766846640000,
+                "open": 2929.26,
+                "high": 2930.29,
+                "low": 2929.26,
+                "close": 2930.28,
+                "volume": 29.4132,
+                "close_time": 1766846699999,
+                "quote_volume": "86174.18912100",
+                "trades": 810,
+                "taker_buy_base": "27.98730000",
+                "taker_buy_quote": "81996.13093800",
+                "ignore": "0",
+                "time": 1766846640000
+            },
+            {
+                "open_time": 1766846700000,
+                "open": 2930.29,
+                "high": 2930.59,
+                "low": 2930.29,
+                "close": 2930.59,
+                "volume": 23.8521,
+                "close_time": 1766846759999,
+                "quote_volume": "69897.14065800",
+                "trades": 333,
+                "taker_buy_base": "15.76180000",
+                "taker_buy_quote": "46188.38575900",
+                "ignore": "0",
+                "time": 1766846700000
+            },
+            {
+                "open_time": 1766846760000,
+                "open": 2930.58,
+                "high": 2930.95,
+                "low": 2930.58,
+                "close": 2930.91,
+                "volume": 18.65,
+                "close_time": 1766846819999,
+                "quote_volume": "54656.84762900",
+                "trades": 240,
+                "taker_buy_base": "7.36860000",
+                "taker_buy_quote": "21594.95448200",
+                "ignore": "0",
+                "time": 1766846760000
+            },
+            {
+                "open_time": 1766846820000,
+                "open": 2930.91,
+                "high": 2931.0,
+                "low": 2930.91,
+                "close": 2930.99,
+                "volume": 38.115,
+                "close_time": 1766846879999,
+                "quote_volume": "111714.51849800",
+                "trades": 252,
+                "taker_buy_base": "2.72860000",
+                "taker_buy_quote": "7997.36519400",
+                "ignore": "0",
+                "time": 1766846820000
+            },
+            {
+                "open_time": 1766846880000,
+                "open": 2930.99,
+                "high": 2931.0,
+                "low": 2930.99,
+                "close": 2931.0,
+                "volume": 8.5944,
+                "close_time": 1766846939999,
+                "quote_volume": "25190.14539200",
+                "trades": 83,
+                "taker_buy_base": "4.49360000",
+                "taker_buy_quote": "13170.74160000",
+                "ignore": "0",
+                "time": 1766846880000
+            },
+            {
+                "open_time": 1766846940000,
+                "open": 2930.99,
+                "high": 2931.09,
+                "low": 2930.77,
+                "close": 2930.77,
+                "volume": 58.1018,
+                "close_time": 1766846999999,
+                "quote_volume": "170295.05438300",
+                "trades": 750,
+                "taker_buy_base": "13.28180000",
+                "taker_buy_quote": "38928.08493100",
+                "ignore": "0",
+                "time": 1766846940000
+            },
+            {
+                "open_time": 1766847000000,
+                "open": 2930.77,
+                "high": 2930.78,
+                "low": 2930.74,
+                "close": 2930.76,
+                "volume": 26.2663,
+                "close_time": 1766847059999,
+                "quote_volume": "76980.01380200",
+                "trades": 330,
+                "taker_buy_base": "18.09550000",
+                "taker_buy_quote": "53033.42604500",
+                "ignore": "0",
+                "time": 1766847000000
+            },
+            {
+                "open_time": 1766847060000,
+                "open": 2930.76,
+                "high": 2930.76,
+                "low": 2929.02,
+                "close": 2929.02,
+                "volume": 48.5194,
+                "close_time": 1766847119999,
+                "quote_volume": "142161.07203100",
+                "trades": 1213,
+                "taker_buy_base": "3.46470000",
+                "taker_buy_quote": "10151.84614600",
+                "ignore": "0",
+                "time": 1766847060000
+            },
+            {
+                "open_time": 1766847120000,
+                "open": 2929.02,
+                "high": 2929.03,
+                "low": 2928.85,
+                "close": 2928.85,
+                "volume": 29.8627,
+                "close_time": 1766847179999,
+                "quote_volume": "87466.58356700",
+                "trades": 303,
+                "taker_buy_base": "3.98180000",
+                "taker_buy_quote": "11662.25388400",
+                "ignore": "0",
+                "time": 1766847120000
+            },
+            {
+                "open_time": 1766847180000,
+                "open": 2928.85,
+                "high": 2928.86,
+                "low": 2928.85,
+                "close": 2928.86,
+                "volume": 16.6505,
+                "close_time": 1766847239999,
+                "quote_volume": "48766.88606100",
+                "trades": 152,
+                "taker_buy_base": "6.91360000",
+                "taker_buy_quote": "20248.96649600",
+                "ignore": "0",
+                "time": 1766847180000
+            },
+            {
+                "open_time": 1766847240000,
+                "open": 2928.85,
+                "high": 2929.56,
+                "low": 2928.85,
+                "close": 2929.56,
+                "volume": 60.996,
+                "close_time": 1766847299999,
+                "quote_volume": "178659.10138500",
+                "trades": 994,
+                "taker_buy_base": "58.19100000",
+                "taker_buy_quote": "170443.37564400",
+                "ignore": "0",
+                "time": 1766847240000
+            },
+            {
+                "open_time": 1766847300000,
+                "open": 2929.56,
+                "high": 2930.0,
+                "low": 2929.55,
+                "close": 2929.73,
+                "volume": 228.1328,
+                "close_time": 1766847359999,
+                "quote_volume": "668378.30168900",
+                "trades": 886,
+                "taker_buy_base": "38.31610000",
+                "taker_buy_quote": "112255.48787400",
+                "ignore": "0",
+                "time": 1766847300000
+            },
+            {
+                "open_time": 1766847360000,
+                "open": 2929.73,
+                "high": 2929.83,
+                "low": 2929.72,
+                "close": 2929.83,
+                "volume": 7.5752,
+                "close_time": 1766847419999,
+                "quote_volume": "22193.83585400",
+                "trades": 184,
+                "taker_buy_base": "6.15810000",
+                "taker_buy_quote": "18042.01703200",
+                "ignore": "0",
+                "time": 1766847360000
+            },
+            {
+                "open_time": 1766847420000,
+                "open": 2929.83,
+                "high": 2929.84,
+                "low": 2929.82,
+                "close": 2929.83,
+                "volume": 20.4982,
+                "close_time": 1766847479999,
+                "quote_volume": "60056.30924300",
+                "trades": 211,
+                "taker_buy_base": "14.32110000",
+                "taker_buy_quote": "41958.45653700",
+                "ignore": "0",
+                "time": 1766847420000
+            },
+            {
+                "open_time": 1766847480000,
+                "open": 2929.83,
+                "high": 2929.84,
+                "low": 2929.82,
+                "close": 2929.82,
+                "volume": 27.2085,
+                "close_time": 1766847539999,
+                "quote_volume": "79716.34611900",
+                "trades": 190,
+                "taker_buy_base": "6.69760000",
+                "taker_buy_quote": "19622.89618400",
+                "ignore": "0",
+                "time": 1766847480000
+            },
+            {
+                "open_time": 1766847540000,
+                "open": 2929.83,
+                "high": 2929.83,
+                "low": 2929.79,
+                "close": 2929.79,
+                "volume": 50.1104,
+                "close_time": 1766847599999,
+                "quote_volume": "146813.75618800",
+                "trades": 220,
+                "taker_buy_base": "41.12090000",
+                "taker_buy_quote": "120476.17335900",
+                "ignore": "0",
+                "time": 1766847540000
+            },
+            {
+                "open_time": 1766847600000,
+                "open": 2929.79,
+                "high": 2929.8,
+                "low": 2928.32,
+                "close": 2928.33,
+                "volume": 79.4845,
+                "close_time": 1766847659999,
+                "quote_volume": "232845.56381800",
+                "trades": 1331,
+                "taker_buy_base": "53.28090000",
+                "taker_buy_quote": "156093.41877100",
+                "ignore": "0",
+                "time": 1766847600000
+            },
+            {
+                "open_time": 1766847660000,
+                "open": 2928.33,
+                "high": 2928.65,
+                "low": 2928.32,
+                "close": 2928.65,
+                "volume": 38.5196,
+                "close_time": 1766847719999,
+                "quote_volume": "112806.29117200",
+                "trades": 875,
+                "taker_buy_base": "27.88990000",
+                "taker_buy_quote": "81675.75093600",
+                "ignore": "0",
+                "time": 1766847660000
+            },
+            {
+                "open_time": 1766847720000,
+                "open": 2928.65,
+                "high": 2928.65,
+                "low": 2928.64,
+                "close": 2928.64,
+                "volume": 7.5315,
+                "close_time": 1766847779999,
+                "quote_volume": "22057.07157100",
+                "trades": 92,
+                "taker_buy_base": "1.94110000",
+                "taker_buy_quote": "5684.80251500",
+                "ignore": "0",
+                "time": 1766847720000
+            },
+            {
+                "open_time": 1766847780000,
+                "open": 2928.64,
+                "high": 2928.65,
+                "low": 2927.54,
+                "close": 2927.79,
+                "volume": 93.8016,
+                "close_time": 1766847839999,
+                "quote_volume": "274659.07217800",
+                "trades": 1360,
+                "taker_buy_base": "19.29840000",
+                "taker_buy_quote": "56502.41752600",
+                "ignore": "0",
+                "time": 1766847780000
+            },
+            {
+                "open_time": 1766847840000,
+                "open": 2927.79,
+                "high": 2929.44,
+                "low": 2927.79,
+                "close": 2929.34,
+                "volume": 91.2891,
+                "close_time": 1766847899999,
+                "quote_volume": "267334.22072500",
+                "trades": 1693,
+                "taker_buy_base": "74.33660000",
+                "taker_buy_quote": "217674.30605300",
+                "ignore": "0",
+                "time": 1766847840000
+            },
+            {
+                "open_time": 1766847900000,
+                "open": 2929.34,
+                "high": 2929.34,
+                "low": 2929.32,
+                "close": 2929.32,
+                "volume": 8.4065,
+                "close_time": 1766847959999,
+                "quote_volume": "24625.35001300",
+                "trades": 166,
+                "taker_buy_base": "1.85150000",
+                "taker_buy_quote": "5423.65449500",
+                "ignore": "0",
+                "time": 1766847900000
+            },
+            {
+                "open_time": 1766847960000,
+                "open": 2929.33,
+                "high": 2929.33,
+                "low": 2929.32,
+                "close": 2929.32,
+                "volume": 38.2668,
+                "close_time": 1766848019999,
+                "quote_volume": "112095.88736700",
+                "trades": 259,
+                "taker_buy_base": "18.47910000",
+                "taker_buy_quote": "54131.38200300",
+                "ignore": "0",
+                "time": 1766847960000
+            },
+            {
+                "open_time": 1766848020000,
+                "open": 2929.32,
+                "high": 2930.2,
+                "low": 2929.32,
+                "close": 2929.99,
+                "volume": 72.5118,
+                "close_time": 1766848079999,
+                "quote_volume": "212434.41449500",
+                "trades": 1241,
+                "taker_buy_base": "52.58800000",
+                "taker_buy_quote": "154054.79736300",
+                "ignore": "0",
+                "time": 1766848020000
+            },
+            {
+                "open_time": 1766848080000,
+                "open": 2930.0,
+                "high": 2930.0,
+                "low": 2929.81,
+                "close": 2929.81,
+                "volume": 17.4135,
+                "close_time": 1766848139999,
+                "quote_volume": "51020.94501500",
+                "trades": 376,
+                "taker_buy_base": "4.09430000",
+                "taker_buy_quote": "11996.22597400",
+                "ignore": "0",
+                "time": 1766848080000
+            },
+            {
+                "open_time": 1766848140000,
+                "open": 2929.81,
+                "high": 2929.81,
+                "low": 2928.49,
+                "close": 2928.5,
+                "volume": 23.1678,
+                "close_time": 1766848199999,
+                "quote_volume": "67863.37102600",
+                "trades": 1321,
+                "taker_buy_base": "8.44720000",
+                "taker_buy_quote": "24740.68055600",
+                "ignore": "0",
+                "time": 1766848140000
+            },
+            {
+                "open_time": 1766848200000,
+                "open": 2928.49,
+                "high": 2928.62,
+                "low": 2928.49,
+                "close": 2928.62,
+                "volume": 46.705,
+                "close_time": 1766848259999,
+                "quote_volume": "136775.98114100",
+                "trades": 561,
+                "taker_buy_base": "45.63140000",
+                "taker_buy_quote": "133631.87504400",
+                "ignore": "0",
+                "time": 1766848200000
+            },
+            {
+                "open_time": 1766848260000,
+                "open": 2928.62,
+                "high": 2928.81,
+                "low": 2928.61,
+                "close": 2928.8,
+                "volume": 34.1097,
+                "close_time": 1766848319999,
+                "quote_volume": "99895.17389600",
+                "trades": 583,
+                "taker_buy_base": "31.32760000",
+                "taker_buy_quote": "91747.37504500",
+                "ignore": "0",
+                "time": 1766848260000
+            },
+            {
+                "open_time": 1766848320000,
+                "open": 2928.8,
+                "high": 2928.81,
+                "low": 2928.8,
+                "close": 2928.8,
+                "volume": 4.4534,
+                "close_time": 1766848379999,
+                "quote_volume": "13043.14296700",
+                "trades": 158,
+                "taker_buy_base": "2.50470000",
+                "taker_buy_quote": "7335.79040700",
+                "ignore": "0",
+                "time": 1766848320000
+            },
+            {
+                "open_time": 1766848380000,
+                "open": 2928.81,
+                "high": 2928.95,
+                "low": 2928.8,
+                "close": 2928.95,
+                "volume": 41.8162,
+                "close_time": 1766848439999,
+                "quote_volume": "122472.73205000",
+                "trades": 504,
+                "taker_buy_base": "37.02520000",
+                "taker_buy_quote": "108440.79680100",
+                "ignore": "0",
+                "time": 1766848380000
+            },
+            {
+                "open_time": 1766848440000,
+                "open": 2928.95,
+                "high": 2928.95,
+                "low": 2928.94,
+                "close": 2928.95,
+                "volume": 17.3386,
+                "close_time": 1766848499999,
+                "quote_volume": "50783.77098500",
+                "trades": 122,
+                "taker_buy_base": "5.19010000",
+                "taker_buy_quote": "15201.54339500",
+                "ignore": "0",
+                "time": 1766848440000
+            },
+            {
+                "open_time": 1766848500000,
+                "open": 2928.95,
+                "high": 2929.35,
+                "low": 2928.94,
+                "close": 2929.29,
+                "volume": 226.162,
+                "close_time": 1766848559999,
+                "quote_volume": "662454.09131400",
+                "trades": 468,
+                "taker_buy_base": "198.97700000",
+                "taker_buy_quote": "582821.77779400",
+                "ignore": "0",
+                "time": 1766848500000
+            },
+            {
+                "open_time": 1766848560000,
+                "open": 2929.28,
+                "high": 2929.29,
+                "low": 2929.02,
+                "close": 2929.02,
+                "volume": 18.3666,
+                "close_time": 1766848619999,
+                "quote_volume": "53799.42147800",
+                "trades": 457,
+                "taker_buy_base": "1.24610000",
+                "taker_buy_quote": "3650.15613600",
+                "ignore": "0",
+                "time": 1766848560000
+            },
+            {
+                "open_time": 1766848620000,
+                "open": 2929.01,
+                "high": 2929.02,
+                "low": 2928.63,
+                "close": 2928.64,
+                "volume": 13.0648,
+                "close_time": 1766848679999,
+                "quote_volume": "38264.19183500",
+                "trades": 585,
+                "taker_buy_base": "3.05800000",
+                "taker_buy_quote": "8955.87030600",
+                "ignore": "0",
+                "time": 1766848620000
+            },
+            {
+                "open_time": 1766848680000,
+                "open": 2928.64,
+                "high": 2928.64,
+                "low": 2928.0,
+                "close": 2928.01,
+                "volume": 73.7888,
+                "close_time": 1766848739999,
+                "quote_volume": "216084.35177100",
+                "trades": 476,
+                "taker_buy_base": "5.98950000",
+                "taker_buy_quote": "17537.59880800",
+                "ignore": "0",
+                "time": 1766848680000
+            },
+            {
+                "open_time": 1766848740000,
+                "open": 2928.01,
+                "high": 2928.01,
+                "low": 2928.0,
+                "close": 2928.01,
+                "volume": 16.9519,
+                "close_time": 1766848799999,
+                "quote_volume": "49635.31997400",
+                "trades": 109,
+                "taker_buy_base": "15.67740000",
+                "taker_buy_quote": "45903.58397400",
+                "ignore": "0",
+                "time": 1766848740000
+            },
+            {
+                "open_time": 1766848800000,
+                "open": 2928.0,
+                "high": 2928.0,
+                "low": 2927.54,
+                "close": 2927.55,
+                "volume": 47.6227,
+                "close_time": 1766848859999,
+                "quote_volume": "139433.14514100",
+                "trades": 502,
+                "taker_buy_base": "2.54170000",
+                "taker_buy_quote": "7441.00496500",
+                "ignore": "0",
+                "time": 1766848800000
+            },
+            {
+                "open_time": 1766848860000,
+                "open": 2927.55,
+                "high": 2927.55,
+                "low": 2926.6,
+                "close": 2927.55,
+                "volume": 60.2299,
+                "close_time": 1766848919999,
+                "quote_volume": "176302.68476400",
+                "trades": 1525,
+                "taker_buy_base": "27.53480000",
+                "taker_buy_quote": "80594.18096400",
+                "ignore": "0",
+                "time": 1766848860000
+            },
+            {
+                "open_time": 1766848920000,
+                "open": 2927.54,
+                "high": 2927.55,
+                "low": 2927.28,
+                "close": 2927.55,
+                "volume": 41.2486,
+                "close_time": 1766848979999,
+                "quote_volume": "120749.75355600",
+                "trades": 643,
+                "taker_buy_base": "17.57070000",
+                "taker_buy_quote": "51435.29988000",
+                "ignore": "0",
+                "time": 1766848920000
+            },
+            {
+                "open_time": 1766848980000,
+                "open": 2927.55,
+                "high": 2927.55,
+                "low": 2927.54,
+                "close": 2927.54,
+                "volume": 9.1713,
+                "close_time": 1766849039999,
+                "quote_volume": "26849.36292900",
+                "trades": 119,
+                "taker_buy_base": "1.53270000",
+                "taker_buy_quote": "4487.05588500",
+                "ignore": "0",
+                "time": 1766848980000
+            },
+            {
+                "open_time": 1766849040000,
+                "open": 2927.55,
+                "high": 2927.56,
+                "low": 2927.43,
+                "close": 2927.43,
+                "volume": 229.0171,
+                "close_time": 1766849099999,
+                "quote_volume": "670459.48480100",
+                "trades": 736,
+                "taker_buy_base": "203.28820000",
+                "taker_buy_quote": "595137.14941200",
+                "ignore": "0",
+                "time": 1766849040000
+            },
+            {
+                "open_time": 1766849100000,
+                "open": 2927.43,
+                "high": 2927.58,
+                "low": 2927.43,
+                "close": 2927.57,
+                "volume": 47.9917,
+                "close_time": 1766849159999,
+                "quote_volume": "140493.97287800",
+                "trades": 495,
+                "taker_buy_base": "46.38530000",
+                "taker_buy_quote": "135791.33724600",
+                "ignore": "0",
+                "time": 1766849100000
+            },
+            {
+                "open_time": 1766849160000,
+                "open": 2927.58,
+                "high": 2927.58,
+                "low": 2927.57,
+                "close": 2927.58,
+                "volume": 9.3094,
+                "close_time": 1766849219999,
+                "quote_volume": "27254.00513900",
+                "trades": 104,
+                "taker_buy_base": "8.49810000",
+                "taker_buy_quote": "24878.86759800",
+                "ignore": "0",
+                "time": 1766849160000
+            },
+            {
+                "open_time": 1766849220000,
+                "open": 2927.57,
+                "high": 2927.58,
+                "low": 2927.57,
+                "close": 2927.58,
+                "volume": 8.4596,
+                "close_time": 1766849279999,
+                "quote_volume": "24766.14200800",
+                "trades": 96,
+                "taker_buy_base": "7.08360000",
+                "taker_buy_quote": "20737.80568800",
+                "ignore": "0",
+                "time": 1766849220000
+            },
+            {
+                "open_time": 1766849280000,
+                "open": 2927.58,
+                "high": 2927.58,
+                "low": 2927.57,
+                "close": 2927.57,
+                "volume": 14.9195,
+                "close_time": 1766849339999,
+                "quote_volume": "43677.99799000",
+                "trades": 145,
+                "taker_buy_base": "11.73750000",
+                "taker_buy_quote": "34362.47025000",
+                "ignore": "0",
+                "time": 1766849280000
+            },
+            {
+                "open_time": 1766849340000,
+                "open": 2927.58,
+                "high": 2927.89,
+                "low": 2927.57,
+                "close": 2927.89,
+                "volume": 91.0009,
+                "close_time": 1766849399999,
+                "quote_volume": "266418.22799200",
+                "trades": 836,
+                "taker_buy_base": "89.13260000",
+                "taker_buy_quote": "260948.08282200",
+                "ignore": "0",
+                "time": 1766849340000
+            },
+            {
+                "open_time": 1766849400000,
+                "open": 2927.88,
+                "high": 2929.48,
+                "low": 2927.88,
+                "close": 2929.48,
+                "volume": 49.4703,
+                "close_time": 1766849459999,
+                "quote_volume": "144884.44702300",
+                "trades": 1153,
+                "taker_buy_base": "43.71580000",
+                "taker_buy_quote": "128030.55637800",
+                "ignore": "0",
+                "time": 1766849400000
+            },
+            {
+                "open_time": 1766849460000,
+                "open": 2929.48,
+                "high": 2930.45,
+                "low": 2929.47,
+                "close": 2930.45,
+                "volume": 67.2556,
+                "close_time": 1766849519999,
+                "quote_volume": "197057.17183100",
+                "trades": 755,
+                "taker_buy_base": "65.69100000",
+                "taker_buy_quote": "192472.98865200",
+                "ignore": "0",
+                "time": 1766849460000
+            },
+            {
+                "open_time": 1766849520000,
+                "open": 2930.45,
+                "high": 2930.45,
+                "low": 2930.28,
+                "close": 2930.29,
+                "volume": 150.7017,
+                "close_time": 1766849579999,
+                "quote_volume": "441608.78667200",
+                "trades": 527,
+                "taker_buy_base": "65.33720000",
+                "taker_buy_quote": "191461.65067300",
+                "ignore": "0",
+                "time": 1766849520000
+            },
+            {
+                "open_time": 1766849580000,
+                "open": 2930.29,
+                "high": 2930.62,
+                "low": 2930.2,
+                "close": 2930.2,
+                "volume": 80.7209,
+                "close_time": 1766849639999,
+                "quote_volume": "236541.86844700",
+                "trades": 962,
+                "taker_buy_base": "53.77960000",
+                "taker_buy_quote": "157591.08023000",
+                "ignore": "0",
+                "time": 1766849580000
+            },
+            {
+                "open_time": 1766849640000,
+                "open": 2930.21,
+                "high": 2930.21,
+                "low": 2930.2,
+                "close": 2930.21,
+                "volume": 8.7369,
+                "close_time": 1766849699999,
+                "quote_volume": "25600.90184800",
+                "trades": 215,
+                "taker_buy_base": "3.74680000",
+                "taker_buy_quote": "10978.91082800",
+                "ignore": "0",
+                "time": 1766849640000
+            },
+            {
+                "open_time": 1766849700000,
+                "open": 2930.21,
+                "high": 2930.21,
+                "low": 2929.71,
+                "close": 2929.71,
+                "volume": 27.0163,
+                "close_time": 1766849759999,
+                "quote_volume": "79158.65052500",
+                "trades": 470,
+                "taker_buy_base": "5.78990000",
+                "taker_buy_quote": "16963.33918500",
+                "ignore": "0",
+                "time": 1766849700000
+            },
+            {
+                "open_time": 1766849760000,
+                "open": 2929.72,
+                "high": 2929.72,
+                "low": 2929.71,
+                "close": 2929.72,
+                "volume": 23.1639,
+                "close_time": 1766849819999,
+                "quote_volume": "67863.72618200",
+                "trades": 180,
+                "taker_buy_base": "21.67130000",
+                "taker_buy_quote": "63490.84103600",
+                "ignore": "0",
+                "time": 1766849760000
+            },
+            {
+                "open_time": 1766849820000,
+                "open": 2929.71,
+                "high": 2929.71,
+                "low": 2928.75,
+                "close": 2928.75,
+                "volume": 36.1903,
+                "close_time": 1766849879999,
+                "quote_volume": "106007.25157600",
+                "trades": 1115,
+                "taker_buy_base": "10.08780000",
+                "taker_buy_quote": "29547.48623500",
+                "ignore": "0",
+                "time": 1766849820000
+            },
+            {
+                "open_time": 1766849880000,
+                "open": 2928.75,
+                "high": 2928.76,
+                "low": 2928.24,
+                "close": 2928.24,
+                "volume": 16.8418,
+                "close_time": 1766849939999,
+                "quote_volume": "49321.38657300",
+                "trades": 349,
+                "taker_buy_base": "7.39430000",
+                "taker_buy_quote": "21653.42984400",
+                "ignore": "0",
+                "time": 1766849880000
+            },
+            {
+                "open_time": 1766849940000,
+                "open": 2928.24,
+                "high": 2928.25,
+                "low": 2928.24,
+                "close": 2928.24,
+                "volume": 142.7998,
+                "close_time": 1766849999999,
+                "quote_volume": "418153.38211500",
+                "trades": 302,
+                "taker_buy_base": "129.57630000",
+                "taker_buy_quote": "379431.80047500",
+                "ignore": "0",
+                "time": 1766849940000
+            },
+            {
+                "open_time": 1766850000000,
+                "open": 2928.25,
+                "high": 2928.25,
+                "low": 2928.24,
+                "close": 2928.25,
+                "volume": 8.1742,
+                "close_time": 1766850059999,
+                "quote_volume": "23936.08323300",
+                "trades": 132,
+                "taker_buy_base": "6.38250000",
+                "taker_buy_quote": "18689.55562500",
+                "ignore": "0",
+                "time": 1766850000000
+            },
+            {
+                "open_time": 1766850060000,
+                "open": 2928.25,
+                "high": 2928.25,
+                "low": 2928.24,
+                "close": 2928.24,
+                "volume": 12.1515,
+                "close_time": 1766850119999,
+                "quote_volume": "35582.52657100",
+                "trades": 98,
+                "taker_buy_base": "1.82110000",
+                "taker_buy_quote": "5332.63607500",
+                "ignore": "0",
+                "time": 1766850060000
+            },
+            {
+                "open_time": 1766850120000,
+                "open": 2928.25,
+                "high": 2928.25,
+                "low": 2928.24,
+                "close": 2928.25,
+                "volume": 99.4766,
+                "close_time": 1766850179999,
+                "quote_volume": "291292.34275700",
+                "trades": 289,
+                "taker_buy_base": "98.35730000",
+                "taker_buy_quote": "288014.76372500",
+                "ignore": "0",
+                "time": 1766850120000
+            },
+            {
+                "open_time": 1766850180000,
+                "open": 2928.25,
+                "high": 2929.96,
+                "low": 2928.24,
+                "close": 2929.81,
+                "volume": 155.6666,
+                "close_time": 1766850239999,
+                "quote_volume": "455953.93363200",
+                "trades": 1891,
+                "taker_buy_base": "96.03280000",
+                "taker_buy_quote": "281241.74593800",
+                "ignore": "0",
+                "time": 1766850180000
+            },
+            {
+                "open_time": 1766850240000,
+                "open": 2929.82,
+                "high": 2929.82,
+                "low": 2929.07,
+                "close": 2929.07,
+                "volume": 78.0059,
+                "close_time": 1766850299999,
+                "quote_volume": "228534.19617000",
+                "trades": 921,
+                "taker_buy_base": "6.77480000",
+                "taker_buy_quote": "19845.70730200",
+                "ignore": "0",
+                "time": 1766850240000
+            },
+            {
+                "open_time": 1766850300000,
+                "open": 2929.07,
+                "high": 2929.08,
+                "low": 2929.07,
+                "close": 2929.08,
+                "volume": 7.7938,
+                "close_time": 1766850359999,
+                "quote_volume": "22828.64126900",
+                "trades": 155,
+                "taker_buy_base": "5.55030000",
+                "taker_buy_quote": "16257.27272400",
+                "ignore": "0",
+                "time": 1766850300000
+            },
+            {
+                "open_time": 1766850360000,
+                "open": 2929.07,
+                "high": 2929.08,
+                "low": 2928.63,
+                "close": 2928.81,
+                "volume": 13.4561,
+                "close_time": 1766850419999,
+                "quote_volume": "39410.36123300",
+                "trades": 599,
+                "taker_buy_base": "7.97250000",
+                "taker_buy_quote": "23349.21307300",
+                "ignore": "0",
+                "time": 1766850360000
+            },
+            {
+                "open_time": 1766850420000,
+                "open": 2928.82,
+                "high": 2928.82,
+                "low": 2928.81,
+                "close": 2928.81,
+                "volume": 65.085,
+                "close_time": 1766850479999,
+                "quote_volume": "190622.18631000",
+                "trades": 293,
+                "taker_buy_base": "58.74600000",
+                "taker_buy_quote": "172056.45972000",
+                "ignore": "0",
+                "time": 1766850420000
+            },
+            {
+                "open_time": 1766850480000,
+                "open": 2928.82,
+                "high": 2928.82,
+                "low": 2928.63,
+                "close": 2928.64,
+                "volume": 24.0314,
+                "close_time": 1766850539999,
+                "quote_volume": "70381.34198100",
+                "trades": 311,
+                "taker_buy_base": "11.26490000",
+                "taker_buy_quote": "32991.15607400",
+                "ignore": "0",
+                "time": 1766850480000
+            },
+            {
+                "open_time": 1766850540000,
+                "open": 2928.63,
+                "high": 2928.64,
+                "low": 2928.63,
+                "close": 2928.63,
+                "volume": 9.9699,
+                "close_time": 1766850599999,
+                "quote_volume": "29198.15485000",
+                "trades": 80,
+                "taker_buy_base": "0.66130000",
+                "taker_buy_quote": "1936.70963200",
+                "ignore": "0",
+                "time": 1766850540000
+            },
+            {
+                "open_time": 1766850600000,
+                "open": 2928.64,
+                "high": 2929.81,
+                "low": 2928.63,
+                "close": 2929.62,
+                "volume": 411.4051,
+                "close_time": 1766850659999,
+                "quote_volume": "1205017.88640100",
+                "trades": 1228,
+                "taker_buy_base": "407.40990000",
+                "taker_buy_quote": "1193316.88024100",
+                "ignore": "0",
+                "time": 1766850600000
+            },
+            {
+                "open_time": 1766850660000,
+                "open": 2929.62,
+                "high": 2929.62,
+                "low": 2927.18,
+                "close": 2927.36,
+                "volume": 157.0011,
+                "close_time": 1766850719999,
+                "quote_volume": "459757.63454200",
+                "trades": 1245,
+                "taker_buy_base": "34.95310000",
+                "taker_buy_quote": "102341.12274700",
+                "ignore": "0",
+                "time": 1766850660000
+            },
+            {
+                "open_time": 1766850720000,
+                "open": 2927.36,
+                "high": 2927.36,
+                "low": 2926.28,
+                "close": 2927.12,
+                "volume": 58.3047,
+                "close_time": 1766850779999,
+                "quote_volume": "170647.30163300",
+                "trades": 1818,
+                "taker_buy_base": "25.67640000",
+                "taker_buy_quote": "75145.30938300",
+                "ignore": "0",
+                "time": 1766850720000
+            },
+            {
+                "open_time": 1766850780000,
+                "open": 2927.11,
+                "high": 2927.12,
+                "low": 2927.11,
+                "close": 2927.12,
+                "volume": 11.0833,
+                "close_time": 1766850839999,
+                "quote_volume": "32442.05038300",
+                "trades": 89,
+                "taker_buy_base": "1.21200000",
+                "taker_buy_quote": "3547.66944000",
+                "ignore": "0",
+                "time": 1766850780000
+            },
+            {
+                "open_time": 1766850840000,
+                "open": 2927.12,
+                "high": 2927.13,
+                "low": 2927.11,
+                "close": 2927.13,
+                "volume": 126.8317,
+                "close_time": 1766850899999,
+                "quote_volume": "371252.46738100",
+                "trades": 448,
+                "taker_buy_base": "115.06890000",
+                "taker_buy_quote": "336821.34030700",
+                "ignore": "0",
+                "time": 1766850840000
+            },
+            {
+                "open_time": 1766850900000,
+                "open": 2927.13,
+                "high": 2927.87,
+                "low": 2927.12,
+                "close": 2927.49,
+                "volume": 165.8387,
+                "close_time": 1766850959999,
+                "quote_volume": "485508.42843000",
+                "trades": 1269,
+                "taker_buy_base": "87.26200000",
+                "taker_buy_quote": "255452.48535700",
+                "ignore": "0",
+                "time": 1766850900000
+            },
+            {
+                "open_time": 1766850960000,
+                "open": 2927.49,
+                "high": 2927.5,
+                "low": 2927.36,
+                "close": 2927.37,
+                "volume": 29.0234,
+                "close_time": 1766851019999,
+                "quote_volume": "84964.23023400",
+                "trades": 202,
+                "taker_buy_base": "0.53800000",
+                "taker_buy_quote": "1574.92626900",
+                "ignore": "0",
+                "time": 1766850960000
+            },
+            {
+                "open_time": 1766851020000,
+                "open": 2927.37,
+                "high": 2927.37,
+                "low": 2927.36,
+                "close": 2927.36,
+                "volume": 10.4274,
+                "close_time": 1766851079999,
+                "quote_volume": "30524.75894500",
+                "trades": 84,
+                "taker_buy_base": "0.52810000",
+                "taker_buy_quote": "1545.94409700",
+                "ignore": "0",
+                "time": 1766851020000
+            },
+            {
+                "open_time": 1766851080000,
+                "open": 2927.37,
+                "high": 2927.37,
+                "low": 2926.82,
+                "close": 2926.84,
+                "volume": 49.1176,
+                "close_time": 1766851139999,
+                "quote_volume": "143780.39689200",
+                "trades": 228,
+                "taker_buy_base": "1.24420000",
+                "taker_buy_quote": "3641.81973000",
+                "ignore": "0",
+                "time": 1766851080000
+            },
+            {
+                "open_time": 1766851140000,
+                "open": 2926.85,
+                "high": 2926.85,
+                "low": 2926.49,
+                "close": 2926.5,
+                "volume": 65.2998,
+                "close_time": 1766851199999,
+                "quote_volume": "191101.16849600",
+                "trades": 600,
+                "taker_buy_base": "52.56910000",
+                "taker_buy_quote": "153843.73126100",
+                "ignore": "0",
+                "time": 1766851140000
+            },
+            {
+                "open_time": 1766851200000,
+                "open": 2926.5,
+                "high": 2926.5,
+                "low": 2925.56,
+                "close": 2926.5,
+                "volume": 225.0543,
+                "close_time": 1766851259999,
+                "quote_volume": "658558.24033000",
+                "trades": 2337,
+                "taker_buy_base": "172.66950000",
+                "taker_buy_quote": "505275.07045400",
+                "ignore": "0",
+                "time": 1766851200000
+            },
+            {
+                "open_time": 1766851260000,
+                "open": 2926.5,
+                "high": 2928.17,
+                "low": 2926.49,
+                "close": 2927.49,
+                "volume": 133.7462,
+                "close_time": 1766851319999,
+                "quote_volume": "391534.31628500",
+                "trades": 1985,
+                "taker_buy_base": "54.14020000",
+                "taker_buy_quote": "158454.08917900",
+                "ignore": "0",
+                "time": 1766851260000
+            },
+            {
+                "open_time": 1766851320000,
+                "open": 2927.49,
+                "high": 2927.5,
+                "low": 2927.23,
+                "close": 2927.23,
+                "volume": 35.6066,
+                "close_time": 1766851379999,
+                "quote_volume": "104234.88209800",
+                "trades": 423,
+                "taker_buy_base": "15.23150000",
+                "taker_buy_quote": "44587.58923800",
+                "ignore": "0",
+                "time": 1766851320000
+            },
+            {
+                "open_time": 1766851380000,
+                "open": 2927.23,
+                "high": 2928.88,
+                "low": 2927.23,
+                "close": 2928.01,
+                "volume": 145.0416,
+                "close_time": 1766851439999,
+                "quote_volume": "424671.92569100",
+                "trades": 1830,
+                "taker_buy_base": "104.29890000",
+                "taker_buy_quote": "305360.80295800",
+                "ignore": "0",
+                "time": 1766851380000
+            },
+            {
+                "open_time": 1766851440000,
+                "open": 2928.0,
+                "high": 2928.01,
+                "low": 2927.5,
+                "close": 2927.5,
+                "volume": 28.7911,
+                "close_time": 1766851499999,
+                "quote_volume": "84295.93699400",
+                "trades": 720,
+                "taker_buy_base": "2.33780000",
+                "taker_buy_quote": "6844.53986700",
+                "ignore": "0",
+                "time": 1766851440000
+            },
+            {
+                "open_time": 1766851500000,
+                "open": 2927.5,
+                "high": 2928.61,
+                "low": 2927.29,
+                "close": 2928.44,
+                "volume": 222.6258,
+                "close_time": 1766851559999,
+                "quote_volume": "651774.76202900",
+                "trades": 978,
+                "taker_buy_base": "186.32070000",
+                "taker_buy_quote": "545471.73886800",
+                "ignore": "0",
+                "time": 1766851500000
+            },
+            {
+                "open_time": 1766851560000,
+                "open": 2928.45,
+                "high": 2928.45,
+                "low": 2927.72,
+                "close": 2927.72,
+                "volume": 27.9835,
+                "close_time": 1766851619999,
+                "quote_volume": "81942.55917800",
+                "trades": 890,
+                "taker_buy_base": "1.70100000",
+                "taker_buy_quote": "4980.42380400",
+                "ignore": "0",
+                "time": 1766851560000
+            },
+            {
+                "open_time": 1766851620000,
+                "open": 2927.72,
+                "high": 2927.73,
+                "low": 2927.37,
+                "close": 2927.37,
+                "volume": 19.1925,
+                "close_time": 1766851679999,
+                "quote_volume": "56186.43248200",
+                "trades": 323,
+                "taker_buy_base": "6.01790000",
+                "taker_buy_quote": "17617.78361700",
+                "ignore": "0",
+                "time": 1766851620000
+            },
+            {
+                "open_time": 1766851680000,
+                "open": 2927.38,
+                "high": 2927.38,
+                "low": 2926.69,
+                "close": 2926.69,
+                "volume": 14.617,
+                "close_time": 1766851739999,
+                "quote_volume": "42785.85547600",
+                "trades": 582,
+                "taker_buy_base": "2.60680000",
+                "taker_buy_quote": "7630.10734600",
+                "ignore": "0",
+                "time": 1766851680000
+            },
+            {
+                "open_time": 1766851740000,
+                "open": 2926.69,
+                "high": 2926.7,
+                "low": 2926.11,
+                "close": 2926.12,
+                "volume": 7.7621,
+                "close_time": 1766851799999,
+                "quote_volume": "22715.91714000",
+                "trades": 747,
+                "taker_buy_base": "2.06720000",
+                "taker_buy_quote": "6049.93504000",
+                "ignore": "0",
+                "time": 1766851740000
+            },
+            {
+                "open_time": 1766851800000,
+                "open": 2926.11,
+                "high": 2926.41,
+                "low": 2926.11,
+                "close": 2926.41,
+                "volume": 17.2571,
+                "close_time": 1766851859999,
+                "quote_volume": "50499.26300500",
+                "trades": 461,
+                "taker_buy_base": "10.43700000",
+                "taker_buy_quote": "30541.02292300",
+                "ignore": "0",
+                "time": 1766851800000
+            },
+            {
+                "open_time": 1766851860000,
+                "open": 2926.4,
+                "high": 2926.41,
+                "low": 2926.4,
+                "close": 2926.4,
+                "volume": 33.3585,
+                "close_time": 1766851919999,
+                "quote_volume": "97620.62726400",
+                "trades": 134,
+                "taker_buy_base": "31.28640000",
+                "taker_buy_quote": "91556.83382400",
+                "ignore": "0",
+                "time": 1766851860000
+            },
+            {
+                "open_time": 1766851920000,
+                "open": 2926.41,
+                "high": 2926.8,
+                "low": 2926.4,
+                "close": 2926.4,
+                "volume": 202.4679,
+                "close_time": 1766851979999,
+                "quote_volume": "592518.90558000",
+                "trades": 1390,
+                "taker_buy_base": "161.08020000",
+                "taker_buy_quote": "471389.82607000",
+                "ignore": "0",
+                "time": 1766851920000
+            },
+            {
+                "open_time": 1766851980000,
+                "open": 2926.41,
+                "high": 2926.41,
+                "low": 2926.4,
+                "close": 2926.4,
+                "volume": 39.3263,
+                "close_time": 1766852039999,
+                "quote_volume": "115084.84771100",
+                "trades": 190,
+                "taker_buy_base": "36.33910000",
+                "taker_buy_quote": "106343.10563100",
+                "ignore": "0",
+                "time": 1766851980000
+            },
+            {
+                "open_time": 1766852040000,
+                "open": 2926.41,
+                "high": 2926.41,
+                "low": 2925.97,
+                "close": 2925.97,
+                "volume": 54.8341,
+                "close_time": 1766852099999,
+                "quote_volume": "160462.15859200",
+                "trades": 419,
+                "taker_buy_base": "6.89910000",
+                "taker_buy_quote": "20188.68216900",
+                "ignore": "0",
+                "time": 1766852040000
+            },
+            {
+                "open_time": 1766852100000,
+                "open": 2925.97,
+                "high": 2925.98,
+                "low": 2925.97,
+                "close": 2925.98,
+                "volume": 11.3751,
+                "close_time": 1766852159999,
+                "quote_volume": "33283.28628100",
+                "trades": 133,
+                "taker_buy_base": "8.49340000",
+                "taker_buy_quote": "24851.51853200",
+                "ignore": "0",
+                "time": 1766852100000
+            },
+            {
+                "open_time": 1766852160000,
+                "open": 2925.97,
+                "high": 2926.06,
+                "low": 2924.84,
+                "close": 2924.89,
+                "volume": 192.6808,
+                "close_time": 1766852219999,
+                "quote_volume": "563723.96875300",
+                "trades": 1964,
+                "taker_buy_base": "117.90130000",
+                "taker_buy_quote": "344972.15417700",
+                "ignore": "0",
+                "time": 1766852160000
+            },
+            {
+                "open_time": 1766852220000,
+                "open": 2924.89,
+                "high": 2926.51,
+                "low": 2924.89,
+                "close": 2926.41,
+                "volume": 93.5053,
+                "close_time": 1766852279999,
+                "quote_volume": "273551.00574500",
+                "trades": 1277,
+                "taker_buy_base": "57.27490000",
+                "taker_buy_quote": "167543.81778100",
+                "ignore": "0",
+                "time": 1766852220000
+            },
+            {
+                "open_time": 1766852280000,
+                "open": 2926.42,
+                "high": 2926.42,
+                "low": 2926.2,
+                "close": 2926.21,
+                "volume": 47.7001,
+                "close_time": 1766852339999,
+                "quote_volume": "139586.93867500",
+                "trades": 549,
+                "taker_buy_base": "11.41940000",
+                "taker_buy_quote": "33417.08704200",
+                "ignore": "0",
+                "time": 1766852280000
+            },
+            {
+                "open_time": 1766852340000,
+                "open": 2926.21,
+                "high": 2926.21,
+                "low": 2925.53,
+                "close": 2925.53,
+                "volume": 55.3794,
+                "close_time": 1766852399999,
+                "quote_volume": "162044.87869500",
+                "trades": 1474,
+                "taker_buy_base": "24.05200000",
+                "taker_buy_quote": "70378.63345700",
+                "ignore": "0",
+                "time": 1766852340000
+            },
+            {
+                "open_time": 1766852400000,
+                "open": 2925.53,
+                "high": 2925.53,
+                "low": 2922.21,
+                "close": 2924.24,
+                "volume": 131.9844,
+                "close_time": 1766852459999,
+                "quote_volume": "385845.58215000",
+                "trades": 3206,
+                "taker_buy_base": "37.58490000",
+                "taker_buy_quote": "109864.35516100",
+                "ignore": "0",
+                "time": 1766852400000
+            },
+            {
+                "open_time": 1766852460000,
+                "open": 2924.25,
+                "high": 2924.25,
+                "low": 2924.24,
+                "close": 2924.24,
+                "volume": 80.967,
+                "close_time": 1766852519999,
+                "quote_volume": "236767.71890500",
+                "trades": 281,
+                "taker_buy_base": "77.88250000",
+                "taker_buy_quote": "227747.90062500",
+                "ignore": "0",
+                "time": 1766852460000
+            },
+            {
+                "open_time": 1766852520000,
+                "open": 2924.25,
+                "high": 2924.25,
+                "low": 2922.15,
+                "close": 2923.08,
+                "volume": 161.1232,
+                "close_time": 1766852579999,
+                "quote_volume": "471033.37383100",
+                "trades": 3389,
+                "taker_buy_base": "31.42940000",
+                "taker_buy_quote": "91859.73240300",
+                "ignore": "0",
+                "time": 1766852520000
+            },
+            {
+                "open_time": 1766852580000,
+                "open": 2923.07,
+                "high": 2923.79,
+                "low": 2923.07,
+                "close": 2923.78,
+                "volume": 96.7034,
+                "close_time": 1766852639999,
+                "quote_volume": "282708.51999800",
+                "trades": 801,
+                "taker_buy_base": "84.63640000",
+                "taker_buy_quote": "247433.27027900",
+                "ignore": "0",
+                "time": 1766852580000
+            },
+            {
+                "open_time": 1766852640000,
+                "open": 2923.78,
+                "high": 2923.79,
+                "low": 2923.22,
+                "close": 2923.23,
+                "volume": 28.713,
+                "close_time": 1766852699999,
+                "quote_volume": "83938.66588900",
+                "trades": 802,
+                "taker_buy_base": "13.04470000",
+                "taker_buy_quote": "38133.32563900",
+                "ignore": "0",
+                "time": 1766852640000
+            },
+            {
+                "open_time": 1766852700000,
+                "open": 2923.22,
+                "high": 2923.23,
+                "low": 2923.22,
+                "close": 2923.23,
+                "volume": 25.3154,
+                "close_time": 1766852759999,
+                "quote_volume": "74002.69466300",
+                "trades": 198,
+                "taker_buy_base": "21.10750000",
+                "taker_buy_quote": "61702.07722500",
+                "ignore": "0",
+                "time": 1766852700000
+            },
+            {
+                "open_time": 1766852760000,
+                "open": 2923.23,
+                "high": 2923.23,
+                "low": 2923.22,
+                "close": 2923.23,
+                "volume": 75.3966,
+                "close_time": 1766852819999,
+                "quote_volume": "220401.55077700",
+                "trades": 221,
+                "taker_buy_base": "70.17250000",
+                "taker_buy_quote": "205130.35717500",
+                "ignore": "0",
+                "time": 1766852760000
+            },
+            {
+                "open_time": 1766852820000,
+                "open": 2923.23,
+                "high": 2923.23,
+                "low": 2922.28,
+                "close": 2922.28,
+                "volume": 54.2697,
+                "close_time": 1766852879999,
+                "quote_volume": "158624.85740200",
+                "trades": 564,
+                "taker_buy_base": "4.59950000",
+                "taker_buy_quote": "13443.13912100",
+                "ignore": "0",
+                "time": 1766852820000
+            },
+            {
+                "open_time": 1766852880000,
+                "open": 2922.28,
+                "high": 2922.29,
+                "low": 2919.49,
+                "close": 2920.77,
+                "volume": 406.51,
+                "close_time": 1766852939999,
+                "quote_volume": "1187257.40358100",
+                "trades": 3926,
+                "taker_buy_base": "87.33590000",
+                "taker_buy_quote": "255037.46169900",
+                "ignore": "0",
+                "time": 1766852880000
+            },
+            {
+                "open_time": 1766852940000,
+                "open": 2920.78,
+                "high": 2922.0,
+                "low": 2920.77,
+                "close": 2921.57,
+                "volume": 179.6974,
+                "close_time": 1766852999999,
+                "quote_volume": "524897.28681800",
+                "trades": 1317,
+                "taker_buy_base": "150.10610000",
+                "taker_buy_quote": "438434.44795900",
+                "ignore": "0",
+                "time": 1766852940000
+            },
+            {
+                "open_time": 1766853000000,
+                "open": 2921.56,
+                "high": 2923.35,
+                "low": 2921.56,
+                "close": 2923.34,
+                "volume": 72.8726,
+                "close_time": 1766853059999,
+                "quote_volume": "212929.38414600",
+                "trades": 1470,
+                "taker_buy_base": "55.56020000",
+                "taker_buy_quote": "162343.46568900",
+                "ignore": "0",
+                "time": 1766853000000
+            },
+            {
+                "open_time": 1766853060000,
+                "open": 2923.34,
+                "high": 2923.34,
+                "low": 2922.35,
+                "close": 2922.35,
+                "volume": 52.2379,
+                "close_time": 1766853119999,
+                "quote_volume": "152681.63671800",
+                "trades": 1139,
+                "taker_buy_base": "9.88000000",
+                "taker_buy_quote": "28874.85345200",
+                "ignore": "0",
+                "time": 1766853060000
+            },
+            {
+                "open_time": 1766853120000,
+                "open": 2922.36,
+                "high": 2923.59,
+                "low": 2922.35,
+                "close": 2923.59,
+                "volume": 131.7575,
+                "close_time": 1766853179999,
+                "quote_volume": "385062.46579500",
+                "trades": 1079,
+                "taker_buy_base": "118.08600000",
+                "taker_buy_quote": "345102.10464900",
+                "ignore": "0",
+                "time": 1766853120000
+            },
+            {
+                "open_time": 1766853180000,
+                "open": 2923.59,
+                "high": 2923.59,
+                "low": 2923.06,
+                "close": 2923.06,
+                "volume": 90.2953,
+                "close_time": 1766853239999,
+                "quote_volume": "263978.61457400",
+                "trades": 652,
+                "taker_buy_base": "44.73070000",
+                "taker_buy_quote": "130772.62295700",
+                "ignore": "0",
+                "time": 1766853180000
+            },
+            {
+                "open_time": 1766853240000,
+                "open": 2923.06,
+                "high": 2923.06,
+                "low": 2922.61,
+                "close": 2923.06,
+                "volume": 59.1019,
+                "close_time": 1766853299999,
+                "quote_volume": "172756.04469100",
+                "trades": 840,
+                "taker_buy_base": "53.63520000",
+                "taker_buy_quote": "156777.13928800",
+                "ignore": "0",
+                "time": 1766853240000
+            },
+            {
+                "open_time": 1766853300000,
+                "open": 2923.06,
+                "high": 2923.06,
+                "low": 2922.9,
+                "close": 2922.9,
+                "volume": 18.9314,
+                "close_time": 1766853359999,
+                "quote_volume": "55336.91976200",
+                "trades": 529,
+                "taker_buy_base": "1.89900000",
+                "taker_buy_quote": "5550.77174900",
+                "ignore": "0",
+                "time": 1766853300000
+            },
+            {
+                "open_time": 1766853360000,
+                "open": 2922.9,
+                "high": 2923.06,
+                "low": 2922.6,
+                "close": 2923.06,
+                "volume": 43.9763,
+                "close_time": 1766853419999,
+                "quote_volume": "128539.98084600",
+                "trades": 697,
+                "taker_buy_base": "17.44710000",
+                "taker_buy_quote": "50996.02550100",
+                "ignore": "0",
+                "time": 1766853360000
+            },
+            {
+                "open_time": 1766853420000,
+                "open": 2923.05,
+                "high": 2923.5,
+                "low": 2922.61,
+                "close": 2922.61,
+                "volume": 197.7315,
+                "close_time": 1766853479999,
+                "quote_volume": "577984.75049000",
+                "trades": 1629,
+                "taker_buy_base": "173.22200000",
+                "taker_buy_quote": "506335.21785700",
+                "ignore": "0",
+                "time": 1766853420000
+            },
+            {
+                "open_time": 1766853480000,
+                "open": 2922.62,
+                "high": 2923.89,
+                "low": 2922.62,
+                "close": 2923.88,
+                "volume": 49.5801,
+                "close_time": 1766853539999,
+                "quote_volume": "144919.10002400",
+                "trades": 1042,
+                "taker_buy_base": "46.43020000",
+                "taker_buy_quote": "135709.75234800",
+                "ignore": "0",
+                "time": 1766853480000
+            },
+            {
+                "open_time": 1766853540000,
+                "open": 2923.88,
+                "high": 2923.89,
+                "low": 2923.26,
+                "close": 2923.26,
+                "volume": 31.8078,
+                "close_time": 1766853599999,
+                "quote_volume": "92996.54320100",
+                "trades": 583,
+                "taker_buy_base": "11.03910000",
+                "taker_buy_quote": "32275.72907300",
+                "ignore": "0",
+                "time": 1766853540000
+            },
+            {
+                "open_time": 1766853600000,
+                "open": 2923.27,
+                "high": 2923.27,
+                "low": 2923.08,
+                "close": 2923.24,
+                "volume": 12.9028,
+                "close_time": 1766853659999,
+                "quote_volume": "37717.82671000",
+                "trades": 406,
+                "taker_buy_base": "7.27950000",
+                "taker_buy_quote": "21279.57182100",
+                "ignore": "0",
+                "time": 1766853600000
+            },
+            {
+                "open_time": 1766853660000,
+                "open": 2923.24,
+                "high": 2924.28,
+                "low": 2923.23,
+                "close": 2924.27,
+                "volume": 133.8068,
+                "close_time": 1766853719999,
+                "quote_volume": "391166.18706500",
+                "trades": 965,
+                "taker_buy_base": "131.89160000",
+                "taker_buy_quote": "385566.96108100",
+                "ignore": "0",
+                "time": 1766853660000
+            },
+            {
+                "open_time": 1766853720000,
+                "open": 2924.28,
+                "high": 2924.28,
+                "low": 2923.0,
+                "close": 2923.0,
+                "volume": 61.2258,
+                "close_time": 1766853779999,
+                "quote_volume": "179010.67047500",
+                "trades": 1277,
+                "taker_buy_base": "7.18610000",
+                "taker_buy_quote": "21010.05842500",
+                "ignore": "0",
+                "time": 1766853720000
+            },
+            {
+                "open_time": 1766853780000,
+                "open": 2923.0,
+                "high": 2923.01,
+                "low": 2922.76,
+                "close": 2922.76,
+                "volume": 8.2239,
+                "close_time": 1766853839999,
+                "quote_volume": "24037.52694100",
+                "trades": 173,
+                "taker_buy_base": "5.10500000",
+                "taker_buy_quote": "14921.14513000",
+                "ignore": "0",
+                "time": 1766853780000
+            },
+            {
+                "open_time": 1766853840000,
+                "open": 2922.76,
+                "high": 2922.78,
+                "low": 2922.76,
+                "close": 2922.78,
+                "volume": 11.044,
+                "close_time": 1766853899999,
+                "quote_volume": "32279.05414600",
+                "trades": 193,
+                "taker_buy_base": "7.96240000",
+                "taker_buy_quote": "23272.27667000",
+                "ignore": "0",
+                "time": 1766853840000
+            },
+            {
+                "open_time": 1766853900000,
+                "open": 2922.78,
+                "high": 2923.21,
+                "low": 2922.49,
+                "close": 2922.49,
+                "volume": 178.6008,
+                "close_time": 1766853959999,
+                "quote_volume": "522015.09067000",
+                "trades": 1026,
+                "taker_buy_base": "158.78210000",
+                "taker_buy_quote": "464086.95638100",
+                "ignore": "0",
+                "time": 1766853900000
+            },
+            {
+                "open_time": 1766853960000,
+                "open": 2922.5,
+                "high": 2923.06,
+                "low": 2922.49,
+                "close": 2922.62,
+                "volume": 79.9635,
+                "close_time": 1766854019999,
+                "quote_volume": "233711.07848600",
+                "trades": 1117,
+                "taker_buy_base": "50.28620000",
+                "taker_buy_quote": "146967.46684800",
+                "ignore": "0",
+                "time": 1766853960000
+            },
+            {
+                "open_time": 1766854020000,
+                "open": 2922.62,
+                "high": 2922.79,
+                "low": 2917.13,
+                "close": 2918.83,
+                "volume": 499.7783,
+                "close_time": 1766854079999,
+                "quote_volume": "1459205.50171400",
+                "trades": 4808,
+                "taker_buy_base": "142.74980000",
+                "taker_buy_quote": "416691.78100600",
+                "ignore": "0",
+                "time": 1766854020000
+            },
+            {
+                "open_time": 1766854080000,
+                "open": 2918.84,
+                "high": 2921.27,
+                "low": 2918.84,
+                "close": 2920.68,
+                "volume": 121.1206,
+                "close_time": 1766854139999,
+                "quote_volume": "353643.26701000",
+                "trades": 2446,
+                "taker_buy_base": "58.06840000",
+                "taker_buy_quote": "169522.61994400",
+                "ignore": "0",
+                "time": 1766854080000
+            },
+            {
+                "open_time": 1766854140000,
+                "open": 2920.67,
+                "high": 2921.09,
+                "low": 2920.07,
+                "close": 2921.08,
+                "volume": 42.9949,
+                "close_time": 1766854199999,
+                "quote_volume": "125576.12925100",
+                "trades": 959,
+                "taker_buy_base": "28.08190000",
+                "taker_buy_quote": "82020.53004100",
+                "ignore": "0",
+                "time": 1766854140000
+            },
+            {
+                "open_time": 1766854200000,
+                "open": 2921.08,
+                "high": 2921.37,
+                "low": 2920.7,
+                "close": 2920.98,
+                "volume": 126.996,
+                "close_time": 1766854259999,
+                "quote_volume": "370964.94346000",
+                "trades": 1169,
+                "taker_buy_base": "80.87490000",
+                "taker_buy_quote": "236242.75190700",
+                "ignore": "0",
+                "time": 1766854200000
+            },
+            {
+                "open_time": 1766854260000,
+                "open": 2920.98,
+                "high": 2920.98,
+                "low": 2920.97,
+                "close": 2920.98,
+                "volume": 26.4798,
+                "close_time": 1766854319999,
+                "quote_volume": "77346.92774500",
+                "trades": 223,
+                "taker_buy_base": "22.63390000",
+                "taker_buy_quote": "66113.16922200",
+                "ignore": "0",
+                "time": 1766854260000
+            },
+            {
+                "open_time": 1766854320000,
+                "open": 2920.98,
+                "high": 2920.98,
+                "low": 2920.97,
+                "close": 2920.98,
+                "volume": 25.7946,
+                "close_time": 1766854379999,
+                "quote_volume": "75345.41925100",
+                "trades": 151,
+                "taker_buy_base": "16.64890000",
+                "taker_buy_quote": "48631.10392200",
+                "ignore": "0",
+                "time": 1766854320000
+            },
+            {
+                "open_time": 1766854380000,
+                "open": 2920.98,
+                "high": 2920.98,
+                "low": 2920.09,
+                "close": 2920.09,
+                "volume": 41.8985,
+                "close_time": 1766854439999,
+                "quote_volume": "122370.08000800",
+                "trades": 819,
+                "taker_buy_base": "8.66440000",
+                "taker_buy_quote": "25304.29422200",
+                "ignore": "0",
+                "time": 1766854380000
+            },
+            {
+                "open_time": 1766854440000,
+                "open": 2920.09,
+                "high": 2920.1,
+                "low": 2919.33,
+                "close": 2919.56,
+                "volume": 48.4454,
+                "close_time": 1766854499999,
+                "quote_volume": "141452.60590500",
+                "trades": 965,
+                "taker_buy_base": "5.76980000",
+                "taker_buy_quote": "16845.71951800",
+                "ignore": "0",
+                "time": 1766854440000
+            },
+            {
+                "open_time": 1766854500000,
+                "open": 2919.56,
+                "high": 2920.79,
+                "low": 2919.32,
+                "close": 2920.08,
+                "volume": 285.1441,
+                "close_time": 1766854559999,
+                "quote_volume": "832576.76722800",
+                "trades": 1633,
+                "taker_buy_base": "215.12830000",
+                "taker_buy_quote": "628089.51365800",
+                "ignore": "0",
+                "time": 1766854500000
+            },
+            {
+                "open_time": 1766854560000,
+                "open": 2920.08,
+                "high": 2920.09,
+                "low": 2919.36,
+                "close": 2919.37,
+                "volume": 30.6024,
+                "close_time": 1766854619999,
+                "quote_volume": "89351.25832700",
+                "trades": 546,
+                "taker_buy_base": "1.33040000",
+                "taker_buy_quote": "3884.22022900",
+                "ignore": "0",
+                "time": 1766854560000
+            },
+            {
+                "open_time": 1766854620000,
+                "open": 2919.37,
+                "high": 2919.95,
+                "low": 2919.16,
+                "close": 2919.17,
+                "volume": 134.6765,
+                "close_time": 1766854679999,
+                "quote_volume": "393189.04893200",
+                "trades": 1426,
+                "taker_buy_base": "80.88060000",
+                "taker_buy_quote": "236121.71952300",
+                "ignore": "0",
+                "time": 1766854620000
+            },
+            {
+                "open_time": 1766854680000,
+                "open": 2919.17,
+                "high": 2919.95,
+                "low": 2919.16,
+                "close": 2919.31,
+                "volume": 91.9188,
+                "close_time": 1766854739999,
+                "quote_volume": "268340.86819100",
+                "trades": 941,
+                "taker_buy_base": "79.04530000",
+                "taker_buy_quote": "230755.99544800",
+                "ignore": "0",
+                "time": 1766854680000
+            },
+            {
+                "open_time": 1766854740000,
+                "open": 2919.3,
+                "high": 2921.28,
+                "low": 2919.3,
+                "close": 2920.56,
+                "volume": 91.4044,
+                "close_time": 1766854799999,
+                "quote_volume": "266967.54287900",
+                "trades": 1419,
+                "taker_buy_base": "49.86710000",
+                "taker_buy_quote": "145638.01361600",
+                "ignore": "0",
+                "time": 1766854740000
+            },
+            {
+                "open_time": 1766854800000,
+                "open": 2920.55,
+                "high": 2920.74,
+                "low": 2920.0,
+                "close": 2920.73,
+                "volume": 92.2063,
+                "close_time": 1766854859999,
+                "quote_volume": "269258.33843100",
+                "trades": 1235,
+                "taker_buy_base": "52.41470000",
+                "taker_buy_quote": "153056.51666900",
+                "ignore": "0",
+                "time": 1766854800000
+            },
+            {
+                "open_time": 1766854860000,
+                "open": 2920.73,
+                "high": 2922.06,
+                "low": 2920.73,
+                "close": 2921.74,
+                "volume": 179.8766,
+                "close_time": 1766854919999,
+                "quote_volume": "525487.50890100",
+                "trades": 1276,
+                "taker_buy_base": "115.40020000",
+                "taker_buy_quote": "337096.60863700",
+                "ignore": "0",
+                "time": 1766854860000
+            }
+        ],
+        "indicators": [],
+        "indicators_results": {},
+        "metadata": {
+            "total_candles": 150,
+            "last_update": 1766844129577,
+            "subscribers": 1
+        }
+    },
+    "time": 1766844130465
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.74,
+        "close": 2921.74,
+        "volume": 92114.8143
+    },
+    "indicators": {},
+    "time": 1766844132315
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.73,
+        "volume": 184222.2872
+    },
+    "indicators": {},
+    "time": 1766844132930
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.73,
+        "volume": 276329.7035
+    },
+    "indicators": {},
+    "time": 1766844133904
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.73,
+        "volume": 368436.75690000004
+    },
+    "indicators": {},
+    "time": 1766844134977
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 460525.6829
+    },
+    "indicators": {},
+    "time": 1766844136100
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 552614.6817000001
+    },
+    "indicators": {},
+    "time": 1766844137131
+}
+{
+    "type": "indicator_added",
+    "indicator": "volume_climax",
+    "indicators_results": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "signals": null,
+            "metadata": {
+                "climax_points": [
+                    {
+                        "time": "2025-12-27T14:55:00",
+                        "high": 2930.0,
+                        "low": 2929.55
+                    },
+                    {
+                        "time": "2025-12-27T15:15:00",
+                        "high": 2929.35,
+                        "low": 2928.94
+                    },
+                    {
+                        "time": "2025-12-27T15:24:00",
+                        "high": 2927.56,
+                        "low": 2927.43
+                    },
+                    {
+                        "time": "2025-12-27T15:50:00",
+                        "high": 2929.81,
+                        "low": 2928.63
+                    },
+                    {
+                        "time": "2025-12-27T16:28:00",
+                        "high": 2922.29,
+                        "low": 2919.49
+                    },
+                    {
+                        "time": "2025-12-27T16:47:00",
+                        "high": 2922.79,
+                        "low": 2917.13
+                    }
+                ]
+            }
+        }
+    },
+    "time": 1766844137604
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 644705.7601000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844137953
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 736788.1947000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844138978
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 828870.7522000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844140004
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 920952.4279000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844140903
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 1013033.8945000002
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844141900
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 1105104.2276
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844142968
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 1197169.5556
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844143932
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2921.74,
+        "low": 2921.73,
+        "close": 2921.74,
+        "volume": 1289234.8517
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844144911
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.0,
+        "low": 2921.73,
+        "close": 2922.0,
+        "volume": 1381318.1741
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844145945
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.0,
+        "low": 2921.73,
+        "close": 2922.0,
+        "volume": 1473399.7402
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844146962
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.0,
+        "low": 2921.73,
+        "close": 2922.0,
+        "volume": 1565473.0065
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844147902
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.0,
+        "low": 2921.73,
+        "close": 2922.0,
+        "volume": 1657546.2602
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844148900
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.0,
+        "low": 2921.73,
+        "close": 2922.0,
+        "volume": 1749619.6644
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844149931
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.14,
+        "low": 2921.73,
+        "close": 2922.14,
+        "volume": 1841684.7888
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844150913
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.14,
+        "low": 2921.73,
+        "close": 2922.14,
+        "volume": 1933749.9073
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844151914
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.29,
+        "low": 2921.73,
+        "close": 2922.29,
+        "volume": 2025803.3590000002
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844152903
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.29,
+        "low": 2921.73,
+        "close": 2922.28,
+        "volume": 2117856.8074000003
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844153907
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.29,
+        "low": 2921.73,
+        "close": 2922.28,
+        "volume": 2209910.2558000004
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844154901
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.29,
+        "low": 2921.73,
+        "close": 2922.28,
+        "volume": 2301963.5169
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844155909
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.29,
+        "low": 2921.73,
+        "close": 2922.29,
+        "volume": 2394012.9907
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844156921
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.29,
+        "low": 2921.73,
+        "close": 2922.29,
+        "volume": 2486050.8468
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844157900
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.39,
+        "low": 2921.73,
+        "close": 2922.39,
+        "volume": 2578088.9084
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844158944
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.39,
+        "low": 2921.73,
+        "close": 2922.39,
+        "volume": 2670126.0991
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844159908
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.4,
+        "low": 2921.73,
+        "close": 2922.4,
+        "volume": 2762162.8435000004
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844160903
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.4,
+        "low": 2921.73,
+        "close": 2922.4,
+        "volume": 2854200.0482000005
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844161924
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.4,
+        "low": 2921.73,
+        "close": 2922.4,
+        "volume": 2946237.2960000006
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844162933
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.4,
+        "low": 2921.73,
+        "close": 2922.4,
+        "volume": 3038274.6480000005
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844163905
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.4,
+        "low": 2921.73,
+        "close": 2922.4,
+        "volume": 3130311.9895000006
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844164987
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.4,
+        "low": 2921.73,
+        "close": 2922.4,
+        "volume": 3222349.113300001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844166009
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.74,
+        "low": 2921.73,
+        "close": 2922.74,
+        "volume": 3314390.2334000007
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844166939
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 3406424.8796000006
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844168276
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.74,
+        "volume": 3498455.3413000004
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844169066
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.74,
+        "volume": 3590485.8000000003
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844170108
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.74,
+        "volume": 3682516.2589000002
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844170923
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 3774546.7398
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844171923
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 3866577.2177
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844172904
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 3958607.4561
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844173996
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 4050637.5781
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844174902
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.74,
+        "volume": 4142665.5635
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844175902
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 4234692.6308
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844176961
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 4326719.767
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844177902
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 4418746.5527
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844178900
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844120000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.74,
+        "volume": 4510772.8407
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844179933
+}
+{
+    "type": "candle_close",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "candle": {
+        "time": 1766844180000,
+        "open": 2921.74,
+        "high": 2922.75,
+        "low": 2921.73,
+        "close": 2922.75,
+        "volume": 4510772.8407
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844180973
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.75,
+        "close": 2922.75,
+        "volume": 92017.8766
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844180956
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.75,
+        "close": 2922.75,
+        "volume": 184032.529
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844181902
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.74,
+        "close": 2922.74,
+        "volume": 276049.887
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844183722
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.03,
+        "close": 2922.03,
+        "volume": 368094.6974
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844184508
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.03,
+        "close": 2922.03,
+        "volume": 460137.8617
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844184957
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.03,
+        "close": 2922.03,
+        "volume": 552180.4798
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844186226
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.02,
+        "volume": 644219.8014
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844187001
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.18,
+        "volume": 736263.8746
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844187927
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.17,
+        "volume": 828307.0389
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844188906
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.17,
+        "volume": 920350.2002000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844189976
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.18,
+        "volume": 1012390.4382000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844191005
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.18,
+        "volume": 1104429.8935
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844192934
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.18,
+        "volume": 1196449.7629
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844193906
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.17,
+        "volume": 1288459.8679
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844194909
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.17,
+        "volume": 1380469.6868
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844195913
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 1472490.6164
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844196935
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 1564507.534
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844197957
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 1656524.46
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844198987
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 1748541.2042
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844200030
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 1840557.9415
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844201048
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 1932574.6765
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844201913
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 2024588.7702000001
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844203099
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 2116602.1229000003
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844204112
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2208615.4531000005
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844211980
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2300628.6143000005
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844211992
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2392641.4254000005
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844212006
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2484654.1603000006
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844216158
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2576666.8262000005
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844216181
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2668679.4921000004
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844216203
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2760691.0056000003
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844216673
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.44,
+        "volume": 2852702.083
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844219564
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766844240000,
+        "open": 2922.75,
+        "high": 2922.75,
+        "low": 2922.02,
+        "close": 2922.43,
+        "volume": 2944713.4535000003
+    },
+    "indicators": {
+        "volume_climax": {
+            "name": "volume_climax",
+            "values": [
+                1
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766844219951
+}

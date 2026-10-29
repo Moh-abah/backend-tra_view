@@ -1,0 +1,125 @@
+{
+    "name": "test sma_fast>sma_slow",
+    "description": "اختبار الباك-تست مع الاستراتيجية المرتبطة",
+    "mode": "standard",
+    "start_date": "2026-01-05T00:00:00",
+    "end_date": "2026-01-21T00:00:00",
+    "timeframe": "1h", 
+    "market": "crypto",
+    "symbols": [
+        "ETHUSDT"
+    ],
+    "strategy_config": {
+        "name": "test sma_fast>sma_slow",
+        "version": "1.0.0",
+        "description": "استراتيجية اختبار التتتابع والترند الصاعد",
+        "base_timeframe": "1h",
+        "position_side": "both",
+        "indicators": [
+            {
+                "id": "sma_fast",
+                "name": "sma_fast",
+                "type": "trend",
+                "params": {
+                    "period": 20
+                },
+                "enabled": true,
+                "timeframe": "1h"
+            },
+            {
+                "id": "sma_slow",
+                "name": "sma_slow",
+                "type": "trend",
+                "params": {
+                    "period": 50
+                },
+                "enabled": true,
+                "timeframe": "1h"
+            }
+        
+        ],
+        "entry_rules": [
+            {
+                "name": "Buy Trigger (Price above Fast)",
+                "enabled": true,
+                "position_side": "long",
+                "weight": 0.5,
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "close",
+                    "right_value": "indicator:sma_fast"
+                }
+            },
+            {
+                "name": "Sell Trigger (Price below Fast)",
+                "enabled": true,
+                "position_side": "short",
+                "weight": 0.5,
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": "<",
+                    "left_value": "close",
+                    "right_value": "indicator:sma_fast"
+                }
+            }
+
+
+        ],
+        "exit_rules": [],
+        "filter_rules": [
+            {
+                "name": "Bullish Market - Only Long Allowed",
+                "enabled": true,
+                "action": "allow",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:sma_fast",
+                    "right_value": "indicator:sma_slow"
+                },
+                "metadata": {
+                    "allowed_position": "long" 
+                }
+            },
+            {
+                "name": "Bearish Market - Only Short Allowed",
+                "enabled": true,
+                "action": "allow",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": "<",
+                    "left_value": "indicator:sma_fast",
+                    "right_value": "indicator:sma_slow"
+                },
+                "metadata": {
+                    "allowed_position": "short" 
+                }
+            }
+        
+        ],
+        "risk_management": {}
+    },
+    "initial_capital": 10000,
+    "position_sizing": "fixed",
+    "position_size_percent": 0.2,
+    "max_positions": 3,
+    "commission_rate": 0.001,
+    "slippage_percent": 0.001,
+    "stop_loss_percent": 5,
+    "take_profit_percent": 3.0,
+    "trailing_stop_percent": 2,
+    "max_daily_loss_percent": 5,
+    "enable_short_selling": true,
+    "enable_margin": false,
+    "leverage": 1,
+    "require_confirmation": false
+}
+
+
+
+
+
+
+
+

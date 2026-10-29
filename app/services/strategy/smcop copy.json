@@ -1,0 +1,112 @@
+{
+    "name": "SMC Order Block Pure Strategy",
+    "description": "استراتيجية تعتمد حصراً على اختراق أو ملامسة مناطق الطلب والعرض ",
+    "mode": "standard",
+    "start_date": "2026-01-13T00:00:00",
+    "end_date": "2026-01-22T00:00:00",
+    "timeframe": "1h",
+    "market": "crypto",
+    "symbols": [
+        "ETHUSDT"
+    ],
+    "strategy_config": {
+        "name": "SMC Order Block Pure Strategy",
+        "version": "1.0.3",
+        "description": "استراتيجية تعتمد حصراً على اختراق أو ملامسة مناطق الطلب والعرض (Order Blocks)",
+        "base_timeframe": "1h",
+        "position_side": "both",
+        "indicators": [
+            {
+                "id": "smc_order_block",
+                "name": "smc_order_block",
+                "type": "support_resistance",
+                "params": {
+                    "swing_length": 10,
+                    "close_mitigation": true,
+                    "show_last_n_blocks": 2,
+                    "lookback_period": 200
+                },
+                "enabled": true,
+                "timeframe": "1h"
+            },
+            {
+                "id": "smc_order_block2",
+                "name": "smc_order_block",
+                "type": "support_resistance",
+                "params": {
+                    "swing_length": 10,
+                    "close_mitigation": true,
+                    "show_last_n_blocks": 2,
+                    "lookback_period": 200
+                },
+                "enabled": true,
+                "timeframe": "4h"
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "Long: Price Exceeds Bullish OB",
+                "enabled": true,
+                "position_side": "long",
+                "weight": 0.5,
+                "condition": {
+                    "type": "or",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": "cross_above",
+                            "left_value": "close",
+                            "right_value": "smc_order_block:bullish_zone_top"
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": "cross_above",
+                            "left_value": "close",
+                            "right_value": "smc_order_block2:bullish_zone_top"
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Short: Price Exceeds Bearish OB",
+                "enabled": true,
+                "position_side": "short",
+                "weight": 0.5,
+                "condition": {
+                    "type": "or",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": "cross_below",
+                            "left_value": "close",
+                            "right_value": "smc_order_block:bearish_zone_bottom"
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": "touches",
+                            "left_value": "high",
+                            "right_value": "smc_order_block:bearish_zone_top"
+                        }
+                    ]
+                }
+            }
+        ],
+        "exit_rules": [],
+        "filter_rules": [],
+        "risk_management": {}
+    },
+    "initial_capital": 10000,
+    "position_sizing": "fixed",
+    "position_size_percent": 0.25,
+    "max_positions": 3,
+    "commission_rate": 0.001,
+    "slippage_percent": 0.001,
+    "stop_loss_percent": 5,
+    "take_profit_percent": 3.0,
+    "trailing_stop_percent": 2,
+    "max_daily_loss_percent": 5,
+    "enable_short_selling": true,
+    "enable_margin": false,
+    "leverage": 1,
+    "require_confirmation": false
+}

@@ -1,0 +1,83 @@
+{
+    "name": "Volume & Price Color Streak Test Strategy",
+    "version": "1.0.1",
+    "description": "استراتيجية اختبارية للتحقق من منطق الاستمرارية (Streaks): 3 فوليوم زرقاء + 3 شموع ملونة",
+    "base_timeframe": "5m",
+    "position_side": "both",
+    "indicators": [
+        {
+            "id": "vc5",
+            "name": "volume_climax",
+            "type": "volume",
+            "params": {
+                "period": 20,
+                "ratio_ultra": 2.2,
+                "ratio_very_high": 1.8,
+                "ratio_high": 1.2,
+                "ratio_normal": 0.8,
+                "ratio_low": 0.4
+            },
+            "enabled": true,
+            "timeframe": "5m"
+        },
+
+        {
+            "id": "vc15",
+            "name": "volume_climax",
+            "type": "volume",
+            "params": {
+                "period": 20,
+                "ratio_ultra": 2.2,
+                "ratio_very_high": 1.8,
+                "ratio_high": 1.2,
+                "ratio_normal": 0.8,
+                "ratio_low": 0.4
+            },
+            "enabled": true,
+            "timeframe": "15m"
+        }
+        
+    ],
+    "entry_rules": [
+        {
+            "name": "Long: 3 Blue Vol + 3 Green Candles",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.5,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">=",
+                        "left_value": "vc5:vc_blue_streak",
+                        "right_value": 3
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">=",
+                        "left_value": "vc5:green_candle_streak",
+                        "right_value": 3
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">=",
+                        "left_value": "vc15:vc_blue_streak",
+                        "right_value": 3
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">=",
+                        "left_value": "vc15:green_candle_streak",
+                        "right_value": 3
+                    }
+                ]
+            }
+        }
+ 
+   
+    ],
+    "exit_rules": [],
+    "filter_rules": [],
+    "risk_management": {}
+}

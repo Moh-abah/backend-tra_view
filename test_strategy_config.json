@@ -1,0 +1,79 @@
+{
+    "name": "Test New Arch",
+    "description": "استراتيجية بسيطة لاختبار معمارية Black Box الجديدة",
+    "base_timeframe": "1m",
+    "position_side": "both",
+    "indicators": [
+        {
+            "name": "sma_fast",
+            "type": "trend",
+            "params": {
+                "period": 20
+            }
+        },
+        {
+            "name": "sma_slow",
+            "type": "trend",
+            "params": {
+                "period": 50
+            }
+        }
+    ],
+    "entry_rules": [
+        {
+            "name": "Golden Cross",
+            "enabled": true,
+            "position_side": "long",
+            "condition": {
+                "type": "indicator_crossover",
+                "left_value": "indicator:sma_fast",
+                "operator": ">",
+                "right_value": "indicator:sma_slow",
+                "CompositeCondition": {
+                    "type": "and",
+                    "conditions": []
+                }
+            },
+            "weight": 0.5
+        },
+        {
+            "name": "Death Cross",
+            "enabled": true,
+            "position_side": "short",
+            "condition": {
+                "type": "indicator_crossover",
+                "left_value": "indicator:sma_20",
+                "operator": "<",
+                "right_value": "indicator:sma_50",
+                "CompositeCondition": {
+                    "type": "and",
+                    "conditions": []
+                }
+            },
+            "weight": 0.5
+        }
+    ],
+    "exit_rules": [
+        {
+            "name": "Exit Neutral",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "indicator_value",
+                "left_value": 1,
+                "operator": "==",
+                "right_value": 2,
+                "CompositeCondition": {
+                    "type": "and",
+                    "conditions": []
+                }
+            },
+            "weight": 0.1
+        }
+    ],
+    "filter_rules": [],
+    "risk_management": {
+        "max_position_size": 1.0,
+        "max_daily_drawdown": 5.0
+    }
+}

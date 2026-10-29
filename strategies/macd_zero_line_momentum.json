@@ -1,0 +1,102 @@
+{
+  "name": "MACD Zero-Line Momentum Confluence",
+  "version": "1.0.0",
+  "description": "اتباع اتجاه: تقاطع MACD فوق الصفر مع تأكيد EMA21 وزخم RSI صحي 45-75 لتجنب القمم المشبعة",
+  "base_timeframe": "1h",
+  "position_side": "long",
+  "indicators": [
+    {
+      "id": "macd",
+      "name": "macd",
+      "type": "momentum",
+      "params": {
+        "fast": 12,
+        "slow": 26,
+        "signal": 9
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    },
+    {
+      "id": "ema21",
+      "name": "ema_21",
+      "type": "trend",
+      "params": {
+        "period": 21
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    },
+    {
+      "id": "rsi",
+      "name": "rsi",
+      "type": "momentum",
+      "params": {
+        "period": 14
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    }
+  ],
+  "entry_rules": [
+    {
+      "name": "Zero-Line Momentum Long",
+      "enabled": true,
+      "position_side": "long",
+      "weight": 1.0,
+      "condition": {
+        "type": "and",
+        "conditions": [
+          {
+            "type": "indicator_crossover",
+            "operator": "cross_above",
+            "left_value": "indicator:macd",
+            "right_value": 0
+          },
+          {
+            "type": "indicator_value",
+            "operator": ">=",
+            "left_value": "indicator:rsi",
+            "right_value": 45
+          },
+          {
+            "type": "indicator_value",
+            "operator": "<=",
+            "left_value": "indicator:rsi",
+            "right_value": 75
+          }
+        ]
+      }
+    }
+  ],
+  "exit_rules": [
+    {
+      "name": "Momentum Fade Exit",
+      "enabled": true,
+      "exit_type": "signal_exit",
+      "condition": {
+        "type": "or",
+        "conditions": [
+          {
+            "type": "indicator_crossover",
+            "operator": "cross_below",
+            "left_value": "indicator:macd",
+            "right_value": 0
+          },
+          {
+            "type": "indicator_value",
+            "operator": "<",
+            "left_value": "indicator:rsi",
+            "right_value": 40
+          }
+        ]
+      }
+    }
+  ],
+  "risk_management": {
+    "stop_loss_percentage": 4.0,
+    "take_profit_percentage": 8.0,
+    "max_position_size": 0.3,
+    "max_concurrent_positions": 1
+  }
+}

@@ -1,0 +1,73 @@
+# =============================================================================
+# Trading Backend API — .dockerignore
+# Keeps secrets and local artifacts OUT of the image build context.
+# docker-compose passes env vars at runtime via env_file — the image must NOT
+# bake .env / .env.production inside.
+# =============================================================================
+
+# Secrets
+.env
+.env.production
+.env.pre-local.bak
+.env.production.pre-local.bak
+.env.*.local
+
+# Local migration artifacts (go-local package)
+neon.dump
+*.dump
+new-files/
+go-local.bat
+README-LOCAL.txt
+*.zip
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+venv/
+venv*/
+.venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Local databases / state
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs, reports, generated outputs
+logs/
+reports/
+chart_storage/
+test_results/
+*.log
+
+# Testing / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Docs / CI / editor noise
+README.md
+docker-compose.yml
+.dockerignore
+.idea/
+.vscode/
+.DS_Store
+
+# Node (if ever colocated)
+node_modules/
+
+# Local repair package (runtime files, not needed in image)
+.env.*.bak
+*.bat
+heal-postgres.sql
+.env.sqlite-sandbox.bak

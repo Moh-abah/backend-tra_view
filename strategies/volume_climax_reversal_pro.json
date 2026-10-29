@@ -1,0 +1,87 @@
+{
+  "name": "Volume Climax Reversal Pro",
+  "version": "1.0.0",
+  "description": "ارتدادي احترافي: دخول عند تشبع بيعي RSI مع ذروة حجم تؤكد استنفاد البائعين، وخروج عند استعادة الزخم",
+  "base_timeframe": "1h",
+  "position_side": "long",
+  "indicators": [
+    {
+      "id": "rsi",
+      "name": "rsi",
+      "type": "momentum",
+      "params": {
+        "period": 14,
+        "overbought": 65,
+        "oversold": 35
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    },
+    {
+      "id": "vc",
+      "name": "volume_climax",
+      "type": "volume",
+      "params": {
+        "period": 20,
+        "ratio_very_high": 1.8,
+        "ratio_high": 1.2
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    },
+    {
+      "id": "ema200",
+      "name": "ema_200",
+      "type": "trend",
+      "params": {
+        "period": 200
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    }
+  ],
+  "entry_rules": [
+    {
+      "name": "Climax Oversold Reversal",
+      "enabled": true,
+      "position_side": "long",
+      "weight": 1.0,
+      "condition": {
+        "type": "and",
+        "conditions": [
+          {
+            "type": "indicator_value",
+            "operator": "<=",
+            "left_value": "indicator:rsi",
+            "right_value": 35
+          },
+          {
+            "type": "indicator_value",
+            "operator": ">=",
+            "left_value": "indicator:vc",
+            "right_value": 1.2
+          }
+        ]
+      }
+    }
+  ],
+  "exit_rules": [
+    {
+      "name": "Momentum Restored Exit",
+      "enabled": true,
+      "exit_type": "signal_exit",
+      "condition": {
+        "type": "indicator_value",
+        "operator": ">=",
+        "left_value": "indicator:rsi",
+        "right_value": 60
+      }
+    }
+  ],
+  "risk_management": {
+    "stop_loss_percentage": 5.0,
+    "take_profit_percentage": 10.0,
+    "max_position_size": 0.25,
+    "max_concurrent_positions": 1
+  }
+}

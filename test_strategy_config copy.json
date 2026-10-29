@@ -1,0 +1,64 @@
+{
+    "name": "Test New Arch",
+    "description": "استراتيجية بسيطة لاختبار معمارية Black Box الجديدة",
+    "base_timeframe": "1h",
+    "position_side": "BOTH",
+    "indicators": [
+        {
+            "name": "sma_20",
+            "type": "SMA",
+            "params": {
+                "period": 20
+            }
+        },
+        {
+            "name": "sma_50",
+            "type": "SMA",
+            "params": {
+                "period": 50
+            }
+        }
+    ],
+    "entry_rules": [
+        {
+            "name": "Golden Cross",
+            "enabled": true,
+            "position_side": "LONG",
+            "condition": {
+                "left": "indicator:sma_20",
+                "operator": ">",
+                "right": "indicator:sma_50"
+            },
+            "weight": 1.0
+        },
+        {
+            "name": "Death Cross",
+            "enabled": true,
+            "position_side": "SHORT",
+            "condition": {
+                "left": "indicator:sma_20",
+                "operator": "<",
+                "right": "indicator:sma_50"
+            },
+            "weight": 1.0
+        }
+    ],
+    "exit_rules": [
+        {
+            "name": "Exit Neutral",
+            "enabled": true,
+            "exit_type": "signal",
+            "condition": {
+                "left": "1",
+                "operator": "==",
+                "right": "2"
+            },
+            "weight": 1.0
+        }
+    ],
+    "filter_rules": [],
+    "risk_management": {
+        "max_position_size": 1.0,
+        "max_daily_drawdown": 5.0
+    }
+}

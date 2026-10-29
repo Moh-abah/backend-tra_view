@@ -1,0 +1,1541 @@
+[
+  2025-12-15 20: 15: 09
+] {
+  "type": "connection_established",
+  "message": "Connected to market data stream",
+  "timestamp": "2025-12-15T17:15:09.533239"
+}
+[
+  2025-12-15 20: 15: 13
+] {
+  "type": "market_overview",
+  "timestamp": "2025-12-15T17:15:13.943403",
+  "data": [
+    {
+      "symbol": "ATAUSDT",
+      "price": 0.0165,
+      "change24h": -5.172,
+      "volume": 69337214.0
+    },
+    {
+      "symbol": "ADAUSDC",
+      "price": 0.3813,
+      "change24h": -3.955,
+      "volume": 32768645.1
+    },
+    {
+      "symbol": "GTCUSDT",
+      "price": 0.123,
+      "change24h": -5.385,
+      "volume": 1136943.0
+    },
+    {
+      "symbol": "JUPUSDC",
+      "price": 0.186,
+      "change24h": -5.392,
+      "volume": 3248564.5
+    },
+    {
+      "symbol": "DASHUSDT",
+      "price": 40.69,
+      "change24h": -3.897,
+      "volume": 282724.605
+    },
+    {
+      "symbol": "STRKUSDT",
+      "price": 0.0982,
+      "change24h": -4.195,
+      "volume": 109716090.68
+    },
+    {
+      "symbol": "FILUSDC",
+      "price": 1.239,
+      "change24h": -4.912,
+      "volume": 858893.17
+    },
+    {
+      "symbol": "ATOMUSDT",
+      "price": 2.041,
+      "change24h": -3.544,
+      "volume": 1624136.88
+    },
+    {
+      "symbol": "AXLUSDT",
+      "price": 0.127,
+      "change24h": -12.894,
+      "volume": 38002018.87
+    },
+    {
+      "symbol": "STRKUSDC",
+      "price": 0.0982,
+      "change24h": -4.102,
+      "volume": 16846599.62
+    },
+    {
+      "symbol": "WIFUSDT",
+      "price": 0.373,
+      "change24h": -3.368,
+      "volume": 39153424.41
+    },
+    {
+      "symbol": "METISUSDT",
+      "price": 5.58,
+      "change24h": -5.424,
+      "volume": 130656.431
+    },
+    {
+      "symbol": "ALGOUSDT",
+      "price": 0.1135,
+      "change24h": -4.782,
+      "volume": 36643722.0
+    },
+    {
+      "symbol": "ALGOUSDC",
+      "price": 0.1135,
+      "change24h": -4.862,
+      "volume": 21029079.0
+    },
+    {
+      "symbol": "DEXEUSDT",
+      "price": 3.355,
+      "change24h": -2.951,
+      "volume": 109101.36
+    },
+    {
+      "symbol": "FETUSDC",
+      "price": 0.2236,
+      "change24h": -4.932,
+      "volume": 7738077.7
+    },
+    {
+      "symbol": "EURUSDC",
+      "price": 1.1752,
+      "change24h": 0.196,
+      "volume": 24188802.9
+    },
+    {
+      "symbol": "BOMEUSDT",
+      "price": 0.000598,
+      "change24h": -5.975,
+      "volume": 3233191095.0
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "price": 0.12913,
+      "change24h": -3.677,
+      "volume": 759843647.0
+    },
+    {
+      "symbol": "DOGEUSDC",
+      "price": 0.12918,
+      "change24h": -3.662,
+      "volume": 334687373.0
+    },
+    {
+      "symbol": "ENAUSDT",
+      "price": 0.2193,
+      "change24h": -6.839,
+      "volume": 151698474.49
+    },
+    {
+      "symbol": "WINUSDT",
+      "price": 3.29e-05,
+      "change24h": -10.33,
+      "volume": 23122962677.0
+    },
+    {
+      "symbol": "FARMUSDT",
+      "price": 18.49,
+      "change24h": -3.194,
+      "volume": 12065.095
+    },
+    {
+      "symbol": "WUSDT",
+      "price": 0.0354,
+      "change24h": -3.542,
+      "volume": 88832726.9
+    },
+    {
+      "symbol": "MTLUSDT",
+      "price": 0.364,
+      "change24h": -6.186,
+      "volume": 2097562.3
+    },
+    {
+      "symbol": "WIFUSDC",
+      "price": 0.372,
+      "change24h": -3.377,
+      "volume": 6910477.05
+    },
+    {
+      "symbol": "MBOXUSDT",
+      "price": 0.0315,
+      "change24h": -3.67,
+      "volume": 12324448.5
+    },
+    {
+      "symbol": "SAGAUSDT",
+      "price": 0.0621,
+      "change24h": -9.343,
+      "volume": 22900699.7
+    },
+    {
+      "symbol": "DENTUSDT",
+      "price": 0.000225,
+      "change24h": -5.462,
+      "volume": 993025251.0
+    },
+    {
+      "symbol": "GHSTUSDT",
+      "price": 0.176,
+      "change24h": -2.762,
+      "volume": 667185.8
+    },
+    {
+      "symbol": "ENAUSDC",
+      "price": 0.2193,
+      "change24h": -6.879,
+      "volume": 22970938.06
+    },
+    {
+      "symbol": "WANUSDT",
+      "price": 0.069,
+      "change24h": -0.289,
+      "volume": 3369487.0
+    },
+    {
+      "symbol": "TAOUSDT",
+      "price": 266.7,
+      "change24h": -7.299,
+      "volume": 85336.4554
+    },
+    {
+      "symbol": "CFXUSDC",
+      "price": 0.0706,
+      "change24h": -3.155,
+      "volume": 3062260.0
+    },
+    {
+      "symbol": "BANDUSDT",
+      "price": 0.327,
+      "change24h": -5.764,
+      "volume": 1105182.6
+    },
+    {
+      "symbol": "XECUSDT",
+      "price": 1.082e-05,
+      "change24h": -3.479,
+      "volume": 42488803705.0
+    },
+    {
+      "symbol": "APTUSDC",
+      "price": 1.542,
+      "change24h": -5.746,
+      "volume": 1810225.47
+    },
+    {
+      "symbol": "STXUSDC",
+      "price": 0.2632,
+      "change24h": -6.368,
+      "volume": 343631.7
+    },
+    {
+      "symbol": "ICPUSDC",
+      "price": 2.991,
+      "change24h": -4.927,
+      "volume": 1135949.57
+    },
+    {
+      "symbol": "RVNUSDT",
+      "price": 0.00713,
+      "change24h": -4.552,
+      "volume": 51098192.4
+    },
+    {
+      "symbol": "HBARUSDT",
+      "price": 0.11303,
+      "change24h": -5.248,
+      "volume": 133489001.0
+    },
+    {
+      "symbol": "KAVAUSDT",
+      "price": 0.0834,
+      "change24h": -7.743,
+      "volume": 8877439.2
+    },
+    {
+      "symbol": "ARKMUSDC",
+      "price": 0.195,
+      "change24h": -5.34,
+      "volume": 455153.8
+    },
+    {
+      "symbol": "RLCUSDT",
+      "price": 0.674,
+      "change24h": -2.601,
+      "volume": 1537764.3
+    },
+    {
+      "symbol": "CRVUSDC",
+      "price": 0.3571,
+      "change24h": -5.253,
+      "volume": 3514820.1
+    },
+    {
+      "symbol": "PEOPLEUSDC",
+      "price": 0.00871,
+      "change24h": -6.142,
+      "volume": 8591986.4
+    },
+    {
+      "symbol": "SOLUSDC",
+      "price": 126.01,
+      "change24h": -2.972,
+      "volume": 791172.326
+    },
+    {
+      "symbol": "BCHUSDT",
+      "price": 528.3,
+      "change24h": -6.924,
+      "volume": 38378.91
+    },
+    {
+      "symbol": "IOUSDT",
+      "price": 0.161,
+      "change24h": -4.167,
+      "volume": 19112619.14
+    },
+    {
+      "symbol": "FTTUSDT",
+      "price": 0.5346,
+      "change24h": -7.541,
+      "volume": 1070965.2
+    },
+    {
+      "symbol": "ZKUSDT",
+      "price": 0.02886,
+      "change24h": -2.796,
+      "volume": 303341076.8
+    },
+    {
+      "symbol": "RADUSDT",
+      "price": 0.279,
+      "change24h": -2.787,
+      "volume": 880702.2
+    },
+    {
+      "symbol": "RAREUSDT",
+      "price": 0.0213,
+      "change24h": -4.911,
+      "volume": 28600018.4
+    },
+    {
+      "symbol": "1000SATSUSDC",
+      "price": 1.513e-05,
+      "change24h": -6.025,
+      "volume": 2904296283.0
+    },
+    {
+      "symbol": "RENDERUSDT",
+      "price": 1.401,
+      "change24h": -6.35,
+      "volume": 2893193.72
+    },
+    {
+      "symbol": "TONUSDT",
+      "price": 1.48,
+      "change24h": -5.852,
+      "volume": 7222915.77
+    },
+    {
+      "symbol": "DOGSUSDT",
+      "price": 4.35e-05,
+      "change24h": -8.613,
+      "volume": 22093961659.0
+    },
+    {
+      "symbol": "AAVEUSDC",
+      "price": 182.63,
+      "change24h": -4.532,
+      "volume": 37416.85
+    },
+    {
+      "symbol": "MOVRUSDT",
+      "price": 2.586,
+      "change24h": -5.929,
+      "volume": 147601.254
+    },
+    {
+      "symbol": "POLUSDT",
+      "price": 0.1123,
+      "change24h": -4.263,
+      "volume": 81244827.1
+    },
+    {
+      "symbol": "EIGENUSDT",
+      "price": 0.406,
+      "change24h": -4.918,
+      "volume": 13298735.75
+    },
+    {
+      "symbol": "SCRUSDT",
+      "price": 0.081,
+      "change24h": -7.955,
+      "volume": 10947648.8
+    },
+    {
+      "symbol": "SOLUSDT",
+      "price": 126.0,
+      "change24h": -2.957,
+      "volume": 3305631.186
+    },
+    {
+      "symbol": "LUMIAUSDT",
+      "price": 0.103,
+      "change24h": -6.364,
+      "volume": 3764964.77
+    },
+    {
+      "symbol": "PNUTUSDT",
+      "price": 0.0755,
+      "change24h": -4.792,
+      "volume": 40441741.0
+    },
+    {
+      "symbol": "PNUTUSDC",
+      "price": 0.0755,
+      "change24h": -4.792,
+      "volume": 4813928.9
+    },
+    {
+      "symbol": "FDUSDUSDC",
+      "price": 0.9987,
+      "change24h": -0.01,
+      "volume": 91906983.0
+    },
+    {
+      "symbol": "HBARUSDC",
+      "price": 0.11305,
+      "change24h": -5.255,
+      "volume": 96140371.0
+    },
+    {
+      "symbol": "RAYUSDC",
+      "price": 0.968,
+      "change24h": -6.654,
+      "volume": 431324.3
+    },
+    {
+      "symbol": "COWUSDC",
+      "price": 0.1869,
+      "change24h": -5.319,
+      "volume": 972029.9
+    },
+    {
+      "symbol": "CHZUSDC",
+      "price": 0.03055,
+      "change24h": -6.116,
+      "volume": 6235640.0
+    },
+    {
+      "symbol": "PYTHUSDC",
+      "price": 0.0586,
+      "change24h": -5.484,
+      "volume": 6973090.8
+    },
+    {
+      "symbol": "HIGHUSDT",
+      "price": 0.214,
+      "change24h": -5.727,
+      "volume": 1416212.674
+    },
+    {
+      "symbol": "CVXUSDT",
+      "price": 1.708,
+      "change24h": -1.952,
+      "volume": 507014.785
+    },
+    {
+      "symbol": "SNXUSDT",
+      "price": 0.416,
+      "change24h": -6.517,
+      "volume": 4175243.0
+    },
+    {
+      "symbol": "IDEXUSDC",
+      "price": 0.01145,
+      "change24h": -5.137,
+      "volume": 1099873.4
+    },
+    {
+      "symbol": "VANAUSDT",
+      "price": 2.839,
+      "change24h": 1.032,
+      "volume": 426279.86
+    },
+    {
+      "symbol": "BIOUSDC",
+      "price": 0.0438,
+      "change24h": -8.176,
+      "volume": 9145506.1
+    },
+    {
+      "symbol": "AIXBTUSDT",
+      "price": 0.0327,
+      "change24h": -4.665,
+      "volume": 49880862.9
+    },
+    {
+      "symbol": "CGPTUSDT",
+      "price": 0.0311,
+      "change24h": -4.893,
+      "volume": 10448116.8
+    },
+    {
+      "symbol": "API3USDT",
+      "price": 0.4274,
+      "change24h": -8.046,
+      "volume": 1720151.7
+    },
+    {
+      "symbol": "SUSDT",
+      "price": 0.0833,
+      "change24h": -5.663,
+      "volume": 42813406.4
+    },
+    {
+      "symbol": "SOLVUSDT",
+      "price": 0.01442,
+      "change24h": -5.007,
+      "volume": 37536833.0
+    },
+    {
+      "symbol": "CRVUSDT",
+      "price": 0.3569,
+      "change24h": -5.281,
+      "volume": 20296553.9
+    },
+    {
+      "symbol": "1000CHEEMSUSDT",
+      "price": 0.001015,
+      "change24h": -2.964,
+      "volume": 1044288992.0
+    },
+    {
+      "symbol": "SANDUSDT",
+      "price": 0.1183,
+      "change24h": -6.997,
+      "volume": 12152032.0
+    },
+    {
+      "symbol": "DOTUSDT",
+      "price": 1.862,
+      "change24h": -5.048,
+      "volume": 7712973.09
+    },
+    {
+      "symbol": "LUNAUSDT",
+      "price": 0.1498,
+      "change24h": -12.192,
+      "volume": 128406034.89
+    },
+    {
+      "symbol": "GMTUSDT",
+      "price": 0.01483,
+      "change24h": -5.421,
+      "volume": 72936352.1
+    },
+    {
+      "symbol": "REDUSDT",
+      "price": 0.2285,
+      "change24h": -7.114,
+      "volume": 1829982.3
+    },
+    {
+      "symbol": "GPSUSDC",
+      "price": 0.00508,
+      "change24h": -7.13,
+      "volume": 3591802.9
+    },
+    {
+      "symbol": "REDUSDC",
+      "price": 0.2297,
+      "change24h": -6.588,
+      "volume": 114953.5
+    },
+    {
+      "symbol": "OSMOUSDC",
+      "price": 0.0602,
+      "change24h": -8.649,
+      "volume": 1451940.68
+    },
+    {
+      "symbol": "BTCUSDT",
+      "price": 86203.45,
+      "change24h": -2.769,
+      "volume": 16588.85623
+    },
+    {
+      "symbol": "UTKUSDC",
+      "price": 0.01326,
+      "change24h": -3.983,
+      "volume": 193557.0
+    },
+    {
+      "symbol": "ETHUSDT",
+      "price": 2972.58,
+      "change24h": -3.417,
+      "volume": 491544.7713
+    },
+    {
+      "symbol": "EGLDUSDT",
+      "price": 6.82,
+      "change24h": -4.881,
+      "volume": 108355.09
+    },
+    {
+      "symbol": "GMXUSDC",
+      "price": 8.24,
+      "change24h": -2.021,
+      "volume": 3681.488
+    },
+    {
+      "symbol": "FORMUSDC",
+      "price": 0.3108,
+      "change24h": 13.059,
+      "volume": 2427551.3
+    },
+    {
+      "symbol": "STEEMUSDT",
+      "price": 0.0654,
+      "change24h": -4.942,
+      "volume": 3264817.4
+    },
+    {
+      "symbol": "BEAMXUSDC",
+      "price": 0.002889,
+      "change24h": -6.414,
+      "volume": 54589305.0
+    },
+    {
+      "symbol": "PARTIUSDT",
+      "price": 0.0935,
+      "change24h": -3.309,
+      "volume": 24225316.5
+    },
+    {
+      "symbol": "MUBARAKUSDC",
+      "price": 0.01562,
+      "change24h": -0.446,
+      "volume": 4843740.6
+    },
+    {
+      "symbol": "TUTUSDT",
+      "price": 0.01269,
+      "change24h": -4.371,
+      "volume": 55863072.0
+    },
+    {
+      "symbol": "BANANAS31USDT",
+      "price": 0.003662,
+      "change24h": 9.772,
+      "volume": 3754377173.0
+    },
+    {
+      "symbol": "BANANAS31USDC",
+      "price": 0.003656,
+      "change24h": 9.988,
+      "volume": 656854299.0
+    },
+    {
+      "symbol": "UNIUSDT",
+      "price": 5.047,
+      "change24h": -5.734,
+      "volume": 3609063.33
+    },
+    {
+      "symbol": "GUNUSDT",
+      "price": 0.0229,
+      "change24h": 27.506,
+      "volume": 1083402503.0
+    },
+    {
+      "symbol": "OXTUSDT",
+      "price": 0.0254,
+      "change24h": -4.151,
+      "volume": 6104993.0
+    },
+    {
+      "symbol": "API3USDC",
+      "price": 0.4295,
+      "change24h": -7.215,
+      "volume": 100932.46
+    },
+    {
+      "symbol": "GUNUSDC",
+      "price": 0.02289,
+      "change24h": 27.521,
+      "volume": 184328618.0
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "price": 0.4111,
+      "change24h": -8.278,
+      "volume": 19197760.6
+    },
+    {
+      "symbol": "ONDOUSDC",
+      "price": 0.411,
+      "change24h": -8.361,
+      "volume": 3888202.8
+    },
+    {
+      "symbol": "VIRTUALUSDT",
+      "price": 0.7206,
+      "change24h": -7.079,
+      "volume": 11574725.5
+    },
+    {
+      "symbol": "OPUSDT",
+      "price": 0.2866,
+      "change24h": -4.91,
+      "volume": 31555002.9
+    },
+    {
+      "symbol": "WCTUSDC",
+      "price": 0.0716,
+      "change24h": -6.405,
+      "volume": 2887226.4
+    },
+    {
+      "symbol": "UTKUSDT",
+      "price": 0.0132,
+      "change24h": -4.555,
+      "volume": 13275905.0
+    },
+    {
+      "symbol": "WCTUSDT",
+      "price": 0.0716,
+      "change24h": -6.405,
+      "volume": 37668715.6
+    },
+    {
+      "symbol": "PAXGUSDC",
+      "price": 4312.21,
+      "change24h": -0.248,
+      "volume": 393.6763
+    },
+    {
+      "symbol": "ACHUSDC",
+      "price": 0.00849,
+      "change24h": -7.213,
+      "volume": 4793084.0
+    },
+    {
+      "symbol": "BNBUSDT",
+      "price": 850.89,
+      "change24h": -3.469,
+      "volume": 196296.775
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "price": 182.59,
+      "change24h": -4.513,
+      "volume": 95300.963
+    },
+    {
+      "symbol": "STOUSDT",
+      "price": 0.1187,
+      "change24h": -5.719,
+      "volume": 7739600.6
+    },
+    {
+      "symbol": "STOUSDC",
+      "price": 0.1191,
+      "change24h": -5.251,
+      "volume": 1424447.8
+    },
+    {
+      "symbol": "SYRUPUSDT",
+      "price": 0.2639,
+      "change24h": -1.53,
+      "volume": 12602327.2
+    },
+    {
+      "symbol": "SYRUPUSDC",
+      "price": 0.2639,
+      "change24h": -1.53,
+      "volume": 3492406.0
+    },
+    {
+      "symbol": "FILUSDT",
+      "price": 1.24,
+      "change24h": -4.762,
+      "volume": 10700707.15
+    },
+    {
+      "symbol": "KMNOUSDT",
+      "price": 0.05834,
+      "change24h": -2.686,
+      "volume": 43301419.0
+    },
+    {
+      "symbol": "INJUSDT",
+      "price": 4.89,
+      "change24h": -5.233,
+      "volume": 1139482.12
+    },
+    {
+      "symbol": "HAEDALUSDT",
+      "price": 0.0411,
+      "change24h": -6.378,
+      "volume": 8244527.8
+    },
+    {
+      "symbol": "PHBUSDT",
+      "price": 0.275,
+      "change24h": -5.498,
+      "volume": 2133329.1
+    },
+    {
+      "symbol": "RESOLVUSDC",
+      "price": 0.0779,
+      "change24h": -4.884,
+      "volume": 4655352.3
+    },
+    {
+      "symbol": "STRAXUSDT",
+      "price": 0.01968,
+      "change24h": -11.749,
+      "volume": 17619504.0
+    },
+    {
+      "symbol": "GNSUSDT",
+      "price": 1.233,
+      "change24h": -4.567,
+      "volume": 224190.68
+    },
+    {
+      "symbol": "SSVUSDT",
+      "price": 3.287,
+      "change24h": -4.752,
+      "volume": 328415.838
+    },
+    {
+      "symbol": "ROSEUSDT",
+      "price": 0.01133,
+      "change24h": -4.95,
+      "volume": 73195733.7
+    },
+    {
+      "symbol": "USTCUSDT",
+      "price": 0.00683,
+      "change24h": -9.536,
+      "volume": 536117273.0
+    },
+    {
+      "symbol": "QKCUSDT",
+      "price": 0.004007,
+      "change24h": -3.306,
+      "volume": 54615857.0
+    },
+    {
+      "symbol": "LTCUSDT",
+      "price": 76.86,
+      "change24h": -2.672,
+      "volume": 358282.09
+    },
+    {
+      "symbol": "ARBUSDT",
+      "price": 0.1954,
+      "change24h": -4.822,
+      "volume": 76605835.0
+    },
+    {
+      "symbol": "GRTUSDC",
+      "price": 0.03778,
+      "change24h": -5.95,
+      "volume": 13820733.0
+    },
+    {
+      "symbol": "CVXUSDC",
+      "price": 1.71,
+      "change24h": -2.286,
+      "volume": 35984.645
+    },
+    {
+      "symbol": "TOWNSUSDT",
+      "price": 0.00658,
+      "change24h": -9.116,
+      "volume": 87338550.0
+    },
+    {
+      "symbol": "WBTCUSDT",
+      "price": 86086.12,
+      "change24h": -2.788,
+      "volume": 47.77335
+    },
+    {
+      "symbol": "PROVEUSDT",
+      "price": 0.3789,
+      "change24h": -4.942,
+      "volume": 2978474.6
+    },
+    {
+      "symbol": "PROVEUSDC",
+      "price": 0.379,
+      "change24h": -4.941,
+      "volume": 450705.7
+    },
+    {
+      "symbol": "SUIUSDT",
+      "price": 1.4688,
+      "change24h": -6.237,
+      "volume": 52983491.9
+    },
+    {
+      "symbol": "PEPEUSDT",
+      "price": 4.02e-06,
+      "change24h": -4.057,
+      "volume": 8739506919738.0
+    },
+    {
+      "symbol": "FLOKIUSDT",
+      "price": 4.235e-05,
+      "change24h": -5.215,
+      "volume": 123131427457.0
+    },
+    {
+      "symbol": "WLFIUSDT",
+      "price": 0.1316,
+      "change24h": -4.776,
+      "volume": 64884474.7
+    },
+    {
+      "symbol": "WLFIUSDC",
+      "price": 0.1316,
+      "change24h": -4.845,
+      "volume": 12353514.5
+    },
+    {
+      "symbol": "MAVUSDT",
+      "price": 0.02885,
+      "change24h": -4.089,
+      "volume": 14039901.0
+    },
+    {
+      "symbol": "TRUUSDT",
+      "price": 0.0097,
+      "change24h": -6.731,
+      "volume": 72499476.0
+    },
+    {
+      "symbol": "SOMIUSDT",
+      "price": 0.2848,
+      "change24h": 0.352,
+      "volume": 62458401.5
+    },
+    {
+      "symbol": "PENDLEUSDT",
+      "price": 1.997,
+      "change24h": -5.221,
+      "volume": 1664206.1
+    },
+    {
+      "symbol": "SOMIUSDC",
+      "price": 0.2848,
+      "change24h": 0.105,
+      "volume": 7095205.1
+    },
+    {
+      "symbol": "CKBUSDT",
+      "price": 0.002358,
+      "change24h": -5.718,
+      "volume": 283687409.0
+    },
+    {
+      "symbol": "ARKMUSDT",
+      "price": 0.194,
+      "change24h": -5.825,
+      "volume": 19026214.8
+    },
+    {
+      "symbol": "WBETHUSDT",
+      "price": 3228.72,
+      "change24h": -3.393,
+      "volume": 608.3895
+    },
+    {
+      "symbol": "WLDUSDT",
+      "price": 0.531,
+      "change24h": -6.349,
+      "volume": 33980066.7
+    },
+    {
+      "symbol": "PUMPUSDT",
+      "price": 0.00251,
+      "change24h": -6.098,
+      "volume": 4720733802.0
+    },
+    {
+      "symbol": "FDUSDUSDT",
+      "price": 0.9985,
+      "change24h": -0.01,
+      "volume": 174406580.0
+    },
+    {
+      "symbol": "PUMPUSDC",
+      "price": 0.002511,
+      "change24h": -6.061,
+      "volume": 907997665.0
+    },
+    {
+      "symbol": "AVNTUSDT",
+      "price": 0.2545,
+      "change24h": -8.552,
+      "volume": 8309889.1
+    },
+    {
+      "symbol": "AVNTUSDC",
+      "price": 0.2544,
+      "change24h": -8.39,
+      "volume": 1610036.7
+    },
+    {
+      "symbol": "SFPUSDT",
+      "price": 0.3172,
+      "change24h": -3.616,
+      "volume": 738376.0
+    },
+    {
+      "symbol": "ZKCUSDT",
+      "price": 0.1089,
+      "change24h": -9.098,
+      "volume": 7750128.7
+    },
+    {
+      "symbol": "ZKCUSDC",
+      "price": 0.1091,
+      "change24h": -8.932,
+      "volume": 288130.8
+    },
+    {
+      "symbol": "SKYUSDT",
+      "price": 0.05717,
+      "change24h": -4.478,
+      "volume": 61386420.0
+    },
+    {
+      "symbol": "BARDUSDT",
+      "price": 0.7746,
+      "change24h": -3.211,
+      "volume": 4178886.1
+    },
+    {
+      "symbol": "ADAUSDT",
+      "price": 0.3811,
+      "change24h": -3.981,
+      "volume": 114622897.1
+    },
+    {
+      "symbol": "CAKEUSDT",
+      "price": 2.074,
+      "change24h": -4.468,
+      "volume": 3684006.0
+    },
+    {
+      "symbol": "SEIUSDT",
+      "price": 0.1176,
+      "change24h": -6.22,
+      "volume": 94532847.8
+    },
+    {
+      "symbol": "0GUSDC",
+      "price": 0.864,
+      "change24h": -9.148,
+      "volume": 548336.88
+    },
+    {
+      "symbol": "XRPUSDT",
+      "price": 1.9046,
+      "change24h": -4.176,
+      "volume": 92881453.7
+    },
+    {
+      "symbol": "TWTUSDC",
+      "price": 0.9598,
+      "change24h": -1.539,
+      "volume": 311477.0
+    },
+    {
+      "symbol": "XPLUSDC",
+      "price": 0.1341,
+      "change24h": -12.752,
+      "volume": 17249970.5
+    },
+    {
+      "symbol": "IQUSDT",
+      "price": 0.001586,
+      "change24h": -6.098,
+      "volume": 172821258.0
+    },
+    {
+      "symbol": "FFUSDT",
+      "price": 0.10208,
+      "change24h": -7.853,
+      "volume": 19246977.4
+    },
+    {
+      "symbol": "EDENUSDT",
+      "price": 0.0626,
+      "change24h": -4.573,
+      "volume": 39115595.8
+    },
+    {
+      "symbol": "TUSDUSDT",
+      "price": 0.9963,
+      "change24h": 0.0,
+      "volume": 198328.0
+    },
+    {
+      "symbol": "IOTAUSDT",
+      "price": 0.0887,
+      "change24h": -7.796,
+      "volume": 28924312.0
+    },
+    {
+      "symbol": "XLMUSDT",
+      "price": 0.2184,
+      "change24h": -5.208,
+      "volume": 37068714.0
+    },
+    {
+      "symbol": "PONDUSDT",
+      "price": 0.00402,
+      "change24h": -4.057,
+      "volume": 73684822.0
+    },
+    {
+      "symbol": "2ZUSDT",
+      "price": 0.11002,
+      "change24h": -3.669,
+      "volume": 10112413.0
+    },
+    {
+      "symbol": "2ZUSDC",
+      "price": 0.10993,
+      "change24h": -3.739,
+      "volume": 3188071.0
+    },
+    {
+      "symbol": "MORPHOUSDC",
+      "price": 1.178,
+      "change24h": 6.897,
+      "volume": 882520.0
+    },
+    {
+      "symbol": "ONTUSDT",
+      "price": 0.06,
+      "change24h": -7.692,
+      "volume": 5725322.0
+    },
+    {
+      "symbol": "TRXUSDT",
+      "price": 0.2794,
+      "change24h": 1.195,
+      "volume": 301010372.2
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "price": 0.851,
+      "change24h": -8.789,
+      "volume": 118611161.69
+    },
+    {
+      "symbol": "ETCUSDT",
+      "price": 12.22,
+      "change24h": -4.457,
+      "volume": 461217.3
+    },
+    {
+      "symbol": "MEMEUSDT",
+      "price": 0.000997,
+      "change24h": -6.385,
+      "volume": 1584130994.0
+    },
+    {
+      "symbol": "ASTERUSDC",
+      "price": 0.853,
+      "change24h": -8.672,
+      "volume": 14278291.84
+    },
+    {
+      "symbol": "WALUSDT",
+      "price": 0.1395,
+      "change24h": -4.973,
+      "volume": 3626728.0
+    },
+    {
+      "symbol": "WALUSDC",
+      "price": 0.1396,
+      "change24h": -4.969,
+      "volume": 1685951.4
+    },
+    {
+      "symbol": "ORDIUSDT",
+      "price": 4.214,
+      "change24h": -3.768,
+      "volume": 1641797.25
+    },
+    {
+      "symbol": "EULUSDC",
+      "price": 3.096,
+      "change24h": -4.562,
+      "volume": 48809.08
+    },
+    {
+      "symbol": "SUPERUSDT",
+      "price": 0.2372,
+      "change24h": -7.883,
+      "volume": 6433104.0
+    },
+    {
+      "symbol": "BEAMXUSDT",
+      "price": 0.002896,
+      "change24h": -5.943,
+      "volume": 341485312.0
+    },
+    {
+      "symbol": "CFXUSDT",
+      "price": 0.0705,
+      "change24h": -3.292,
+      "volume": 36842446.0
+    },
+    {
+      "symbol": "ZBTUSDT",
+      "price": 0.083,
+      "change24h": -12.54,
+      "volume": 14974915.5
+    },
+    {
+      "symbol": "VETUSDT",
+      "price": 0.01058,
+      "change24h": -6.537,
+      "volume": 313563314.8
+    },
+    {
+      "symbol": "VICUSDT",
+      "price": 0.0908,
+      "change24h": -7.347,
+      "volume": 2734908.36
+    },
+    {
+      "symbol": "GIGGLEUSDT",
+      "price": 65.78,
+      "change24h": -5.434,
+      "volume": 226641.482
+    },
+    {
+      "symbol": "GIGGLEUSDC",
+      "price": 65.83,
+      "change24h": -5.444,
+      "volume": 44449.492
+    },
+    {
+      "symbol": "TKOUSDT",
+      "price": 0.086,
+      "change24h": -3.695,
+      "volume": 3010887.3
+    },
+    {
+      "symbol": "BLURUSDT",
+      "price": 0.03009,
+      "change24h": -8.066,
+      "volume": 9780285.2
+    },
+    {
+      "symbol": "FUSDT",
+      "price": 0.00635,
+      "change24h": -8.237,
+      "volume": 82318544.0
+    },
+    {
+      "symbol": "VANRYUSDT",
+      "price": 0.0085,
+      "change24h": -5.556,
+      "volume": 68864852.0
+    },
+    {
+      "symbol": "MMTUSDT",
+      "price": 0.1865,
+      "change24h": -7.26,
+      "volume": 21391421.2
+    },
+    {
+      "symbol": "MMTUSDC",
+      "price": 0.1867,
+      "change24h": -7.207,
+      "volume": 2886569.5
+    },
+    {
+      "symbol": "TLMUSDT",
+      "price": 0.00212,
+      "change24h": -5.357,
+      "volume": 126804369.0
+    },
+    {
+      "symbol": "DASHUSDC",
+      "price": 40.66,
+      "change24h": -3.922,
+      "volume": 28376.282
+    },
+    {
+      "symbol": "SAPIENUSDT",
+      "price": 0.139,
+      "change24h": -3.338,
+      "volume": 18680639.8
+    },
+    {
+      "symbol": "JTOUSDT",
+      "price": 0.354,
+      "change24h": -6.596,
+      "volume": 3564108.2
+    },
+    {
+      "symbol": "ALLOUSDT",
+      "price": 0.1121,
+      "change24h": -6.583,
+      "volume": 28352589.4
+    },
+    {
+      "symbol": "ALLOUSDC",
+      "price": 0.1123,
+      "change24h": -6.417,
+      "volume": 2175013.5
+    },
+    {
+      "symbol": "1000SATSUSDT",
+      "price": 1.515e-05,
+      "change24h": -6.134,
+      "volume": 93995398196.0
+    },
+    {
+      "symbol": "FORTHUSDT",
+      "price": 1.592,
+      "change24h": -3.339,
+      "volume": 82708.96
+    },
+    {
+      "symbol": "BONKUSDT",
+      "price": 8.62e-06,
+      "change24h": -4.54,
+      "volume": 1587856809093.0
+    },
+    {
+      "symbol": "BNBUSDC",
+      "price": 851.05,
+      "change24h": -3.447,
+      "volume": 134738.718
+    },
+    {
+      "symbol": "ACEUSDT",
+      "price": 0.215,
+      "change24h": -4.018,
+      "volume": 4143426.0
+    },
+    {
+      "symbol": "BTCUSDC",
+      "price": 86214.11,
+      "change24h": -2.766,
+      "volume": 5178.40134
+    },
+    {
+      "symbol": "ETHUSDC",
+      "price": 2973.05,
+      "change24h": -3.398,
+      "volume": 139610.0202
+    },
+    {
+      "symbol": "XRPUSDC",
+      "price": 1.9049,
+      "change24h": -4.18,
+      "volume": 35340129.3
+    },
+    {
+      "symbol": "XLMUSDC",
+      "price": 0.2184,
+      "change24h": -5.208,
+      "volume": 9221160.0
+    },
+    {
+      "symbol": "USDCUSDT",
+      "price": 0.9999,
+      "change24h": 0.02,
+      "volume": 954124938.0
+    },
+    {
+      "symbol": "NFPUSDT",
+      "price": 0.0235,
+      "change24h": -6.746,
+      "volume": 14232629.0
+    },
+    {
+      "symbol": "SHIBUSDT",
+      "price": 7.82e-06,
+      "change24h": -2.978,
+      "volume": 910152925208.0
+    },
+    {
+      "symbol": "ARBUSDC",
+      "price": 0.1954,
+      "change24h": -4.915,
+      "volume": 13134237.8
+    },
+    {
+      "symbol": "AVAXUSDC",
+      "price": 12.39,
+      "change24h": -4.398,
+      "volume": 780589.31
+    },
+    {
+      "symbol": "LINKUSDT",
+      "price": 12.69,
+      "change24h": -5.228,
+      "volume": 3243596.0
+    },
+    {
+      "symbol": "ICPUSDT",
+      "price": 2.99,
+      "change24h": -4.928,
+      "volume": 5316968.69
+    },
+    {
+      "symbol": "DOTUSDC",
+      "price": 1.863,
+      "change24h": -5.046,
+      "volume": 967730.96
+    },
+    {
+      "symbol": "INJUSDC",
+      "price": 4.89,
+      "change24h": -5.233,
+      "volume": 238174.17
+    },
+    {
+      "symbol": "LINKUSDC",
+      "price": 12.69,
+      "change24h": -5.228,
+      "volume": 1099617.83
+    },
+    {
+      "symbol": "OPUSDC",
+      "price": 0.287,
+      "change24h": -4.841,
+      "volume": 2194545.75
+    },
+    {
+      "symbol": "ARUSDT",
+      "price": 3.52,
+      "change24h": -7.124,
+      "volume": 1532291.48
+    },
+    {
+      "symbol": "XAIUSDT",
+      "price": 0.016,
+      "change24h": -3.614,
+      "volume": 141545037.5
+    },
+    {
+      "symbol": "LTCUSDC",
+      "price": 76.86,
+      "change24h": -2.684,
+      "volume": 185924.422
+    },
+    {
+      "symbol": "TRXUSDC",
+      "price": 0.2795,
+      "change24h": 1.231,
+      "volume": 9306616.7
+    },
+    {
+      "symbol": "MASKUSDT",
+      "price": 0.567,
+      "change24h": -4.384,
+      "volume": 1197896.6
+    },
+    {
+      "symbol": "LPTUSDT",
+      "price": 3.255,
+      "change24h": -6.142,
+      "volume": 336296.18
+    },
+    {
+      "symbol": "SUIUSDC",
+      "price": 1.4688,
+      "change24h": -6.231,
+      "volume": 32327756.0
+    },
+    {
+      "symbol": "TIAUSDC",
+      "price": 0.513,
+      "change24h": -6.727,
+      "volume": 1156431.87
+    },
+    {
+      "symbol": "ONGUSDT",
+      "price": 0.0804,
+      "change24h": -5.965,
+      "volume": 16120307.0
+    },
+    {
+      "symbol": "MANTAUSDC",
+      "price": 0.0754,
+      "change24h": -7.028,
+      "volume": 879777.8
+    },
+    {
+      "symbol": "ALTUSDT",
+      "price": 0.01165,
+      "change24h": -6.35,
+      "volume": 155487373.0
+    },
+    {
+      "symbol": "BLURUSDC",
+      "price": 0.03011,
+      "change24h": -7.61,
+      "volume": 342207.7
+    },
+    {
+      "symbol": "FETUSDT",
+      "price": 0.2236,
+      "change24h": -4.851,
+      "volume": 45729930.8
+    },
+    {
+      "symbol": "JUPUSDT",
+      "price": 0.186,
+      "change24h": -5.344,
+      "volume": 13457578.4
+    },
+    {
+      "symbol": "ZECUSDT",
+      "price": 412.51,
+      "change24h": 1.573,
+      "volume": 421685.516
+    },
+    {
+      "symbol": "PYTHUSDT",
+      "price": 0.0586,
+      "change24h": -5.484,
+      "volume": 31591275.6
+    },
+    {
+      "symbol": "ZECUSDC",
+      "price": 412.44,
+      "change24h": 1.426,
+      "volume": 34132.789
+    }
+  ],
+  "count": 254
+}
+a

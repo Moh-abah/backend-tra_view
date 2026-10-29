@@ -1,0 +1,109 @@
+{
+    "name": "Multi-Timeframe MACD Complex Conditions",
+    "version": "1.0.0",
+    "description": "\u0627\u0633\u062a\u0631\u0627\u062a\u064a\u062c\u064a\u0629 \u0645\u0639 \u0634\u0631\u0648\u0637 \u0645\u0639\u0642\u062f\u0629 \u0639\u0644\u0649 \u0645\u0624\u0634\u0631\u0627\u062a MACD",
+    "base_timeframe": "1h",
+    "position_side": "both",
+    "indicators": [
+        {
+            "name": "macd_5m",
+            "type": "momentum",
+            "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+            },
+            "enabled": true,
+            "timeframe": "5m"
+        },
+        {
+            "name": "macd_15m",
+            "type": "momentum",
+            "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+            },
+            "enabled": true,
+            "timeframe": "15m"
+        },
+        {
+            "name": "macd_1h",
+            "type": "momentum",
+            "params": {
+                "fast": 12,
+                "slow": 26,
+                "signal": 9
+            },
+            "enabled": true,
+            "timeframe": "1h"
+        }
+    ],
+    "entry_rules": [
+        {
+            "name": "MACD 5m > 15m (\u062a\u0642\u0627\u0637\u0639 \u0645\u0624\u0634\u0631\u064a\u0646)",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.15,
+            "condition": {
+                "type": "indicator_value",
+                "operator": ">",
+                "left_value": "indicator:macd_5m",
+                "right_value": "indicator:macd_15m"
+            }
+        },
+        {
+            "name": "MACD 5m > 0 AND 15m > 0 (\u0634\u0631\u0637 \u0645\u0631\u0643\u0628)",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.1,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:macd_5m",
+                        "right_value": 0
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:macd_15m",
+                        "right_value": 0
+                    }
+                ]
+            }
+        },
+        {
+            "name": "MACD 5m < 0 AND 15m < 0 (\u0634\u0631\u0637 \u0645\u0631\u0643\u0628)",
+            "enabled": true,
+            "position_side": "short",
+            "weight": 0.1,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:macd_5m",
+                        "right_value": 0
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:macd_15m",
+                        "right_value": 0
+                    }
+                ]
+            }
+        }
+    ],
+    "exit_rules": [],
+    "filter_rules": [],
+    "risk_management": {
+        "stop_loss_percentage": 2.0,
+        "take_profit_percentage": 4.0,
+        "max_position_size": 0.3
+    }
+}

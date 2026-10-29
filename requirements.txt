@@ -1,0 +1,123 @@
+# =============================================================================
+# Trading Backend API — Python requirements
+#
+# Direct dependencies are grouped by purpose below. Transitive dependencies
+# are pinned alphabetically at the bottom for reproducible builds.
+#
+# JWT note: authentication uses `python-jose` (app/services/auth.py imports
+# `from jose import JWTError, jwt`). The conflicting `jwt==1.4.0` and
+# `PyJWT==2.6.0` packages were removed — both ship a top-level `jwt` module
+# that clashes with python-jose's `jose.jwt`.
+# =============================================================================
+
+# --- core: web framework, database, cache ------------------------------------
+fastapi>=0.115,<0.170        # 0.162 verified (lazy route flattening + OAuth2/Form fixes)
+uvicorn[standard]>=0.24
+starlette>=0.37
+pydantic==2.12.5
+pydantic-settings>=2.2.0,<3  # AliasChoices for CORS_ORIGINS/ALLOWED_ORIGINS
+pydantic_core==2.41.5
+python-dotenv==1.0.0
+python-multipart==0.0.6
+email-validator==2.3.0
+PyYAML==6.0.1
+httpx==0.28.1
+websockets>=10,<14
+SQLAlchemy==2.0.23
+asyncpg==0.31.0
+aiosqlite>=0.19              # SQLite async fallback for local dev / testing
+redis==5.0.1
+
+# --- data providers & analytics ----------------------------------------------
+yfinance>=0.2.40             # upgraded from 0.1.95 (2021-era)
+requests==2.32.5
+beautifulsoup4==4.14.3
+pandas==2.3.3
+numpy==2.3.5
+scipy==1.16.3
+plotly==6.5.0
+seaborn==0.13.0              # used by app/backtest/reports.py
+pyarrow==21.0.0              # REQUIRED: parquet disk cache for historical klines (app/providers/binance_provider.py)
+
+# --- auth & security -----------------------------------------------------------
+python-jose==3.3.0           # JWT (jose.jwt) — used by app/services/auth.py
+passlib==1.7.4
+bcrypt==5.0.0
+cryptography==46.0.3         # Fernet encryption (app/utils/security.py)
+ecdsa==0.19.1
+pyasn1==0.6.1
+rsa==4.9.1
+
+# --- celery (async backtests) ----------------------------------------------------
+celery==5.3.4
+kombu==5.6.1
+billiard==4.2.4
+amqp==5.3.1
+vine==5.1.0
+click==8.3.1
+click-didyoumean==0.3.1
+click-plugins==1.1.1.2
+click-repl==0.3.0
+prompt_toolkit==3.0.52
+wcwidth==0.2.14
+
+# --- dev/test ---------------------------------------------------------------------
+pytest>=7.4
+pytest-asyncio>=0.21
+
+# --- pinned transitive dependencies (alphabetical) ---------------------------------
+aiohappyeyeballs==2.6.1
+aiohttp==3.13.2
+aiosignal==1.4.0
+annotated-types==0.7.0
+antlr4-python3-runtime==4.13.0
+anyio==3.7.1
+attrs==25.4.0
+cachetools==5.3.1
+certifi==2025.11.12
+cffi==2.0.0
+charset-normalizer==3.4.4
+colorama==0.4.6
+contourpy==1.3.3
+curl_cffi==0.14.0
+cycler==0.12.1
+deprecation==2.1.0
+dnspython==2.8.0
+exceptiongroup==1.3.1
+fonttools==4.61.0
+frozendict==2.4.7
+frozenlist==1.8.0
+greenlet==3.3.0
+h11==0.16.0
+httpcore==1.0.9
+idna==3.11
+kiwisolver==1.4.9
+msgpack==1.0.3
+multidict==6.7.0
+narwhals==2.13.0
+networkx==3.2.1
+numpy-financial==1.0.0
+outcome==1.3.0.post0
+packaging==25.0
+pillow==12.0.0
+platformdirs==4.5.1
+propcache==0.4.1
+protobuf==6.33.2
+psycopg2-binary==2.9.11
+pycparser==2.23
+pyparsing==3.2.5
+python-dateutil==2.8.2
+pytz==2025.2
+six==1.17.0
+sniffio==1.3.1
+sortedcontainers==2.4.0
+soupsieve==2.8.1
+trio==0.32.0
+trio-websocket==0.10.3
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+tzdata==2025.2
+urllib3==1.26.20
+websocket-client==1.6.4
+wsproto==1.3.2
+yarl==1.22.0

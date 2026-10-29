@@ -1,0 +1,99 @@
+# =============================================================================
+# Trading Backend API — Docker Compose (LOCAL POSTGRES — NO NEON)
+#
+#   docker compose up -d --build           # start everything
+#   docker compose logs -f backend         # tail API logs
+#
+# Database: local PostgreSQL 17 container. Data survives restarts in the
+# postgres_data volume. DATABASE_URL in .env points to postgres:5432.
+# Redis has NO host port anymore (the old "SECURITY ATTACK" warnings came
+# from host processes hitting the exposed redis port — now impossible).
+# =============================================================================
+
+services:
+
+  # --- PostgreSQL 17 (local — replaces Neon permanently) ----------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: trading-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: trader_local_2024
+      POSTGRES_DB: trading_db
+    ports:
+      - "5433:5432"          # host access on 5433 (pgAdmin / psql) — optional
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader -d trading_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  # --- Redis (broker + cache) — internal only, no host port -------------------
+  redis:
+    image: redis:7-alpine
+    container_name: trading-redis
+    restart: unless-stopped
+    command: redis-server --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # --- FastAPI backend ---------------------------------------------------------
+  backend:
+    build: .
+    container_name: trading-backend
+    env_file:
+      - .env
+    environment:
+      # كاش الشموع — حجم مسمى يملكه مستخدم trader داخل الحاوية (لا مشاكل صلاحيات Windows)
+      HISTORY_CACHE_DIR: /app/data/history
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+      - ./strategies:/app/strategies
+      - ./reports:/app/reports
+      - history_cache:/app/data/history   # parquet kline cache — ينجو من إعادة التشغيل بصلاحيات سليمة
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # --- Celery worker (async backtests) --------------------------------------------
+  celery-worker:
+    build: .
+    container_name: trading-celery-worker
+    command: celery -A app.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      HISTORY_CACHE_DIR: /app/data/history
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - history_cache:/app/data/history   # نفس كاش الباك — مشاركة كاملة
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  history_cache:   # كاش شموع parquet — ملكية trader داخل الحاوية (يحل PermissionError)

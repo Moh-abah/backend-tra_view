@@ -1,0 +1,499 @@
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2924.18,
+        "close": 2924.18,
+        "volume": 733335.4929
+    },
+    "indicators": {},
+    "time": 1766845056081
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2924.18,
+        "close": 2924.18,
+        "volume": 825001.4659
+    },
+    "indicators": {},
+    "time": 1766845056907
+}
+{
+    "type": "indicator_added",
+    "indicator": "harmonic_patterns",
+    "indicators_results": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "signals": null,
+            "metadata": {
+                "pivots": [
+                    {
+                        "type": "low",
+                        "price": 2927.54,
+                        "time": "2025-12-27T15:03:00",
+                        "idx": 16
+                    },
+                    {
+                        "type": "high",
+                        "price": 2930.2,
+                        "time": "2025-12-27T15:07:00",
+                        "idx": 20
+                    },
+                    {
+                        "type": "low",
+                        "price": 2926.6,
+                        "time": "2025-12-27T15:21:00",
+                        "idx": 34
+                    },
+                    {
+                        "type": "high",
+                        "price": 2930.62,
+                        "time": "2025-12-27T15:33:00",
+                        "idx": 46
+                    },
+                    {
+                        "type": "low",
+                        "price": 2928.24,
+                        "time": "2025-12-27T15:41:00",
+                        "idx": 54
+                    },
+                    {
+                        "type": "low",
+                        "price": 2925.56,
+                        "time": "2025-12-27T16:00:00",
+                        "idx": 73
+                    },
+                    {
+                        "type": "high",
+                        "price": 2928.88,
+                        "time": "2025-12-27T16:03:00",
+                        "idx": 76
+                    },
+                    {
+                        "type": "low",
+                        "price": 2919.49,
+                        "time": "2025-12-27T16:28:00",
+                        "idx": 101
+                    },
+                    {
+                        "type": "high",
+                        "price": 2924.28,
+                        "time": "2025-12-27T16:41:00",
+                        "idx": 114
+                    },
+                    {
+                        "type": "high",
+                        "price": 2924.28,
+                        "time": "2025-12-27T16:42:00",
+                        "idx": 115
+                    },
+                    {
+                        "type": "low",
+                        "price": 2917.13,
+                        "time": "2025-12-27T16:47:00",
+                        "idx": 120
+                    },
+                    {
+                        "type": "high",
+                        "price": 2922.75,
+                        "time": "2025-12-27T17:02:00",
+                        "idx": 135
+                    },
+                    {
+                        "type": "high",
+                        "price": 2922.75,
+                        "time": "2025-12-27T17:03:00",
+                        "idx": 136
+                    }
+                ]
+            }
+        }
+    },
+    "time": 1766845057031
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2924.18,
+        "close": 2924.19,
+        "volume": 916667.5819999999
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845057917
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2924.18,
+        "close": 2924.19,
+        "volume": 1008343.8801
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845058947
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2924.18,
+        "close": 2924.19,
+        "volume": 1100020.1782
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845059935
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2923.6,
+        "close": 2923.6,
+        "volume": 2658425.0036000004
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845076966
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2923.6,
+        "close": 2923.61,
+        "volume": 2750091.3890000004
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845077905
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845020000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2923.6,
+        "close": 2923.61,
+        "volume": 2841749.6091000005
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845079057
+}
+{
+    "type": "candle_close",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "candle": {
+        "time": 1766845080000,
+        "open": 2924.19,
+        "high": 2924.19,
+        "low": 2923.6,
+        "close": 2923.61,
+        "volume": 2841749.6091000005
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845080103
+}
+{
+    "type": "price_update",
+    "symbol": "ETHUSDT",
+    "timeframe": "1m",
+    "live_candle": {
+        "time": 1766845140000,
+        "open": 2923.61,
+        "high": 2923.61,
+        "low": 2923.61,
+        "close": 2923.61,
+        "volume": 91658.9039
+    },
+    "indicators": {
+        "harmonic_patterns": {
+            "name": "harmonic_patterns",
+            "values": [
+                0
+            ],
+            "signals": {
+                "data": [],
+                "index": [],
+                "dtype": "int64"
+            },
+            "metadata": {}
+        }
+    },
+    "time": 1766845080053
+}

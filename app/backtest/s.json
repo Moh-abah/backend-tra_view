@@ -1,0 +1,167 @@
+{
+    "name": "Ultimate Architecture Test (Final)",
+    "version": "1.0.0",
+    "description": "استراتيجية شاملة للاختبار النظام الجديد مع منطق صارم",
+    "base_timeframe": "1h",
+    "position_side": "both",
+    "indicators": [
+        {
+            "id": "sma_fast",
+            "name": "sma_fast",
+            "type": "trend",
+            "params": {
+                "period": 20
+            },
+            "enabled": true,
+            "timeframe": "1h"
+        },
+        {
+            "id": "volume_climax",
+            "name": "volume_climax",
+            "type": "volume",
+            "params": {
+                "period": 20,
+                "ratio_ultra": 2.2,
+                "ratio_very_high": 1.8,
+                "ratio_high": 1.2,
+                "ratio_normal": 0.8,
+                "ratio_low": 0.4
+            },
+
+            "enabled": true,
+            "timeframe": "1h"
+        },
+        {
+            "id": "sma_slow",
+            "name": "sma_slow",
+            "type": "trend",
+            "params": {
+                "period": 50
+            },
+            "enabled": true,
+            "timeframe": "1h"
+        },
+        {
+            "id": "rsi",
+            "name": "rsi",
+            "type": "momentum",
+            "params": {
+                "period": 14,
+                "overbought": 70,
+                "oversold": 30
+            },
+            "enabled": true,
+            "timeframe": "1h"
+        },
+        {
+            "id": "bollinger_bands",
+            "name": "bollinger_bands",
+            "type": "volatility",
+            "params": {
+                "period": 20,
+                "std": 2.0
+            },
+            "enabled": true,
+            "timeframe": "1h"
+        },
+        {
+            "id": "supply_demand",
+            "name": "supply_demand",
+            "type": "support_resistance",
+            "params": {
+                "period": 20,
+                "threshold": 2.0
+            },
+            "enabled": true,
+            "timeframe": "1h"
+        }
+    ],
+    "entry_rules": [
+        {
+            "name": "Trend Up (SMA Fast > Slow)",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.4,
+            "condition": {
+                "type": "indicator_value",
+                "operator": ">",
+                "left_value": "indicator:sma_fast",
+                "right_value": "indicator:sma_slow"
+            }
+        },
+        {
+            "name": "RSI Healthy (<70)",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.2,
+            "condition": {
+                "type": "indicator_value",
+                "operator": "<",
+                "left_value": "indicator:rsi",
+                "right_value": 70
+            }
+        },
+        {
+            "name": "Momentum Above Bollinger Mid",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.2,
+            "condition": {
+                "type": "indicator_value",
+                "operator": ">",
+                "left_value": "indicator:sma_fast",
+                "right_value": "indicator:bollinger_bands"
+            }
+        },
+        {
+            "name": "Short Trend Reversal",
+            "enabled": true,
+            "position_side": "short",
+            "weight": 0.2,
+            "condition": {
+                "type": "indicator_crossover",
+                "operator": "cross_below",
+                "left_value": "indicator:sma_fast",
+                "right_value": "indicator:sma_slow"
+            }
+        }
+    ],
+    "exit_rules": [
+        {
+            "name": "Exit on Trend Reversal",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "indicator_crossover",
+                "operator": "cross_below",
+                "left_value": "indicator:sma_fast",
+                "right_value": "indicator:sma_slow"
+            }
+        },
+        {
+            "name": "Exit on Extreme RSI",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "indicator_value",
+                "operator": ">",
+                "left_value": "indicator:rsi",
+                "right_value": 80
+            }
+        }
+    ],
+    "filter_rules": [
+        {
+            "name": "Block Supply Zone (Modified)",
+            "enabled": true,
+            "action": "block",
+            "condition": {
+                "type": "indicator_value",
+                "operator": "!=",
+                "left_value": "indicator:supply_demand",
+                "right_value": 0
+            }
+        }
+    ],
+    "risk_management": {}
+}

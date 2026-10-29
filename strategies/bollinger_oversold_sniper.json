@@ -1,0 +1,91 @@
+{
+  "name": "Bollinger Oversold Sniper",
+  "version": "1.1.0",
+  "description": "قنص ارتدادات بولينجر: اختراق النطاق السفلي بالسعر مع تشبع مزدوج (RSI+Stochastic)",
+  "base_timeframe": "1h",
+  "position_side": "long",
+  "indicators": [
+    {
+      "id": "bbl",
+      "name": "bollinger_lower",
+      "type": "volatility",
+      "params": {
+        "period": 20,
+        "std": 2.0
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    },
+    {
+      "id": "rsi",
+      "name": "rsi",
+      "type": "momentum",
+      "params": {
+        "period": 14
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    },
+    {
+      "id": "stoch",
+      "name": "stochastic",
+      "type": "momentum",
+      "params": {
+        "k_period": 14,
+        "d_period": 3
+      },
+      "enabled": true,
+      "timeframe": "1h"
+    }
+  ],
+  "entry_rules": [
+    {
+      "name": "Lower Band Break Double Oversold",
+      "enabled": true,
+      "position_side": "long",
+      "weight": 1.0,
+      "condition": {
+        "type": "and",
+        "conditions": [
+          {
+            "type": "indicator_crossover",
+            "operator": "cross_below",
+            "left_value": "price:close",
+            "right_value": "indicator:bbl"
+          },
+          {
+            "type": "indicator_value",
+            "operator": "<",
+            "left_value": "indicator:rsi",
+            "right_value": 40
+          },
+          {
+            "type": "indicator_value",
+            "operator": "<",
+            "left_value": "indicator:stoch",
+            "right_value": 30
+          }
+        ]
+      }
+    }
+  ],
+  "exit_rules": [
+    {
+      "name": "Mean Reversion Exit",
+      "enabled": true,
+      "exit_type": "signal_exit",
+      "condition": {
+        "type": "indicator_value",
+        "operator": ">=",
+        "left_value": "indicator:rsi",
+        "right_value": 55
+      }
+    }
+  ],
+  "risk_management": {
+    "stop_loss_percentage": 6.0,
+    "take_profit_percentage": 6.0,
+    "max_position_size": 0.25,
+    "max_concurrent_positions": 1
+  }
+}

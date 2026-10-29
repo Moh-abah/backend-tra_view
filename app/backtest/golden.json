@@ -1,0 +1,332 @@
+{
+    "name": "Golden Phoenix 5M",
+    "version": "3.0.0",
+    "description": "استراتيجية متقدمة على 5 دقائق تجمع بين أقوى 5 مؤشرات مع إدارة مخاطر ذكية لتحقيق أرباح مستمرة",
+    "base_timeframe": "5m",
+    "position_side": "both",
+    "indicators": [
+        {
+            "name": "ema_9",
+            "type": "trend",
+            "params": {"period": 9},
+            "enabled": true,
+            "timeframe": "5m"
+        },
+        {
+            "name": "ema_21",
+            "type": "trend",
+            "params": {"period": 21},
+            "enabled": true,
+            "timeframe": "5m"
+        },
+        {
+            "name": "rsi",
+            "type": "momentum",
+            "params": {"period": 14, "overbought": 70, "oversold": 30},
+            "enabled": true,
+            "timeframe": "5m"
+        },
+        {
+            "name": "macd",
+            "type": "momentum",
+            "params": {"fast": 12, "slow": 26, "signal": 9},
+            "enabled": true,
+            "timeframe": "5m"
+        },
+        {
+            "name": "bollinger_bands",
+            "type": "volatility",
+            "params": {"period": 20, "std": 2.0},
+            "enabled": true,
+            "timeframe": "5m"
+        },
+        {
+            "name": "stochastic",
+            "type": "momentum",
+            "params": {"k_period": 14, "d_period": 3, "overbought": 80, "oversold": 20},
+            "enabled": true,
+            "timeframe": "5m"
+        }
+    ],
+    "entry_rules": [
+        {
+            "name": "📈 الصفقة الذهبية الطويلة (Golden Long Setup)",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.3,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_crossover",
+                        "operator": "cross_above",
+                        "left_value": "indicator:ema_9",
+                        "right_value": "indicator:ema_21"
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:rsi",
+                        "right_value": 65
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:macd",
+                        "right_value": 0
+                    }
+                ]
+            }
+        },
+
+        {
+            "name": "🔥 التعزيز الطويل (Momentum Boost Long)",
+            "enabled": true,
+            "position_side": "long",
+            "weight": 0.2,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:rsi",
+                        "right_value": 30
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:rsi",
+                        "right_value": 50
+                    },
+                    {
+                        "type": "indicator_crossover",
+                        "operator": "cross_above",
+                        "left_value": "indicator:macd",
+                        "right_value": 0
+                    }
+                ]
+            }
+        },
+        {
+            "name": "📉 الصفقة الذهبية القصيرة (Golden Short Setup)",
+            "enabled": true,
+            "position_side": "short",
+            "weight": 0.15,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_crossover",
+                        "operator": "cross_below",
+                        "left_value": "indicator:ema_9",
+                        "right_value": "indicator:ema_21"
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:rsi",
+                        "right_value": 35
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:macd",
+                        "right_value": 0
+                    }
+                ]
+            }
+        },
+
+        {
+            "name": "📉 الصفقة الذهبية القصيرة (Golden Short Setup)",
+            "enabled": true,
+            "position_side": "short",
+            "weight": 0.15,
+            "condition": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:stochastic",
+                        "right_value": 50
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "close",
+                        "right_value": "indicator:bollinger_bands"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "💥 التعزيز القصير (Momentum Boost Short)",
+            "enabled": true,
+            "position_side": "short",
+            "weight": 0.2,
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:rsi",
+                        "right_value": 50
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:rsi",
+                        "right_value": 70
+                    },
+                    {
+                        "type": "indicator_crossover",
+                        "operator": "cross_below",
+                        "left_value": "indicator:macd",
+                        "right_value": 0
+                    }
+                ]
+            }
+        }
+    ],
+    "exit_rules": [
+        {
+            "name": "🚪 خروج طويل ذكي (Smart Long Exit)",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "type": "indicator_crossover",
+                        "operator": "cross_below",
+                        "left_value": "indicator:ema_9",
+                        "right_value": "indicator:ema_21"
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:rsi",
+                        "right_value": 75
+                    }
+                ]
+            }
+        },
+
+        {
+            "name": "🚪  2  خروج طويل ذكي (Smart Long Exit)",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:macd",
+                        "right_value": 0
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:stochastic",
+                        "right_value": 90
+                    }
+                ]
+            }
+        },        
+
+
+        {
+            "name": "🚪 خروج قصير ذكي (Smart Short Exit)",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_crossover",
+                        "operator": "cross_above",
+                        "left_value": "indicator:ema_9",
+                        "right_value": "indicator:ema_21"
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:rsi",
+                        "right_value": 25
+                    }
+                   
+                ]
+            }
+        },
+        {
+            "name": "🚪  2 خروج قصير ذكي (Smart Short Exit)",
+            "enabled": true,
+            "exit_type": "signal_exit",
+            "condition": {
+                "type": "and",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:macd",
+                        "right_value": 0
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:stochastic",
+                        "right_value": 10
+                    }
+                ]
+                
+            }
+        }
+    ],
+    "filter_rules": [
+        {
+            "name": "🛡️ فلترة تقلبات بولينجر العالية",
+            "enabled": true,
+            "action": "delay",
+            "condition": {
+                "type": "indicator_value",
+                "operator": ">",
+                "left_value": "indicator:bollinger_bands",
+                "right_value": 10
+            }
+        },
+        {
+            "name": "⚡ فلترة RSI المتطرف",
+            "enabled": true,
+            "action": "block",
+            "condition": {
+                "type": "or",
+                "conditions": [
+                    {
+                        "type": "indicator_value",
+                        "operator": ">",
+                        "left_value": "indicator:rsi",
+                        "right_value": 85
+                    },
+                    {
+                        "type": "indicator_value",
+                        "operator": "<",
+                        "left_value": "indicator:rsi",
+                        "right_value": 15
+                    }
+                ]
+            }
+        }
+    ],
+    "risk_management": {
+        "stop_loss_percentage": 1.2,
+        "take_profit_percentage": 2.5,
+        "trailing_stop_percentage": 0.8,
+        "max_position_size": 0.35,
+        "max_daily_loss": 4.0,
+        "max_concurrent_positions": 3
+    }
+}

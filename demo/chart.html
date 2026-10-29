@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الشارت الاحترافي — نمط TradingView</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    background:#131722; color:#d1d4dc;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  /* ====== Header ====== */
+  .hdr {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:8px 14px; background:#1e222d; border-bottom:1px solid #2a2e39;
+  }
+  .sym { font-size:18px; font-weight:700; color:#fff; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:4px; background:#2a2e39; color:#787b86; }
+  .badge.live { background:rgba(38,166,154,.15); color:#26a69a; }
+  .badge.err  { background:rgba(239,83,80,.15);  color:#ef5350; }
+  .price { font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .price.up { color:#26a69a; } .price.down { color:#ef5350; }
+  .chg { font-size:12px; font-weight:600; }
+  .chg.up { color:#26a69a; } .chg.down { color:#ef5350; }
+  .spacer { flex:1; }
+  .sym-input {
+    background:#2a2e39; color:#d1d4dc; border:1px solid #363a45; border-radius:6px;
+    padding:5px 10px; font-size:13px; width:130px; outline:none; direction:ltr; text-align:left;
+  }
+  .sym-input:focus { border-color:#2962ff; }
+  /* ====== Timeframes ====== */
+  .tfs { display:flex; gap:2px; padding:6px 14px; background:#1e222d; border-bottom:1px solid #2a2e39; }
+  .tf {
+    padding:5px 13px; font-size:12px; font-weight:600; cursor:pointer;
+    color:#787b86; border-radius:5px; border:none; background:transparent; user-select:none;
+  }
+  .tf:hover { color:#d1d4dc; background:#2a2e39; }
+  .tf.active { color:#fff; background:#2962ff; }
+  /* ====== Chart area ====== */
+  .wrap { position:relative; flex:1; min-height:0; }
+  #chart { position:absolute; inset:0; }
+  /* ====== Status bar (sticky footer of the page) ====== */
+  .status {
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:6px 14px; background:#1e222d; border-top:1px solid #2a2e39;
+    font-size:11.5px; color:#787b86;
+  }
+  .status b { color:#d1d4dc; font-variant-numeric:tabular-nums; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#787b86; display:inline-block; margin-inline-end:5px; }
+  .dot.on { background:#26a69a; box-shadow:0 0 6px rgba(38,166,154,.8); }
+  .dot.off { background:#ef5350; }
+  /* ====== Loading overlay ====== */
+  .loader {
+    position:absolute; top:12px; left:14px; z-index:10;
+    display:none; align-items:center; gap:8px;
+    background:rgba(30,34,45,.92); border:1px solid #2a2e39; border-radius:8px;
+    padding:7px 14px; font-size:12px; color:#d1d4dc;
+  }
+  .loader.show { display:flex; }
+  .spin {
+    width:14px; height:14px; border:2px solid #2a2e39; border-top-color:#2962ff;
+    border-radius:50%; animation:sp .7s linear infinite;
+  }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .endmsg {
+    position:absolute; top:12px; left:14px; z-index:10; display:none;
+    background:rgba(30,34,45,.92); border:1px solid #2a2e39; border-radius:8px;
+    padding:7px 14px; font-size:12px; color:#787b86;
+  }
+  .endmsg.show { display:block; }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <span class="sym" id="symLabel">BTCUSDT</span>
+  <span class="badge">CRYPTO</span>
+  <span class="badge" id="wsBadge"><span class="dot" id="wsDot"></span>مباشر</span>
+  <span class="price" id="price">—</span>
+  <span class="chg" id="chg"></span>
+  <span class="spacer"></span>
+  <input class="sym-input" id="symInput" placeholder="رمز… مثال: ETHUSDT" list="symList">
+  <datalist id="symList"></datalist>
+</header>
+
+<nav class="tfs" id="tfs"></nav>
+
+<main class="wrap">
+  <div id="chart"></div>
+  <div class="loader" id="loader"><span class="spin"></span><span id="loaderTxt">جاري تحميل الشموع…</span></div>
+  <div class="endmsg" id="endmsg">⏱ وصلت إلى بداية التاريخ المتاح لهذا الرمز</div>
+</main>
+
+<footer class="status">
+  <span><span class="dot off" id="apiDot"></span>API</span>
+  <span>الشموع المحمّلة: <b id="cnt">0</b></span>
+  <span>الفريم: <b id="tfLabel">1h</b></span>
+  <span>الحالة: <b id="stateTxt">جاري التهيئة…</b></span>
+  <span class="spacer"></span>
+  <span style="opacity:.6">التمرير لليسار يجلب الشموع الأقدم تلقائيًا — بلا حد لعدد الشموع</span>
+</footer>
+
+<script>
+/* ============================================================================
+   الشارت الاحترافي بنمط TradingView — تحميل لانهائي للشموع + بث حي
+   ----------------------------------------------------------------------------
+   • الصفحة الأولى:  GET /api/v1/market/candles/{market}/{symbol}?timeframe=..&limit=2000
+   • التمرير يسارًا: ...&before=<أقدم وقت محمّل (ms)>  ← الصفحة الأقدم، بلا نهاية
+   • البث الحي:      WS  /ws/live/{market}/{symbol}?timeframe=..  (+سقوط آمن للاستقصاء)
+   ========================================================================== */
+(function () {
+"use strict";
+
+/* ---------- إعدادات قابلة للتخصيص عبر الرابط ?api=&symbol=&tf=&market= ---------- */
+const qs     = new URLSearchParams(location.search);
+let   API    = qs.get("api")    || (location.protocol.startsWith("http") ? location.origin : "http://localhost:8000");
+let   SYMBOL = (qs.get("symbol") || "BTCUSDT").toUpperCase();
+const MARKET = qs.get("market") || "crypto";
+let   TF     = qs.get("tf")     || "1h";
+const PAGE   = 2000;              // حجم الصفحة الواحدة (الإجمالي غير محدود)
+const TRIGGER = 80;               // عدد الشموع المتبقية على اليسار قبل جلب الأقدم
+
+const TFS = ["1m","5m","15m","1h","4h","1d"];
+const TF_MS = { "1m":6e4,"3m":18e4,"5m":3e5,"15m":9e5,"30m":18e5,"1h":36e5,"2h":72e5,"4h":144e5,"6h":216e5,"8h":288e5,"12h":432e5,"1d":864e5,"3d":2592e5,"1w":6048e5 };
+
+/* ---------- عناصر الواجهة ---------- */
+const $ = (id) => document.getElementById(id);
+const elPrice=$("price"), elChg=$("chg"), elCnt=$("cnt"), elState=$("stateTxt"),
+      elLoader=$("loader"), elLoaderTxt=$("loaderTxt"), elEnd=$("endmsg"),
+      elWsDot=$("wsDot"), elApiDot=$("apiDot"), elTfLabel=$("tfLabel");
+
+/* ---------- حالة الشارت ---------- */
+let candles = [];            // {time(sec), open, high, low, close, volume} تصاعدي
+let oldestMs = null;         // أقدم وقت محمّل (ms)
+let hasMore = true;
+let loadingHistory = false;  // قفل جلب التاريخ
+let initialLoaded = false;
+let ws = null, wsAlive = false, pollTimer = null, lastLiveMs = 0;
+
+/* ---------- إنشاء الشارت ---------- */
+const chart = LightweightCharts.createChart($("chart"), {
+  layout: { background:{ type:"solid", color:"#131722" }, textColor:"#d1d4dc", fontSize:12 },
+  grid:   { vertLines:{ color:"#1e222d" }, horzLines:{ color:"#1e222d" } },
+  crosshair: { mode: LightweightCharts.CrosshairMode.Normal,
+    vertLine:{ color:"#758696", width:1, style:3, labelBackgroundColor:"#363a45" },
+    horzLine:{ color:"#758696", width:1, style:3, labelBackgroundColor:"#363a45" } },
+  rightPriceScale: { borderColor:"#2a2e39", scaleMargins:{ top:0.08, bottom:0.25 } },
+  timeScale: { borderColor:"#2a2e39", timeVisible:true, secondsVisible:false, rightOffset:6, barSpacing:8 },
+  handleScroll: true, handleScale: true,
+});
+const series = chart.addCandlestickSeries({
+  upColor:"#26a69a", downColor:"#ef5350", borderUpColor:"#26a69a", borderDownColor:"#ef5350",
+  wickUpColor:"#26a69a", wickDownColor:"#ef5350",
+});
+const vol = chart.addHistogramSeries({
+  priceScaleId:"", priceFormat:{ type:"volume" }, priceLineVisible:false, lastValueVisible:false,
+});
+vol.priceScale().applyOptions({ scaleMargins:{ top:0.82, bottom:0 } });
+
+/* استجابة لتغيير المقاس */
+new ResizeObserver(entries => {
+  const r = entries[0].contentRect;
+  chart.applyOptions({ width: Math.floor(r.width), height: Math.floor(r.height) });
+}).observe($("chart"));
+
+/* ---------- أدوات مساعدة ---------- */
+function fmt(n){ return (n===undefined||n===null)?"—":Number(n).toLocaleString("en-US",{maximumFractionDigits:8}); }
+function setState(t){ elState.textContent = t; }
+function setStateClickable(on){
+  elState.style.cursor = on ? "pointer" : "";
+  elState.style.color = on ? "#2962ff" : "";
+  elState.onclick = on ? (()=>{ setStateClickable(false); switchSymbol(SYMBOL); }) : null;
+}
+function showLoader(t){ elLoaderTxt.textContent = t; elLoader.classList.add("show"); elEnd.classList.remove("show"); }
+function hideLoader(){ elLoader.classList.remove("show"); }
+function showEnd(){ elEnd.classList.add("show"); elLoader.classList.remove("show"); }
+
+function toBar(c){
+  return { time: Math.floor(c.time/1000), open:+c.open, high:+c.high, low:+c.low, close:+c.close, volume:+c.volume };
+}
+
+/* تحديث رأس الصفحة (سعر/تغير) */
+function refreshHeader(){
+  const n = candles.length;
+  if(!n) return;
+  const last = candles[n-1];
+  elPrice.textContent = fmt(last.close);
+  elPrice.className = "price " + (last.close>=last.open?"up":"down");
+  if(n>1){
+    const prev = candles[n-2].close;
+    const d = last.close-prev, p = prev?(d/prev*100):0;
+    elChg.textContent = (d>=0?"+":"")+d.toFixed(2)+" ("+(p>=0?"+":"")+p.toFixed(2)+"%)";
+    elChg.className = "chg " + (d>=0?"up":"down");
+  }
+  elCnt.textContent = n.toLocaleString("en-US");
+}
+
+/* ---------- جلب صفحة شموع من الباك ---------- */
+async function fetchPage(beforeMs){
+  const url = `${API}/api/v1/market/candles/${MARKET}/${SYMBOL}?timeframe=${TF}&limit=${PAGE}` +
+              (beforeMs?`&before=${beforeMs}`:"");
+  const r = await fetch(url, { signal: AbortSignal.timeout(45000) });
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r.json();
+}
+
+/* التحميل الأول: أحدث صفحة ثم نجلب صفحتين إضافيتين مسبقًا لتظهر الشموع "مليانة" */
+async function initialLoad(){
+  showLoader("جاري تحميل الشموع…");
+  setState("تحميل أولي…");
+  try{
+    const data = await fetchPage(null);
+    candles = (data.candles||[]).map(toBar);
+    oldestMs = data.oldest_time;
+    hasMore  = !!data.has_more;
+    series.setData(candles);
+    vol.setData(candles.map(c=>({ time:c.time, value:c.volume, color:c.close>=c.open?"rgba(38,166,154,.45)":"rgba(239,83,80,.45)" })));
+    chart.timeScale().scrollToRealTime();
+    refreshHeader();
+    initialLoaded = true;
+    elApiDot.className = "dot on";
+    setState("متصل");
+    /* تعبئة مسبقة: صفحتان إضافيتان خلف الكادر حتى لا يرى المستخدم فراغًا أبدًا */
+    let prefetched = 0;
+    while(hasMore && prefetched<2){
+      await loadOlder(true);
+      prefetched++;
+    }
+    hideLoader();
+    setState("متصل");
+  }catch(e){
+    hideLoader();
+    elApiDot.className = "dot off";
+    setState("فشل الاتصال بالـ API: "+e.message+" — اضغط هنا لإعادة المحاولة");
+    setStateClickable(true);
+  }
+}
+
+/* جلب الصفحة الأقدم (التمرير لليسار) — بلا حد لعدد الصفحات */
+async function loadOlder(silent){
+  if(loadingHistory || !hasMore || !initialLoaded) return;
+  loadingHistory = true;
+  if(!silent) showLoader("جلب الشموع الأقدم…");
+  else setState("تعبئة مسبقة للتاريخ…");
+  try{
+    const data = await fetchPage(oldestMs);
+    const older = (data.candles||[]).map(toBar).filter(c => !oldestMs || (c.time*1000) < oldestMs);
+    if(older.length){
+      /* دمج + الحفاظ على مكان العرض الحالي دون قفز */
+      const vr = chart.timeScale().getVisibleLogicalRange();
+      candles = older.concat(candles);
+      series.setData(candles);
+      vol.setData(candles.map(c=>({ time:c.time, value:c.volume, color:c.close>=c.open?"rgba(38,166,154,.45)":"rgba(239,83,80,.45)" })));
+      if(vr) chart.timeScale().setVisibleLogicalRange({ from: vr.from + older.length, to: vr.to + older.length });
+      oldestMs = data.oldest_time ?? candles[0].time*1000;
+      refreshHeader();
+    }
+    hasMore = !!data.has_more;
+    if(!hasMore) showEnd();
+  }catch(e){
+    if(!silent) setState("تعذر جلب الشموع الأقدم: "+e.message);
+  }finally{
+    loadingHistory = false;
+    hideLoader();
+  }
+}
+
+/* مُشغّل التمرير اللانهائي — مثل TradingView تمامًا */
+chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+  if(!range || !initialLoaded || loadingHistory || !hasMore) return;
+  if(range.from < TRIGGER) loadOlder(false);
+});
+
+/* ---------- البث الحي (WS) مع سقوط آمن إلى الاستقصاء ---------- */
+function tfSec(){ return Math.floor((TF_MS[TF]||36e5)/1000); }
+
+function applyLiveTick(tick){
+  /* tick: {open, high, low, close, volume, timestamp(ms اختياري)} */
+  const nowSec = tick.ts ? Math.floor(tick.ts/1000) : Math.floor(Date.now()/1000);
+  const bucket = nowSec - (nowSec % tfSec());
+  const n = candles.length;
+  if(!n) return;
+  const last = candles[n-1];
+  let bar;
+  if(bucket > last.time){
+    bar = { time:bucket, open:tick.close, high:tick.close, low:tick.close, close:tick.close, volume:tick.volume||0 };
+    candles.push(bar);
+  }else{
+    bar = { ...last };
+    bar.close = tick.close;
+    bar.high = Math.max(bar.high, tick.close);
+    bar.low  = Math.min(bar.low,  tick.close);
+    if(tick.volume) bar.volume = Math.max(bar.volume, tick.volume);
+    candles[n-1] = bar;
+  }
+  series.update(bar);
+  vol.update({ time:bar.time, value:bar.volume, color:bar.close>=bar.open?"rgba(38,166,154,.45)":"rgba(239,83,80,.45)" });
+  refreshHeader();
+}
+
+function connectWS(){
+  try{
+    /* http→ws و https→wss في تحويل واحد سليم */
+    const wsUrl = API.replace(/^http/, "ws") + `/api/v1/market/ws/live/${MARKET}/${SYMBOL}?timeframe=${TF}`;
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => { wsAlive=true; elWsDot.className="dot on"; setState("متصل — بث حي"); startPolling(true); };
+    ws.onmessage = (ev) => {
+      try{
+        const m = JSON.parse(ev.data);
+        if(m.type==="price" && m.data && m.data.close!==undefined){
+          const ts = m.data.timestamp ? Date.parse(m.data.timestamp) : Date.now();
+          applyLiveTick({ open:+m.data.open, high:+m.data.high, low:+m.data.low, close:+m.data.close, volume:+(m.data.volume||0), ts });
+        }
+      }catch(_){}
+    };
+    ws.onclose = ws.onerror = () => {
+      wsAlive=false; elWsDot.className="dot off";
+      setState("البث الحي غير متاح — تحديث دوري");
+      setTimeout(connectWS, 8000);
+    };
+  }catch(_){ wsAlive=false; }
+}
+
+/* استقصاء خفيف لآخر شمعة (يعمل دائمًا كشبكة أمان، ويتوقف أثناء عمل WS) */
+async function pollTail(){
+  if(wsAlive && candles.length) { /* WS يعمل — الاستقصاء احتياطي فقط كل فترة أطول */ }
+  try{
+    const r = await fetch(`${API}/api/v1/market/candles/${MARKET}/${SYMBOL}?timeframe=${TF}&limit=2`);
+    if(!r.ok) return;
+    const data = await r.json();
+    const cs = data.candles||[];
+    if(!cs.length) return;
+    const newest = cs[cs.length-1];
+    if(newest.time > lastLiveMs){
+      lastLiveMs = newest.time;
+      if(!candles.length || newest.time > candles[candles.length-1].time*1000 + (TF_MS[TF]||36e5)/1000*3){
+        /* ابتعدنا كثيرًا عن الذيل (مثلاً الجهاز نام) — مزامنة الذيل */
+        candles[candles.length-1] = toBar(newest);
+        series.update(toBar(newest));
+      }
+    }
+    if(!wsAlive) applyLiveTick({ open:+newest.open, high:+newest.high, low:+newest.low, close:+newest.close, volume:+newest.volume, ts:newest.time });
+  }catch(_){}
+}
+function startPolling(stoppedWs){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollTail, stoppedWs?15000:3000);
+}
+
+/* ---------- شريط الفريمات + تغيير الرمز ---------- */
+function renderTfs(){
+  const box = $("tfs"); box.innerHTML="";
+  TFS.forEach(tf=>{
+    const b = document.createElement("button");
+    b.className = "tf"+(tf===TF?" active":"");
+    b.textContent = tf;
+    b.onclick = ()=> switchTf(tf);
+    box.appendChild(b);
+  });
+  elTfLabel.textContent = TF;
+}
+
+async function switchSymbol(sym){
+  const s = (sym||"").trim().toUpperCase();
+  if(!s) return;
+  stopLive();
+  SYMBOL = s; $("symLabel").textContent = s;
+  candles=[]; oldestMs=null; hasMore=true; initialLoaded=false;
+  series.setData([]); vol.setData([]);
+  hideLoader(); elEnd.classList.remove("show");
+  await initialLoad();
+  startLive();
+}
+
+function switchTf(tf){
+  if(tf===TF) return;
+  TF = tf;
+  renderTfs();
+  stopLive();
+  candles=[]; oldestMs=null; hasMore=true; initialLoaded=false;
+  series.setData([]); vol.setData([]);
+  hideLoader(); elEnd.classList.remove("show");
+  initialLoad().then(startLive);
+}
+
+function stopLive(){
+  if(ws){ try{ ws.onclose=null; ws.close(); }catch(_){} ws=null; }
+  wsAlive=false; elWsDot.className="dot off";
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+}
+function startLive(){ connectWS(); startPolling(false); }
+
+$("symInput").addEventListener("keydown", e=>{
+  if(e.key==="Enter") switchSymbol(e.target.value);
+});
+
+/* تعبئة قائمة الرموز الشائعة */
+const COMMON = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","AVAXUSDT","LINKUSDT","MATICUSDT"];
+COMMON.forEach(s=>{ const o=document.createElement("option"); o.value=s; $("symList").appendChild(o); });
+
+/* ---------- إقلاع ---------- */
+renderTfs();
+initialLoad().then(startLive);
+
+/* تصدير للوصول البرمجي (اختبار/تكامل) */
+window.__TV = { chart, series, vol, getCandles: () => candles.slice(), state: () => ({ count: candles.length, hasMore, oldestMs, loadingHistory }) };
+
+})();
+</script>
+</body>
+</html>

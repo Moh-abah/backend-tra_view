@@ -1,0 +1,52 @@
+{
+  "type": "chart_initialized",
+  "symbol": "BTCUSDT",
+  "timeframe": "1m",
+  "market": "crypto",
+  "data": {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "candles": [
+      {
+        "time": 1766241540000,
+        "open": 88130.83,
+        "high": 88192.84,
+        "low": 88126.28,
+        "close": 88183.23,
+        "volume": 7.215
+      },
+      {
+        "time": 1766241600000,
+        "open": 88183.24,
+        "high": 88183.24,
+        "low": 88140.0,
+        "close": 88140.0,
+        "volume": 2.48315
+      },
+      {
+        "time": 1766241660000,
+        "open": 88140.01,
+        "high": 88140.01,
+        "low": 88116.37,
+        "close": 88123.75,
+        "volume": 3.68003
+      },
+      {
+        "time": 1766244480000,
+        "open": 88053.51,
+        "high": 88098.53,
+        "low": 88053.5,
+        "close": 88098.52,
+        "volume": 11.11877
+      }
+    ],
+    "indicators": [],
+    "indicators_results": {},
+    "metadata": {
+      "total_candles": 500,
+      "last_update": 1766244529690,
+      "subscribers": 1
+    }
+  },
+  "time": 1766244533014
+}
