@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time as _time
 from pathlib import Path
 
@@ -42,6 +43,54 @@ _CACHE_STATE = {
     "failures": 0,      # عداد الفشل المتتالي
     "traceback_logged": False,
 }
+
+# ---------------------------------------------------------------------------
+# مرآة الكاش في الذاكرة (بتحقق mtime):
+#
+# قبل هذا: كل صفحة before= كانت تعيد قراءة ملف parquet كامل (~20MB لسنة 1m)
+# وفرزه من الصفر عند كل طلب تمرير — ثوانٍ إضافية على كل صفحة.
+# الآن: القرص يُقرأ مرة واحدة لكل ملف وتُعاد القراءة فقط إذا تغيّر
+# mtime/حجم الملف (بعد أي حفظ جديد). الإطارات المشتركة للقراءة فقط —
+# كل المسارات المستهلكة لها (concat/filter/mask) لا تُعدّل الأصل.
+# ---------------------------------------------------------------------------
+_DISK_MEM: Dict[str, tuple] = {}   # path -> (mtime_ns, size, df)
+_DISK_MEM_MAX = 6                  # حدود معقولة للذاكرة (~6 سلاسل نشطة)
+_DISK_MEM_LOCK = threading.Lock()
+
+# ---------------------------------------------------------------------------
+# بوابة الحظر/التهدئة المشتركة (418 / 429):
+#
+# الجذر الحقيقي للصفحات البطيئة (22-56 ثانية): Binance يعيد 418 (حظر IP مؤقت)
+# أو 429 (تجاوز الوزن) فتحرق كل دفعة 4 محاولات × 15 ثانية انتظار متسلسلة،
+# وكل الدفعات المتوازية تضرب الحائط معاً → 30-56 ثانية للصفحة وبيانات ناقصة.
+# الحل: أول 418/429 يفعّل تهدئة عامة قصيرة تُوقف كل الدفعات فوراً (فشل سريع
+# بدون حرق انتظارات)، والصفحة تعود سريعاً بما هو متوفر. الفجوات تُملأ
+# تلقائياً في الطلبات التالية لأن _missing_ranges تعيد اكتشافها (كاش يُصلح
+# نفسه)، وبما أن الكاش يتراكم الآن فكل نطاق يُجلَب مرة واحدة فقط.
+# ---------------------------------------------------------------------------
+_BAN_STATE = {"until": 0.0, "reason": ""}
+_BAN_LOCK = threading.Lock()
+
+
+def _ban_active() -> bool:
+    return _time.monotonic() < _BAN_STATE["until"]
+
+
+def _ban_wait() -> float:
+    """الثواني المتبقية في التهدئة الحالية (0 إذا لا تهدئة)."""
+    return max(0.0, _BAN_STATE["until"] - _time.monotonic())
+
+
+def _trigger_ban(seconds: float, reason: str) -> None:
+    with _BAN_LOCK:
+        until = _time.monotonic() + max(1.0, float(seconds))
+        if until > _BAN_STATE["until"]:
+            _BAN_STATE["until"] = until
+            _BAN_STATE["reason"] = reason
+            logger.warning(
+                "🚫 Binance %s — تهدئة عامة %.0fs (إيقاف فوري لبقية الدفعات؛ الفجوات تُملأ في الطلب التالي)",
+                reason, seconds,
+            )
 
 
 def _resolve_cache_dir() -> Optional[Path]:
@@ -362,11 +411,28 @@ class BinanceProvider(MarketDataProvider):
 
     @staticmethod
     def _load_disk_cache(path: Optional[Path]) -> Optional[pd.DataFrame]:
+        """يقرأ كاش القرص عبر مرآة الذاكرة — القرص مرة واحدة لكل نسخة ملف.
+
+        الأداء: أول استدعاء يقرأ parquet ويخزّنه في الذاكرة؛ الاستدعاءات
+        التالية لنفس الملف (صفحات التمرير before= المتتالية) تعيد نسخة
+        الذاكرة فوراً بدون IO. نعيد القراءة فقط إذا تغيّر mtime أو الحجم
+        (بعد أي حفظ جديد). الإطار المعاد للقراءة فقط — لا يُعدّله أحد.
+        """
         if path is None:
             return None
         try:
             if not path.exists():
                 return None
+            key = str(path)
+            st = path.stat()
+
+            # 1) نسخة الذاكرة الصالحة — صفر IO
+            with _DISK_MEM_LOCK:
+                entry = _DISK_MEM.get(key)
+                if entry is not None and entry[0] == st.st_mtime_ns and entry[1] == st.st_size:
+                    return entry[2]
+
+            # 2) قراءة من القرص + معالجة
             df = pd.read_parquet(path)
             if df.empty or "time" not in df.columns:
                 return None
@@ -374,7 +440,18 @@ class BinanceProvider(MarketDataProvider):
             for col in ("open", "high", "low", "close", "volume"):
                 if col not in df.columns:
                     return None
-            return df[["time", "open", "high", "low", "close", "volume"]].sort_values("time").reset_index(drop=True)
+            df = df[["time", "open", "high", "low", "close", "volume"]]
+            # نكتبها مفروزة دائماً؛ الفرز هنا تحصين رخيص عند الحاجة فقط
+            if not df["time"].is_monotonic_increasing:
+                df = df.sort_values("time")
+            df = df.reset_index(drop=True)
+
+            # 3) تخزين المرآة مع إخلاء الأقدم عند التجاوز
+            with _DISK_MEM_LOCK:
+                _DISK_MEM[key] = (st.st_mtime_ns, st.st_size, df)
+                while len(_DISK_MEM) > _DISK_MEM_MAX:
+                    _DISK_MEM.pop(next(iter(_DISK_MEM)))
+            return df
         except Exception:
             logger.warning("Disk cache read failed for %s — refetching", path.name, exc_info=True)
             return None
@@ -469,6 +546,14 @@ class BinanceProvider(MarketDataProvider):
             return df[['time', 'open', 'high', 'low', 'close', 'volume']]
 
         for attempt in range(4):
+            # بوابة التهدئة المشتركة: 418 (حظر طويل) → فشل فوري؛
+            # 429 (تهدئة قصيرة) → انتظار واحد مشترك ثم إعادة المحاولة.
+            if _ban_active():
+                if _BAN_STATE.get("reason", "").startswith("418"):
+                    return None
+                wait = _ban_wait()
+                if wait > 0:
+                    await asyncio.sleep(wait)
             try:
                 async with self._http_semaphore:
                     async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as resp:
@@ -479,13 +564,17 @@ class BinanceProvider(MarketDataProvider):
                             # parse ~1000 rows off the event loop (528 batches
                             # of 2ms CPU each add up to a noticeable freeze)
                             return await asyncio.to_thread(_parse_rows, data)
-                        if resp.status in (429, 418):
-                            retry_after = float(resp.headers.get("Retry-After", 2 ** attempt))
-                            # Cap the sleep: blocking one request for the whole ban
-                            # window (can be 40+ min) freezes the caller — better to
-                            # fail fast and let the client retry later.
-                            logger.warning("Binance %s on klines — backing off %.1fs (capped)", resp.status, min(retry_after, 15.0))
-                            await asyncio.sleep(min(retry_after, 15.0))
+                        if resp.status == 418:
+                            # حظر IP مؤقت من Binance (عادة دقائق) — تهدئة عامة
+                            # وفشل فوري: بدل 4×15 ثانية لكل دفعة (السبب التاريخي
+                            # للصفحات ذات 22-56 ثانية).
+                            retry_after = float(resp.headers.get("Retry-After", 120.0))
+                            _trigger_ban(min(retry_after, 300.0), "418 IP-ban")
+                            return None
+                        if resp.status == 429:
+                            # تجاوز وزن مؤقت — تهدئة قصيرة مشتركة (≤10s) ثم إعادة
+                            retry_after = float(resp.headers.get("Retry-After", 2.0))
+                            _trigger_ban(min(retry_after, 10.0), "429 rate-limit")
                             continue
                         if resp.status in (403, 451):
                             body = (await resp.text())[:200]
@@ -535,6 +624,7 @@ class BinanceProvider(MarketDataProvider):
             cached_times = cached["time"].to_numpy(dtype="int64") if cached is not None else np.empty(0, dtype="int64")
 
             missing = self._missing_ranges(cached_times, tf_ms, start_ms, end_ms)
+            failed_batches = 0  # يُستخدم لوسم fetch_incomplete حتى في مسار الكاش الكامل
             if missing:
                 batches: List[tuple] = []
                 for r_start, r_end in missing:
@@ -553,12 +643,22 @@ class BinanceProvider(MarketDataProvider):
                           for b0, b1 in batches)
                     )
                 for r in results:
-                    if r is not None and not r.empty:
+                    if r is None:
+                        failed_batches += 1
+                    elif not r.empty:
                         fetched.append(r)
+                if failed_batches:
+                    logger.warning(
+                        "⚠️ %s %s: فشل %d/%d دفعة (حظر/تهدئة Binance) — نُعيد المتوفر الآن والفجوات تُملأ في الطلب التالي",
+                        symbol, interval, failed_batches, len(batches),
+                    )
                 parts = ([cached] if cached is not None else []) + fetched
                 if not parts:
                     logger.warning("⚠️ No candles fetched for %s %s", symbol, timeframe)
-                    return pd.DataFrame(columns=['time', 'open', 'high', 'low', 'close', 'volume'])
+                    empty = pd.DataFrame(columns=['time', 'open', 'high', 'low', 'close', 'volume'])
+                    if failed_batches:
+                        empty.attrs["fetch_incomplete"] = True
+                    return empty
 
                 def _merge_parts() -> pd.DataFrame:
                     # ⚠️ إصلاح جوهري (كان يقتل الأداء في الإنتاج):
@@ -601,7 +701,12 @@ class BinanceProvider(MarketDataProvider):
                             symbol, interval, len(df), _time.perf_counter() - t0)
 
             result = df[(df["time"] >= start_ms) & (df["time"] <= end_ms)].reset_index(drop=True)
-            return result[["time", "open", "high", "low", "close", "volume"]]
+            result = result[["time", "open", "high", "low", "close", "volume"]]
+            # وسم الصفحة الناقصة (فشل دفعات بسبب حظر مؤقت) — الراوتر يستخدمه
+            # لمنع إعلان نهاية التاريخ زوراً (has_more=false) وإيقاف التمرير.
+            if failed_batches:
+                result.attrs["fetch_incomplete"] = True
+            return result
     
     def _timeframe_to_minutes(self, timeframe: str) -> int:
         """تحويل الإطار الزمني إلى دقائق"""

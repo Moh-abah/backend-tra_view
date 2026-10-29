@@ -11,6 +11,27 @@ from .base import BaseIndicator, IndicatorConfig, IndicatorType, IndicatorResult
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# أسماء بديلة معروفة يرسلها الواجهة الأمامية ولم تكن مسجلة في السجل.
+# عطل إنتاجي حقيقي: الواجهة كانت ترسل 'rsi_1h_momentum' فيفشل الحساب
+# (not found in registry) وتعود قيمه NaN مع Traceback في السجل عند كل طلب
+# /indicators/signals. الحل من طبقتين:
+#   1) تسجيل المؤشر فعلياً (انظر indicators/parametric.py ← rsi_1h_momentum)
+#   2) حلّ الأسماء البديلة هنا كشبكة أمان لأي اسم قادم بنمط مشابه
+# ---------------------------------------------------------------------------
+_ALIASES: Dict[str, str] = {
+    "rsi_1h_momentum": "rsi_1h",
+}
+
+# لواحق زخرفية تُحذف تدريجياً عند محاولة حل الاسم: rsi_1h_momentum → rsi_1h → rsi
+_DECORATIVE_SUFFIXES = (
+    "momentum", "trend", "fast", "slow", "signal", "oscillator", "main",
+)
+
+# أسماء بديلة حُلّت سابقاً — لتحذير واحد فقط لكل اسم بدل طوفان في السجل
+_alias_warned: set = set()
+
+
 @dataclass
 class IndicatorInfo:
     """معلومات المؤشر المسجل"""
@@ -141,15 +162,61 @@ class IndicatorRegistry:
         return result.values
     
     @classmethod
+    def resolve_name(cls, name: str) -> Optional[str]:
+        """يحلّ اسم المؤشر المطلوب إلى اسم مسجل فعلياً (أو None).
+
+        الترتيب:
+          1. الاسم كما هو (بعد lowercase)
+          2. جدول البدائل الصريح (_ALIASES)
+          3. حذف اللواحق الزخرفية تدريجياً: rsi_1h_momentum → rsi_1h → rsi
+        يحذّر مرة واحدة فقط لكل اسم غير مسجل ليظل السجل نظيفاً.
+        """
+        if not name:
+            return None
+        key = str(name).strip().lower()
+        if key in cls._indicators:
+            return key
+
+        alias = _ALIASES.get(key)
+        if alias and alias in cls._indicators:
+            if key not in _alias_warned:
+                _alias_warned.add(key)
+                logger.warning(
+                    "🔁 Indicator '%s' غير مسجل — استخدام البديل المسجل '%s'",
+                    key, alias,
+                )
+            return alias
+
+        tokens = key.split("_")
+        while len(tokens) > 1 and tokens[-1] in _DECORATIVE_SUFFIXES:
+            tokens.pop()
+            candidate = "_".join(tokens)
+            if candidate in cls._indicators:
+                if key not in _alias_warned:
+                    _alias_warned.add(key)
+                    logger.warning(
+                        "🔁 Indicator '%s' غير مسجل — استخدام '%s' بعد حذف اللاحقة الزخرفية",
+                        key, candidate,
+                    )
+                return candidate
+        return None
+
+    @classmethod
     def get_indicator(cls, name: str) -> Optional[Type[BaseIndicator]]:
-        """الحصول على فئة المؤشر حسب الاسم"""
-        info = cls._indicators.get(name.lower())
+        """الحصول على فئة المؤشر حسب الاسم (مع حل الأسماء البديلة)"""
+        resolved = cls.resolve_name(name)
+        if resolved is None:
+            return None
+        info = cls._indicators.get(resolved)
         return info.indicator_class if info else None
-    
+
     @classmethod
     def get_indicator_info(cls, name: str) -> Optional[IndicatorInfo]:
-        """الحصول على معلومات المؤشر"""
-        return cls._indicators.get(name.lower())
+        """الحصول على معلومات المؤشر (مع حل الأسماء البديلة)"""
+        resolved = cls.resolve_name(name)
+        if resolved is None:
+            return None
+        return cls._indicators.get(resolved)
     
     @classmethod
     def list_indicators(

@@ -241,6 +241,12 @@ async def get_candles_paginated(
         logger.exception("Paginated candles fetch failed for %s/%s", market, symbol)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+    # ⚠️ وسم الجلب الناقص (حظر/تهدئة Binance مؤقتة): إن وُجد لا نعلن نهاية
+    # التاريخ زوراً — نُعيد ما توفر مع has_more=true ليستمر التمرير، والفجوات
+    # تُملأ تلقائياً في الطلبات التالية بعد انتهاء التهدئة (كاش يُصلح نفسه).
+    _df_attrs = getattr(df, "attrs", {}) or {}
+    fetch_incomplete = bool(_df_attrs.get("fetch_incomplete", False)) if df is not None else False
+
     if df is None or df.empty:
         return {
             "symbol": symbol.upper(),
@@ -250,7 +256,7 @@ async def get_candles_paginated(
             "count": 0,
             "oldest_time": None,
             "newest_time": None,
-            "has_more": False,
+            "has_more": fetch_incomplete,
             "next_before": before,
         }
 
@@ -289,6 +295,9 @@ async def get_candles_paginated(
     if has_more and oldest is not None:
         # تأكيد إضافي: هل توجد شموع أقدم فعلًا في الإطار المطلوب؟
         has_more = bool((df["_t"] < oldest).any())
+    # صفحة ناقصة بسبب حظر/تهدئة مؤقتة: نُبقي التمرير حياً بدل إيقافه زوراً
+    if fetch_incomplete and candles:
+        has_more = True
 
     return {
         "symbol": symbol.upper(),

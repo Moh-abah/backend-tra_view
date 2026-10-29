@@ -13,6 +13,44 @@ from app.utils.converters import TimeframeConverter
 import math
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# مزودون مشتركون (Singleton على مستوى العملية):
+#
+# كان DataService يُنشأ مع كل طلب (DataService(db) في الراوترات) فيعيد إنشاء
+# BinanceProvider و USStockProvider وتحميل سجل 5223 رمزاً من CSV في كل مرة،
+# ويضيّع أقفال التاريخ (_history_locks) والكاش الداخلي — مما يسمح باندلاع
+# طلبات متزامنة نحو Binance لنفس السلسلة. الحل: مزودون يُنشأون مرة واحدة
+# ويُشارَك عبر كل النسخ — جلسة DB تبقى لكل طلب كما هي.
+# ---------------------------------------------------------------------------
+_SHARED_PROVIDERS: Dict[str, Any] = {}
+_PROVIDERS_READY = False
+
+
+def _get_shared_providers() -> Dict[str, Any]:
+    """ينشئ المزودين مرة واحدة فقط ويعيد القاموس المشترك."""
+    global _PROVIDERS_READY
+    if _PROVIDERS_READY and _SHARED_PROVIDERS:
+        return _SHARED_PROVIDERS
+
+    if "crypto" not in _SHARED_PROVIDERS:
+        try:
+            _SHARED_PROVIDERS["crypto"] = BinanceProvider()
+            logger.info("✅ BinanceProvider initialized (shared singleton)")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize BinanceProvider: {e}")
+
+    if "stocks" not in _SHARED_PROVIDERS:
+        try:
+            from app.providers.us_stock_provider import USStockProvider
+            _SHARED_PROVIDERS["stocks"] = USStockProvider(use_alpha_vantage=True)
+            logger.info("✅ USStockProvider initialized (shared singleton)")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize USStockProvider: {e}")
+            raise
+
+    _PROVIDERS_READY = True
+    return _SHARED_PROVIDERS
+
 
 class DataService:
     """الخدمة الموحدة لإدارة البيانات"""
@@ -21,26 +59,9 @@ class DataService:
         # construct DataService(None) / DataService() without a session.
         # Methods that need persistence must call self._require_db() first.
         self.db = db
-        self.providers = {}
+        # مزودون مشتركون — أقفالهم وكاشهم الداخلي ينجو بين الطلبات
+        self.providers = _get_shared_providers()
         self.converter = TimeframeConverter()
-        
-
-
-        try:
-            # استدعاء binance مباشرة (موجود بالأعلى)
-            self.providers["crypto"] = BinanceProvider()
-            logger.info("✅ BinanceProvider initialized")
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize BinanceProvider: {e}")
-
-
-        try:
-            from app.providers.us_stock_provider import USStockProvider
-            self.providers["stocks"] = USStockProvider(use_alpha_vantage=True)
-            logger.info("✅ USStockProvider initialized (Yahoo Finance + Alpha Vantage)")
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize USStockProvider: {e}")
-            raise
 
     def _require_db(self) -> AsyncSession:
         """

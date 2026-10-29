@@ -15,7 +15,7 @@ import pandas as pd
 
 from ..base import BaseIndicator, IndicatorConfig, IndicatorResult, IndicatorType
 from ..registry import IndicatorRegistry
-from .indicators import EMAIndicator, SMAIndicator, BollingerBandsIndicator
+from .indicators import EMAIndicator, SMAIndicator, BollingerBandsIndicator, RSIIndicator
 
 
 def _bind_period(cls, period: int):
@@ -146,3 +146,17 @@ for _band in ("bollinger_lower", "bollinger_upper"):
         description=f"النطاق {_band.split('_')[1]} لبولينجر كمؤشر مستقل قابل للمقارنة مع السعر",
         category=IndicatorType.VOLATILITY,
     )(_BollingerBandBase)
+
+
+# --- واجهة الزخم: rsi_1h_momentum -------------------------------------------
+# عطل إنتاجي: الواجهة كانت ترسل هذا الاسم إلى /indicators/signals فيفشل الحساب
+# (Indicator 'rsi_1h_momentum' not found in registry) وتعود قيمه NaN مع
+# Traceback في السجل عند كل طلب. نُسجّله الآن كمؤشر حقيقي (RSI بفترة 14 على
+# بيانات 1h التي يجلبها الطلب نفسه) — ويوجد كذلك حلّ أسماء بديلة عام في
+# registry.py (resolve_name) كشبكة أمان لأي أسماء مشابهة مستقبلاً.
+IndicatorRegistry.register(
+    name="rsi_1h_momentum",
+    display_name="RSI 1H Momentum",
+    description="مؤشر القوة النسبية على إطار الساعة (زخم) — يُحسب على الشموع المطلوبة في الطلب",
+    category=IndicatorType.MOMENTUM,
+)(_bind_period(RSIIndicator, 14))
