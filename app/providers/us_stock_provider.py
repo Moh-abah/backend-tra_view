@@ -1,8 +1,9 @@
 # app/providers/us_stock_provider.py
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 from typing import List, Dict, Optional, Any, AsyncGenerator
+from zoneinfo import ZoneInfo
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -11,6 +12,27 @@ from .yahoo_client import YahooFinanceClient
 from .alphavantage_client import AlphaVantageClient
 
 logger = logging.getLogger(__name__)
+
+# ✅ الجولة 4: منطقة السوق الأمريكي (يوم كامل DST تلقائياً)
+_US_EASTERN = ZoneInfo("America/New_York")
+
+
+def get_market_status(now: Optional[datetime] = None) -> str:
+    """حالة سوق الأسهم الأمريكي: pre_market / open / post_market / closed.
+
+    الجلسة المنتظمة 09:30-16:00 بتوقيت نيويورك، ما قبلها pre-market (04:00+)
+    وما بعدها post-market (حتى 20:00). عطل نهاية الأسبوع = closed."""
+    now_et = (now or datetime.now(_US_EASTERN)).astimezone(_US_EASTERN)
+    if now_et.weekday() >= 5:  # السبت/الأحد
+        return "closed"
+    t = now_et.time()
+    if dtime(9, 30) <= t < dtime(16, 0):
+        return "open"
+    if dtime(4, 0) <= t < dtime(9, 30):
+        return "pre_market"
+    if dtime(16, 0) <= t < dtime(20, 0):
+        return "post_market"
+    return "closed"
 
 # ---------------------------------------------------------------------------
 # Module-level (process-wide) caches.
@@ -24,6 +46,31 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MOVERS_CACHE: Dict[str, Any] = {}          # {"ts": float, "data": {...}}
 _MOVERS_CACHE_TTL_S = 60.0
+
+# كاش التاريخ الكامل لكل (رمز, فريم) — يحل مشكلة intraday للأسهم:
+# سابقاً كان كل طلب يجلب نافذة ضيقة (AAPL 1h = 21 شمعة فقط، 1m/5m = 0) لأن
+# yfinance يرفض start/end قديمة مع 1m/5m. الآن نجلب الفترة القصوى المسموحة
+# لكل فريم مرة واحدة ونخدم منها محلياً (سرعة + عمق كامل + has_more دقيق).
+_FULL_HIST_CACHE: Dict[str, Any] = {}       # "SYMBOL|tf" -> {"ts": float, "df": DataFrame}
+
+# أقصى فترة يسمح بها Yahoo لكل فريم:
+_FULL_PERIOD_BY_TF = {
+    "1m": "7d",      # حد Yahoo الصارم لـ 1m
+    "2m": "7d",      # عبر تجميع 1m
+    "5m": "60d",
+    "10m": "60d",    # عبر تجميع 5m
+    "15m": "60d",
+    "30m": "60d",
+    "1h": "730d",
+    "2h": "730d",    # عبر تجميع 1h
+    "4h": "730d",    # عبر تجميع 1h
+    "1d": "max",     # كامل تاريخ الشركة (IPO → اليوم)
+    "1w": "max",
+    "1M": "max",
+}
+_TTL_BY_TF_S = {"1m": 300.0, "2m": 300.0, "5m": 600.0, "10m": 600.0,
+                "15m": 600.0, "30m": 600.0, "1h": 900.0, "2h": 900.0,
+                "4h": 900.0, "1d": 3600.0, "1w": 3600.0, "1M": 3600.0}
 
 _SECTORS_CACHE: Dict[str, Any] = {}          # {"ts": float, "data": [...]}
 _SECTORS_CACHE_TTL_S = 300.0
@@ -109,8 +156,11 @@ class USStockProvider:
 
 
     async def get_live_price(self, symbol: str) -> Dict:
-        """الحصول على السعر الحي"""
-        return await self.yahoo.get_live_quote(symbol)
+        """الحصول على السعر الحي — مع حالة السوق (الجولة 4)"""
+        quote = await self.yahoo.get_live_quote(symbol)
+        if isinstance(quote, dict):
+            quote.setdefault("market_status", get_market_status())
+        return quote
 
 
 
@@ -125,6 +175,59 @@ class USStockProvider:
     ) -> pd.DataFrame:
         """الحصول على البيانات التاريخية"""
         return await self.yahoo.get_historical_data(symbol, timeframe, period, start, end)
+
+    async def get_full_history(self, symbol: str, timeframe: str = "1d") -> pd.DataFrame:
+        """التاريخ الكامل المتاح للفريم (بأقصى فترة يسمح بها Yahoo) + كاش على مستوى الموديول.
+
+        يعيد DataFrame بفهرس DatetimeIndex وأعمدة open/high/low/close/volume.
+        الفريمات المركّبة (2m/10m/2h/4h) تُجلب من فريمها الأساسي ثم تُجمّع بالخارج
+        عبر app.utils.dataframe_utils.resample_candles.
+        """
+        import time as _time
+        from app.utils.dataframe_utils import is_composite_tf, composite_base_tf
+
+        # فريمات لا يدعمها Yahoo أصلًا → تُجلب من فريم أدق ثم تُجمّع
+        _YF_FALLBACK_BASE = {"2h": ("1h", 2), "4h": ("1h", 4), "3d": ("1d", 3)}
+
+        sym = symbol.upper().strip()
+        tf = (timeframe or "1d").strip()
+
+        if is_composite_tf(tf):
+            base_tf, _factor = composite_base_tf(tf)
+        elif tf in _YF_FALLBACK_BASE:
+            base_tf, _factor = _YF_FALLBACK_BASE[tf]
+        else:
+            base_tf, _factor = tf, 1
+        cache_key = f"{sym}|{base_tf}"
+
+        now = _time.time()
+        cached = _FULL_HIST_CACHE.get(cache_key)
+        ttl = _TTL_BY_TF_S.get(base_tf, 600.0)
+        if cached and (now - cached.get("ts", 0)) < ttl and cached.get("df") is not None:
+            df_base = cached["df"]
+        else:
+            period = _FULL_PERIOD_BY_TF.get(base_tf, "max")
+            # لا نمرر start/end إطلاقاً — period فقط، وإلا رفض Yahoo للفريمات الدقيقة
+            df_base = await self.get_historical_data(sym, base_tf, period=period)
+            if (df_base is None or df_base.empty):
+                # yfinance أحياناً يفشل مؤقتاً (rate-limit) — محاولة واحدة إضافية
+                await asyncio.sleep(1.0)
+                df_base = await self.get_historical_data(sym, base_tf, period=period)
+            if df_base is not None and not df_base.empty:
+                _FULL_HIST_CACHE[cache_key] = {"ts": now, "df": df_base}
+
+        if df_base is None or df_base.empty:
+            return pd.DataFrame()
+
+        if is_composite_tf(tf) or tf in _YF_FALLBACK_BASE:
+            from app.utils.dataframe_utils import resample_candles
+            df_r = df_base.copy()
+            df_r["time"] = (pd.to_datetime(df_r.index, utc=True).astype("int64") // 10**6)
+            res = resample_candles(df_r, tf, time_col="time")
+            res = res.set_index(pd.to_datetime(res["time"], unit="ms", utc=True))
+            res = res.drop(columns=["time"])
+            return res
+        return df_base
     
 # app/providers/us_stock_provider.py
     async def get_historical(
@@ -736,8 +839,15 @@ class USStockProvider:
                     last = float(closes.iloc[-1])
                     if prev <= 0 or last <= 0:
                         continue
+                    # حجم آخر يوم تداول (كان مفقوداً → عمود Volume فارغ في Markets)
+                    vol = 0.0
+                    if "Volume" in frame.columns:
+                        vol_series = frame["Volume"].dropna()
+                        if len(vol_series) > 0:
+                            vol = float(vol_series.iloc[-1] or 0)
                     change_pct = ((last - prev) / prev) * 100.0
-                    item = {"symbol": symbol, "change": change_pct, "price": last}
+                    item = {"symbol": symbol, "change": change_pct, "price": last,
+                            "volume": vol}
                     if change_pct > 2:
                         gainers.append(item)
                     elif change_pct < -2:

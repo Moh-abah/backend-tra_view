@@ -110,10 +110,18 @@ async def get_stock_symbols(
         provider = _stock_provider_from_db(db)
         symbols = await _provider_call(provider.get_symbols(category))
         symbols = symbols or []
+        # ✅ الجولة 4: حالة السوق لكل رمز (نفس الجلسة لكل السوق الأمريكي — حساب واحد)
+        try:
+            from app.providers.us_stock_provider import get_market_status
+            _ms = get_market_status()
+        except Exception:  # noqa: BLE001
+            _ms = None
         return {
             "category": category or "all",
             "symbols": symbols,
             "count": len(symbols),
+            "market_status": _ms,
+            "per_symbol_status": {s: _ms for s in symbols} if symbols else {},
             "timestamp": _utcnow_iso(),
         }
     except HTTPException:
@@ -237,7 +245,16 @@ async def get_market_summary(db: AsyncSession = Depends(get_db)):
             provider.get_market_summary(),
             not_found_detail="Market summary is unavailable",
         )
-        return {"market_summary": summary, "timestamp": _utcnow_iso()}
+        # ✅ الجولة 4: حالة السوق الحية في ملخص السوق
+        _ms = None
+        try:
+            from app.providers.us_stock_provider import get_market_status
+            _ms = get_market_status()
+        except Exception:  # noqa: BLE001
+            pass
+        if isinstance(summary, dict):
+            summary.setdefault("market_status", _ms)
+        return {"market_summary": summary, "market_status": _ms, "timestamp": _utcnow_iso()}
     except HTTPException:
         raise
     except Exception:
@@ -255,9 +272,16 @@ async def get_top_movers(db: AsyncSession = Depends(get_db)):
             not_found_detail="Top movers are unavailable",
         )
         movers = movers or {}
+        _ms = None
+        try:
+            from app.providers.us_stock_provider import get_market_status
+            _ms = get_market_status()
+        except Exception:  # noqa: BLE001
+            pass
         return {
             "gainers": movers.get("gainers", []),
             "losers": movers.get("losers", []),
+            "market_status": _ms,
             "timestamp": _utcnow_iso(),
         }
     except HTTPException:

@@ -33,6 +33,62 @@ class Timeframe(Enum):
     WEEK1 = "1w"
     MONTH1 = "1M"
 
+
+# ============================================================================
+# ✅ الجولة 5: مطابقة أنواع المؤشرات الواردة من العملاء — يمنع انهيار الحساب
+# عندما يرسل الفرونت نوعاً بمفرده (مثل "oscillator") ليس من قيم IndicatorType.
+# كان الأثر: IndicatorConfig يرفض التكوين بـ ValidationError فيفشل الحساب
+# كل نبضة سعر (حلقة أخطاء كل ثانيتين) وترجع القيم فارغة/NaN للجميع.
+# ============================================================================
+_TYPE_SYNONYMS = {
+    "oscillator": "momentum", "oscillators": "momentum", "osc": "momentum",
+    "support": "support_resistance", "resistance": "support_resistance",
+    "s/r": "support_resistance", "support/resistance": "support_resistance",
+    "support_resistance_level": "support_resistance",
+    "custom": "momentum",  # custom غير مقبول في نماذج الاشتراك — نُعيد رسميه
+    "overlay": "trend", "trend_following": "trend", "trendfollowing": "trend",
+    "moving_average": "trend", "ma": "trend",
+    "vol": "volatility", "vola": "volatility",
+}
+
+
+def coerce_indicator_type(value: Any, indicator_name: Optional[str] = None) -> str:
+    """يعيد قيمة نوع صالحة لأي مدخل قادم من عميل.
+
+    ⚠️ يوجد تعدادان للأنواع في المشروع (schemas.IndicatorType فيه support بلا
+    custom، وbase.IndicatorType بالعكس) — لذا نُخرج دائماً **التقاطع الآمن**
+    الذي يقبله النموذجان: trend/momentum/volatility/volume/support_resistance.
+    الترتيب: قيمة آمنة → مرادف شائع → النوع الرسمي من سجل المؤشرات → momentum."""
+    safe = {"trend", "momentum", "volatility", "volume", "support_resistance"}
+    t = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if t in safe:
+        return t
+    syn = _TYPE_SYNONYMS.get(t)
+    if syn and syn in safe:
+        return syn
+    # النوع الرسمي من السجل (استيراد متأخر لمنع الاستيراد الدائري)
+    try:
+        from app.services.indicators.registry import IndicatorRegistry
+        info = IndicatorRegistry.get_indicator_info(str(indicator_name or ""))
+        cat = getattr(info.category, "value", None) if info else None
+        if cat in safe:
+            return cat
+    except Exception:  # noqa: BLE001
+        pass
+    return "momentum"
+
+
+def sanitize_indicator_config(config: Any) -> Any:
+    """نسخة نظيفة من تكوين المؤشر — يُصلح type الفاسد بدل فشل pydantic.
+
+    تُطبَّق عند: حقن المؤشر (add_indicator)، تحميل المحفوظات (self-heal للقاعدة)،
+    وقبل IndicatorConfig في الحاسبة (خط الدفاع الأخير)."""
+    if not isinstance(config, dict):
+        return config
+    clean = dict(config)
+    clean["type"] = coerce_indicator_type(clean.get("type"), clean.get("name"))
+    return clean
+
 @dataclass
 class IndicatorResult:
     """نتيجة حساب المؤشر"""

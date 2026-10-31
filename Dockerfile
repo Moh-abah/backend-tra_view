@@ -26,7 +26,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # --- Runtime directories (mounted as volumes in docker-compose) --------------------
-RUN mkdir -p /app/logs /app/strategies /app/reports \
+# ✅ الجولة 6: chart_data — مجلد قواعد SQLite (المؤشرات المحفوظة + أدوات الرسم).
+# وجوده في الصورة بملكية trader يجعل الـ named volume chart_data يرث الملكية
+# الصحيحة عند أول ربط — لا readonly ولا directories فارغة بعد اليوم.
+RUN mkdir -p /app/logs /app/strategies /app/reports /app/chart_data /app/data \
     && useradd -m -u 1000 trader \
     && chown -R trader:trader /app
 USER trader

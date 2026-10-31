@@ -194,9 +194,46 @@ class ConditionEvaluator:
 
             # إذا كانت قيمة مؤشر
             if value.startswith('indicator:'):
-                indicator_ref = value.split(':')[1]
+                parts = value.split(':')
+
+                # ✅ الجولة 11 (v2): صيغة ثلاثية الأجزاء indicator:<name>:<column>
+                # مثال: "indicator:zigzag_channels:zz_pivot_low" → عمود ind_zz_pivot_low
+                if len(parts) >= 3 and parts[2].strip():
+                    col = parts[2].strip()
+                    ind_col = col if col.startswith('ind_') else f"ind_{col}"
+                    # 1) عمود ind_* المدمج في df (مؤشرات البنية — العقد الملزم)
+                    if ind_col in data.columns:
+                        return self._column_value(data, ind_col, index)
+                    # 2) عمود مباشر بالاسم كما هو
+                    if col in data.columns:
+                        return self._column_value(data, col, index)
+                    # 3) قاموس المؤشرات (ndarray/Series/dict)
+                    indicator_data = None
+                    for key in (ind_col, col, value):
+                        indicator_data = indicators.get(key)
+                        if indicator_data is not None:
+                            break
+                    if indicator_data is None:
+                        if value not in self._warned_refs:
+                            self._warned_refs.add(value)
+                            logger.warning(
+                                "Overlay column '%s' (from '%s') not found — أدرج المؤشر في strategy_config.indicators",
+                                col, value,
+                            )
+                        return None
+                    return self._value_from_indicator_data(indicator_data, index)
+
+                # الصيغة القديمة ثنائية الأجزاء — indicator:<name> (توافق رجعي كامل)
+                indicator_ref = parts[1]
 
                 indicator_data = indicators.get(indicator_ref)
+
+                # ✅ الجولة 11 (v2): fallback — اسم عمود تعاقدي مباشر
+                # (مثل indicator:zz_pivot_low → عمود ind_zz_pivot_low في df)
+                if indicator_data is None:
+                    ind_col = f"ind_{indicator_ref}"
+                    if ind_col in data.columns:
+                        return self._column_value(data, ind_col, index)
 
                 if indicator_data is None:
                     # ⚠️ تحذير مرة واحدة فقط لكل مرجع (كان يُطبع لكل شمعة!)
@@ -241,6 +278,33 @@ class ConditionEvaluator:
             elif value in data.columns:
                 return self._column_value(data, value, index)
 
+        return None
+
+    def _value_from_indicator_data(self, indicator_data: Any, index: int) -> Optional[float]:
+        """✅ الجولة 11 (v2): استخراج قيمة من بيانات مؤشر (ndarray/Series/dict).
+
+        نفس منطق المسار القديم — فُصلت كي تستخدمه الصيغة ثلاثية الأجزاء."""
+        import numpy as np
+        if isinstance(indicator_data, np.ndarray):
+            if 0 <= index < len(indicator_data):
+                val = indicator_data[index]
+                return None if np.isnan(val) else float(val)
+            return None
+        if isinstance(indicator_data, pd.Series):
+            arr = self._series_to_array(indicator_data)
+            if 0 <= index < len(arr):
+                val = arr[index]
+                return None if np.isnan(val) else float(val)
+            return None
+        if isinstance(indicator_data, dict):
+            for key, val in indicator_data.items():
+                if isinstance(val, pd.Series):
+                    arr = self._series_to_array(val)
+                    if 0 <= index < len(arr):
+                        v = arr[index]
+                        if not np.isnan(v):
+                            return float(v)
+            return None
         return None
 
     def _column_value(self, data: pd.DataFrame, col: str, index: int) -> Optional[float]:

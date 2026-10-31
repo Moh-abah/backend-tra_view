@@ -825,12 +825,17 @@ class BinanceProvider(MarketDataProvider):
 
 
                     
+    _SYMBOLS_DISK_CACHE = "data/binance_symbols_cache.json"  # ✅ الجولة 4
+
     async def get_symbols(self) -> List[str]:
-        """الحصول على جميع الرموز المتاحة"""
+        """الحصول على جميع الرموز المتاحة.
+
+        ✅ الجولة 4: كاش قرص دائم — القائمة نادراً ما تتغير، فنجلبها مرة
+        ونخزنها على القرص؛ وعند حظر/فشل REST نخدم الكاش المحفوظ بدل إعادة
+        قائمة فارغة (كان يكسر قائمة اختيار الرموز في الفرونت)."""
         # استخدام الكاش لتقليل الطلبات
         if self.symbols_cache and self.cache_expiry > datetime.utcnow():
             return [s for s in self.symbols_cache if s.endswith(("USDT", "USDC"))]
-            
 
         try:
             # إنشاء الجلسة باستخدام aiohttp
@@ -839,11 +844,11 @@ class BinanceProvider(MarketDataProvider):
                 async with session.get(url) as response:
                     if response.status != 200:
                         raise Exception(f"Failed to fetch: {response.status}")
-                    
+
                     data = await response.json()
                     symbols = [
-                        s['symbol'] 
-                        for s in data['symbols'] 
+                        s['symbol']
+                        for s in data['symbols']
                         if s['status'] == "TRADING"
                     ]
 
@@ -851,12 +856,34 @@ class BinanceProvider(MarketDataProvider):
                     self.symbols_cache = symbols
                     self.cache_expiry = datetime.utcnow() + timedelta(hours=1)
 
+                    # ✅ حفظ على القرص للتعويض الذاتي عند الحظر لاحقاً
+                    try:
+                        import json as _json
+                        import os as _os
+                        _os.makedirs("data", exist_ok=True)
+                        with open(self._SYMBOLS_DISK_CACHE, "w") as _f:
+                            _json.dump({"ts": datetime.utcnow().isoformat(),
+                                        "symbols": symbols}, _f)
+                    except Exception:  # noqa: BLE001
+                        pass
 
                     filtered_symbols = [s for s in symbols if s.endswith(("USDT", "USDC"))]
                     return filtered_symbols
 
-                
-
         except Exception as e:
+            # ✅ الجولة 4: fallback للكاش الدائم على القرص
+            try:
+                import json as _json
+                with open(self._SYMBOLS_DISK_CACHE) as _f:
+                    disk = _json.load(_f)
+                cached = disk.get("symbols") or []
+                if cached:
+                    self.symbols_cache = cached
+                    self.cache_expiry = datetime.utcnow() + timedelta(minutes=10)
+                    filtered = [s for s in cached if s.endswith(("USDT", "USDC"))]
+                    print(f"Failed to get symbols: {e} → serving disk cache ({len(filtered)} symbols)")
+                    return filtered
+            except Exception:  # noqa: BLE001
+                pass
             print(f"Failed to get symbols: {e}")
             return []

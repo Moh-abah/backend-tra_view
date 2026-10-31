@@ -16,6 +16,9 @@ from app.services.strategy.strategy_engine1 import StrategyEngine, Decision, Dec
 
 from app.services.strategy.schemas import StrategyConfig as StrategyConfigSchema
 from app.models.strategy import Strategy as StrategyModel 
+
+# ✅ الجولة 11 (v2) — المطلوب 5: فحص أسماء المؤشرات المعروفة في validate
+from app.services.indicators.overlay_columns import is_known_indicator_name
 import logging
 
 logger = logging.getLogger(__name__)
@@ -77,6 +80,15 @@ async def save_strategy_to_database(
 
 
 
+
+
+@router.get("/list")  # ✅ الجولة 11: الاسم القياسي الذي تنادي الفرونت — alias لـ /list_from_db
+async def list_strategies_alias(
+    db: AsyncSession = Depends(get_db),
+    active_only: bool = False,
+):
+    """بديل /list_from_db بنفس السلوك — يصلح 404 على GET /api/v1/strategies1/list?active_only=false"""
+    return await list_strategies_from_database(db=db, active_only=active_only)
 
 
 @router.get("/list_from_db")
@@ -161,6 +173,38 @@ async def list_strategies_from_database(
         logger.error(f"Error listing strategies: {e}")
         raise HTTPException(status_code=500, detail=f"Error listing strategies: {str(e)}")
 
+# ✅ الجولة 9: تحقق موحد لمعاملات السوق — يحول انهيار المزود
+# (invalid literal for int(): 'undefine') إلى 400 برسالة عربية واضحة
+# تصل الفرونت فوراً بدل 500 غامض في السجل.
+_VALID_SYMBOL_BAD = {"", "undefined", "null", "none", "nan"}
+_VALID_TF_BAD = _VALID_SYMBOL_BAD
+
+
+def _validate_market_params(symbol: str, timeframe: str) -> None:
+    sym = (symbol or "").strip().lower()
+    tf = (timeframe or "").strip().lower()
+    if sym in _VALID_SYMBOL_BAD:
+        raise HTTPException(
+            status_code=400,
+            detail=("معامل symbol مطلوب وصحيح — وصلت قيمة غير صالحة "
+                    f"('{symbol}'). غالباً لم تُحدد قيمة الرمز في الواجهة قبل الإرسال."))
+    if tf in _VALID_TF_BAD:
+        raise HTTPException(
+            status_code=400,
+            detail=("معامل timeframe مطلوب وصحيح — وصلت قيمة غير صالحة "
+                    f"('{timeframe}'). القيم المقبولة مثل 1m/5m/15m/1h/4h/1d."))
+
+
+@router.get("/get_from_db")  # ✅ الجولة 9: مسار بديل بمعامل استعلام — للأسماء التي تحوي "/" مثل "RSI 30/70 Reversion"
+async def get_strategy_from_database_query(
+    name: str = Query(..., description="اسم الاستراتيجية — يدعم الأسماء المحتوية على شرطة مائلة"),
+    db: AsyncSession = Depends(get_db),
+):
+    """بديل /get_from_db/{name} للأسماء التي تحوي '/'
+    (المسار لا يستطيع مطابقتها حتى مع ترميز %2F)."""
+    return await _fetch_strategy_by_name(name, db)
+
+
 @router.get("/get_from_db/{strategy_name}")
 async def get_strategy_from_database(
     strategy_name: str,
@@ -169,6 +213,10 @@ async def get_strategy_from_database(
     """
     جلب استراتيجية محددة من قاعدة البيانات
     """
+    return await _fetch_strategy_by_name(strategy_name, db)
+
+
+async def _fetch_strategy_by_name(strategy_name: str, db: AsyncSession):
     try:
         query = select(StrategyModel).where(StrategyModel.name == strategy_name)
         result = await db.execute(query)
@@ -292,6 +340,8 @@ async def run_strategy_from_database(
     """
     تشغيل استراتيجية محفوظة في قاعدة البيانات
     """
+    # ✅ الجولة 9: نفس تحقق /run — 400 واضح بدل 500 غامض
+    _validate_market_params(symbol, timeframe)
     request_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     logger.info(f"[{request_id}] بدء تشغيل استراتيجية من قاعدة البيانات", extra={
         "symbol": symbol, "timeframe": timeframe, "strategy": strategy_name
@@ -417,6 +467,9 @@ async def run_strategy_on_data(
     ملاحظة: بما أن الاستراتيجية عبارة عن Black Box تقوم بإرجاع قرار واحد لكل لحظة،
     سنقوم هنا بمحاكاة الزمن (Loop) لجمع القرارات عبر الفترة الزمنية المطلوبة.
     """
+    # ✅ الجولة 9: تحقق مبكر — الفرونت أرسلت حرفياً "undefined" فانهار المزود
+    # بـ 500 (int('undefine')) — الآن الخطأ واضح 400 قبل لمس أي مزود بيانات.
+    _validate_market_params(symbol, timeframe)
     request_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     logger.info(f"[{request_id}] بدء طلب تشغيل استراتيجية (Black Box Mode)", extra={
         "symbol": symbol, "timeframe": timeframe, "strategy": strategy_config.get("name")
@@ -525,6 +578,28 @@ async def validate_strategy_config_api(
     try:
         # محاولة تحويل القاموس إلى Schema صالح
         valid_config = StrategyConfigSchema(**strategy_config)
+
+        # ✅ الجولة 11 (v2) — المطلوب 5: إسقاط الصمت — رفض المؤشرات غير المعروفة
+        # المعروف = سجل المؤشرات الكلاسيكي + مؤشرات البنية (بصيغتيها القصيرة
+        # والكاملة zigzag|zigzag_channels / fib|auto_fib_retracement /
+        # trendline|auto_trendline، ويدعم الصيغة النقطية base.sub).
+        unknown: List[str] = []
+        for _ind in valid_config.indicators:
+            if not getattr(_ind, 'enabled', True):
+                continue
+            _nm = str(getattr(_ind, 'name', '') or '')
+            if _nm and not is_known_indicator_name(_nm):
+                unknown.append(_nm)
+        if unknown:
+            errors_msg = "؛ ".join(f"المؤشر {n} غير مسجل في المحرك" for n in unknown)
+            logger.warning("validate: مؤشرات غير معروفة %s", unknown)
+            return {
+                "valid": False,
+                "message": "Validation failed",
+                "errors": errors_msg,
+                "unknown_indicators": unknown,
+            }
+
         return {
             "valid": True,
             "message": "Strategy configuration is valid",

@@ -1000,6 +1000,35 @@ class StrategyEngine:
                 # هذا يقلل استدعاءات نظام إدارة الذاكرة بشكل كبير
                 df[list(new_columns_dict.keys())] = pd.DataFrame(new_columns_dict, index=data.index)
 
+            # ==========================================================
+            # ✅ الجولة 11 (v2): أعمدة مؤشرات البنية ind_* — العقد الملزم مع الفرونت
+            # ind_zz_* / ind_fib_* / ind_atl_* تُحسب من overlay_columns.py
+            # (مصدر حقيقة واحد) وتُحقن في df كي تشير إليها الشروط بصيغة
+            # indicator:<name>:<column> — وتصل تلقائياً لشموع chart-data
+            # عبر current_data_frame في محرك الباك-تست.
+            # ==========================================================
+            try:
+                from app.services.indicators.overlay_columns import (
+                    columns_for_configs,
+                    is_known_indicator_name,
+                )
+                ovl_configs = [c for c in self.config.indicators if getattr(c, 'enabled', True)]
+                # ✅ المطلوب 5: تحذير المجهول بدل الصمت الكامل
+                for c in ovl_configs:
+                    nm = str(getattr(c, 'name', '') or '')
+                    if nm and not is_known_indicator_name(nm):
+                        logger.warning("unknown_indicator=%s — غير مسجل في السجل ولا في مؤشرات البنية — سيُتجاهل", nm)
+                ovl_cols = columns_for_configs(data, ovl_configs)
+                if ovl_cols:
+                    for _col, _vals in ovl_cols.items():
+                        df[_col] = pd.Series(_vals, index=data.index, dtype=object)
+                    logger.info(
+                        "🧩 overlay ind_* columns injected: %d (%s)",
+                        len(ovl_cols), ",".join(sorted(ovl_cols.keys())),
+                    )
+            except Exception:
+                logger.exception("overlay ind_* columns merger failed — متابعة بلا أعمدة البنية")
+
 
 
 

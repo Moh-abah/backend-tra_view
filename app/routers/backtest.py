@@ -13,6 +13,8 @@ Backtest router — Celery-backed.
 - GET  /metrics        : قائمة المقاييس المتاحة
 """
 import asyncio
+import hashlib
+import json
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
@@ -28,6 +30,7 @@ from app.celery_app import celery_app
 from app.database import get_db, async_session_maker
 from app.models.backtest_run import BacktestRun
 from app.services.data_service import DataService
+from app.services.indicators.overlays import OVERLAY_TYPES as _OVL_TYPES, compute_overlays as _compute_overlays  # ✅ الجولة 10
 from app.tasks.backtest_tasks import run_backtest_task
 
 router = APIRouter(tags=["backtest"])
@@ -43,6 +46,48 @@ logger = logging.getLogger(__name__)
 # with the exact same response contract ({task_id, state, backtest_id, ...}).
 # ---------------------------------------------------------------------------
 _inprocess_tasks: Dict[str, Dict[str, Any]] = {}
+
+# ===========================================================================
+# ✅ الجولة 9: كاش باكند لنتائج الباك-تست (بيانات تاريخية ثابتة لا تتغير أبداً)
+# ---------------------------------------------------------------------------
+# قياس الإنتاج: chart-data?include_indicators=true كان يأخذ 109-231 ثانية
+# في كل طلب لنفس البيانات الثابتة. السبب: إعادة تحميل عمود JSON الضخم
+# وإعادة حساب كل شيء في كل طلب بلا أي تخزين بيني.
+#
+# التصميم:
+# - بناء **أساس معالج واحد** لكل backtest_id عند أول طلب (شموع مسطحة بكل
+#   مفاتيح ind_* + نقاط تداول + منحنيات + metadata) ثم كل طلب لاحق
+#   مجرد تقطيع/نسخ خفيف من الأساس — أداء ثابت مهما تعددت المعاملات.
+# - LRU محدود (12 باك-تست) لضبط الذاكرة؛ الأحدث استخداماً يبقى.
+# - الإبطال عند الحذف + عند إعادة تشغيل نفس المعرف (run جديد على نفس id).
+# ===========================================================================
+from collections import OrderedDict as _OrderedDict
+
+_BT_CACHE_MAX = 12
+_bt_cache: "_OrderedDict[str, Dict[str, Any]]" = _OrderedDict()
+
+
+def _bt_cache_get(key: str) -> Optional[Dict[str, Any]]:
+    if key in _bt_cache:
+        _bt_cache.move_to_end(key)
+        return _bt_cache[key]
+    return None
+
+
+def _bt_cache_put(key: str, value: Dict[str, Any]) -> None:
+    _bt_cache[key] = value
+    _bt_cache.move_to_end(key)
+    while len(_bt_cache) > _BT_CACHE_MAX:
+        _bt_cache.popitem(last=False)
+    logger.info("💾 Backtest cache stored [%s] (entries=%d)", key[:12], len(_bt_cache))
+
+
+def _bt_cache_drop(backtest_id: str) -> None:
+    dropped = [k for k in list(_bt_cache.keys()) if k == backtest_id or k.startswith(f"{backtest_id}|")]
+    for k in dropped:
+        _bt_cache.pop(k, None)
+    if dropped:
+        logger.info("🧹 Backtest cache invalidated for %s (%d entries)", backtest_id, len(dropped))
 
 
 def _inprocess_status_payload(task_id: str) -> Dict[str, Any]:
@@ -302,8 +347,13 @@ async def get_backtest_details(
     backtest_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """جلب تفاصيل باك-تست محدد مع بيانات الشارت بالكامل (من قاعدة البيانات)"""
+    """جلب تفاصيل باك-تست محدد مع بيانات الشارت بالكامل (من قاعدة البيانات)
+    ✅ الجولة 9: الكاش — البيانات ثابتة فلا إعادة حساب بعد أول طلب."""
     try:
+        cached = _bt_cache_get(f"{backtest_id}|get")
+        if cached is not None:
+            return cached
+
         backtest = await _get_backtest_row(db, backtest_id)
 
         chart_data = dict(backtest.chart_data) if backtest.chart_data else {}
@@ -322,7 +372,7 @@ async def get_backtest_details(
                 processed_candles.append(formatted_candle)
             chart_data["visual_candles"] = processed_candles
 
-        return {
+        payload = {
             "success": True,
             "backtest_id": backtest.id,
             "name": backtest.name,
@@ -331,6 +381,8 @@ async def get_backtest_details(
             "chart_data": chart_data,
             "config": backtest.full_config,
         }
+        _bt_cache_put(f"{backtest_id}|get", payload)
+        return payload
     except HTTPException:
         raise
     except Exception:
@@ -349,6 +401,14 @@ async def get_chart_data(
     start_index: int = Query(None, ge=0),
     limit: int = Query(None, ge=1),
     include_indicators: Optional[List[str]] = Query(None),
+    # ✅ الجولة 10: مؤشرات البنية — overlays=zigzag,fib,trendline (اختياري)
+    overlays: Optional[str] = Query(None, description="zigzag,fib,trendline — يضيف حقل overlays للاستجابة"),
+    zz_length: int = Query(100, ge=2, le=2000),
+    fib_depth: int = Query(10, ge=1, le=500),
+    fib_dev: float = Query(5.0, ge=0.0, le=100.0),
+    fib_ret: float = Query(0.618, ge=-10.0, le=10.0),
+    tl_period: int = Query(10, ge=2, le=500),
+    tl_pairs: int = Query(1, ge=1, le=250),
 ):
     """
     جلب بيانات الرسم البياني من BacktestRun.chart_data (JSON column).
@@ -357,121 +417,199 @@ async def get_chart_data(
     - equity_curve/drawdown_curve: من chart_data إن وُجدت، وإلا تُشتق من
       account_balance في الشموع، وإلا None (بدون انهيار).
     - 404 أنيق عندما لا توجد بيانات رسم على الإطلاق.
+
+    ✅ الجولة 9:
+    - كاش الأساس المعالج لكل backtest_id — كل طلب لاحق تقطيع خفيف (أداء ثابت).
+    - `include_indicators=true` (قيمة منطقية حرفية) تعني **تضمين كل المؤشرات**
+      بدل تفسيرها كاسم مؤشر اسمه "true" — هذا كان يُسقط حقول ind_* بالخطأ.
+    - `include_indicators=true` يعمل الآن مع limit معاً (حقل ind_* لا يُسقط).
     """
     try:
-        backtest = await _get_backtest_row(db, backtest_id)
-
-        chart = backtest.chart_data if isinstance(backtest.chart_data, dict) else {}
-        summary = backtest.summary if isinstance(backtest.summary, dict) else {}
-        full_config = backtest.full_config if isinstance(backtest.full_config, dict) else {}
-
-        raw_candles = chart.get("visual_candles") or []
-        raw_trade_points = chart.get("trade_points") or []
-
-        if not raw_candles and not raw_trade_points:
-            raise HTTPException(status_code=404, detail="No chart data available for this backtest")
-
-        # ---- فهرس زمني سريع لربط نقاط التداول بمواقعها ----
-        timestamp_index = {
-            c.get("timestamp"): idx for idx, c in enumerate(raw_candles) if isinstance(c, dict)
-        }
-
-        # ---- تجهيز الشموع (تسطيح المؤشرات + فلترة + pagination) ----
-        # تطبيع المعاملات (تحمي من الاستدعاء المباشر خارج FastAPI DI)
-        start_index = start_index if isinstance(start_index, int) else None
-        limit = limit if isinstance(limit, int) else None
-        include_indicators = (
-            list(include_indicators) if isinstance(include_indicators, (list, tuple, set)) else None
-        )
-
-        if start_index is not None or limit is not None:
-            offset = start_index or 0
-            if limit:
-                window = raw_candles[offset: offset + limit]
+        # ---- تطبيع معامل المؤشرات (قبل الكاش — الرموز المنطقية ليست أسماء) ----
+        inc_norm: Optional[List[str]]
+        if isinstance(include_indicators, (list, tuple, set)) and include_indicators:
+            flags = {str(x).strip().lower() for x in include_indicators}
+            if flags & {"true", "1", "yes", "all", "full"}:
+                inc_norm = None          # "true" → كل المؤشرات
+            elif flags & {"false", "0", "no", "none"}:
+                inc_norm = []            # "false" → بلا مؤشرات
             else:
-                window = raw_candles[offset:]
+                inc_norm = [str(x) for x in include_indicators]
         else:
-            window = raw_candles
+            inc_norm = None if not include_indicators else [str(x) for x in include_indicators]
 
-        formatted_candles: List[Dict[str, Any]] = []
-        for candle in window:
-            if not isinstance(candle, dict):
-                continue
-            formatted_candle = dict(candle)
-            indicators_data = formatted_candle.pop("indicators", {}) or {}
-            flat = flatten_dict(indicators_data) if isinstance(indicators_data, dict) else {}
-            for ind_name, ind_value in flat.items():
-                if include_indicators is None or ind_name in include_indicators:
+        # ---- الأساس المعالج (يُبنى مرة واحدة لكل باك-تست) ----
+        cache_key = f"{backtest_id}|chart"
+        base = _bt_cache_get(cache_key)
+        was_cached = base is not None
+        if base is None:
+            backtest = await _get_backtest_row(db, backtest_id)
+
+            chart = backtest.chart_data if isinstance(backtest.chart_data, dict) else {}
+            summary = backtest.summary if isinstance(backtest.summary, dict) else {}
+            full_config = backtest.full_config if isinstance(backtest.full_config, dict) else {}
+
+            raw_candles = chart.get("visual_candles") or []
+            raw_trade_points = chart.get("trade_points") or []
+
+            if not raw_candles and not raw_trade_points:
+                raise HTTPException(status_code=404, detail="No chart data available for this backtest")
+
+            # فهرس زمني سريع لربط نقاط التداول بمواقعها
+            timestamp_index = {
+                c.get("timestamp"): idx for idx, c in enumerate(raw_candles) if isinstance(c, dict)
+            }
+
+            # شموع مسطحة بكل مفاتيح ind_* (الشكل الشامل — التقطيع والفلترة لاحقاً)
+            flat_candles: List[Dict[str, Any]] = []
+            for candle in raw_candles:
+                if not isinstance(candle, dict):
+                    continue
+                formatted_candle = dict(candle)
+                indicators_data = formatted_candle.pop("indicators", {}) or {}
+                flat = flatten_dict(indicators_data) if isinstance(indicators_data, dict) else {}
+                for ind_name, ind_value in flat.items():
                     formatted_candle[f"ind_{ind_name}"] = ind_value
-            formatted_candles.append(formatted_candle)
+                flat_candles.append(formatted_candle)
 
-        # ---- نقاط التداول (مع index داخل الشموع) ----
-        trade_points: List[Dict[str, Any]] = []
-        for tp in raw_trade_points:
-            if not isinstance(tp, dict):
-                continue
-            marker = dict(tp)
-            marker["index"] = timestamp_index.get(tp.get("timestamp"))
-            trade_points.append(marker)
+            # نقاط التداول (مع index داخل الشموع)
+            trade_points: List[Dict[str, Any]] = []
+            for tp in raw_trade_points:
+                if not isinstance(tp, dict):
+                    continue
+                marker = dict(tp)
+                marker["index"] = timestamp_index.get(tp.get("timestamp"))
+                trade_points.append(marker)
 
-        # ---- منحنى رأس المال (من chart_data أو مشتق من الشموع) ----
-        initial_capital = summary.get("initial_capital", full_config.get("initial_capital"))
-        equity_curve = chart.get("equity_curve")
-        if not equity_curve:
-            derived = [c.get("account_balance") for c in raw_candles if isinstance(c, dict)]
-            derived = [float(v) for v in derived if isinstance(v, (int, float))]
-            if derived:
-                equity_curve = (
-                    ([float(initial_capital)] if isinstance(initial_capital, (int, float)) else [])
-                    + derived
-                )
-            else:
-                equity_curve = None
+            # منحنى رأس المال (من chart_data أو مشتق من الشموع)
+            initial_capital = summary.get("initial_capital", full_config.get("initial_capital"))
+            equity_curve = chart.get("equity_curve")
+            if not equity_curve:
+                derived = [c.get("account_balance") for c in raw_candles if isinstance(c, dict)]
+                derived = [float(v) for v in derived if isinstance(v, (int, float))]
+                if derived:
+                    equity_curve = (
+                        ([float(initial_capital)] if isinstance(initial_capital, (int, float)) else [])
+                        + derived
+                    )
+                else:
+                    equity_curve = None
 
-        # ---- منحنى الانخفاض (من chart_data أو مشتق) ----
-        drawdown_curve = chart.get("drawdown_curve")
-        if not drawdown_curve and equity_curve:
-            drawdown_curve = _compute_drawdown_curve(equity_curve)
+            # منحنى الانخفاض (من chart_data أو مشتق)
+            drawdown_curve = chart.get("drawdown_curve")
+            if not drawdown_curve and equity_curve:
+                drawdown_curve = _compute_drawdown_curve(equity_curve)
 
-        # ---- Metadata ----
-        timestamps = [c.get("timestamp") for c in raw_candles if isinstance(c, dict) and c.get("timestamp")]
-        metadata = {
-            "backtest_id": backtest.id,
-            "name": backtest.name or summary.get("name", "Backtest"),
-            "symbol": backtest.symbol or (full_config.get("symbols") or [None])[0],
-            "timeframe": backtest.timeframe or summary.get("timeframe"),
-            "initial_capital": initial_capital,
-            "final_capital": summary.get("final_capital"),
-            "total_pnl": summary.get("total_pnl"),
-            "total_pnl_percent": backtest.total_pnl_percent if backtest.total_pnl_percent is not None else summary.get("total_pnl_percent"),
-            "total_trades": backtest.total_trades if backtest.total_trades is not None else summary.get("total_trades"),
-            "win_rate": backtest.win_rate if backtest.win_rate is not None else summary.get("win_rate"),
-            "max_drawdown_percent": summary.get("max_drawdown_percent"),
-            "sharpe_ratio": summary.get("sharpe_ratio"),
-            "start_date": timestamps[0] if timestamps else None,
-            "end_date": timestamps[-1] if timestamps else None,
-            "created_at": backtest.created_at.isoformat() if backtest.created_at else None,
-        }
+            # Metadata
+            timestamps = [c.get("timestamp") for c in raw_candles if isinstance(c, dict) and c.get("timestamp")]
+            metadata = {
+                "backtest_id": backtest.id,
+                "name": backtest.name or summary.get("name", "Backtest"),
+                "symbol": backtest.symbol or (full_config.get("symbols") or [None])[0],
+                "timeframe": backtest.timeframe or summary.get("timeframe"),
+                "initial_capital": initial_capital,
+                "final_capital": summary.get("final_capital"),
+                "total_pnl": summary.get("total_pnl"),
+                "total_pnl_percent": backtest.total_pnl_percent if backtest.total_pnl_percent is not None else summary.get("total_pnl_percent"),
+                "total_trades": backtest.total_trades if backtest.total_trades is not None else summary.get("total_trades"),
+                "win_rate": backtest.win_rate if backtest.win_rate is not None else summary.get("win_rate"),
+                "max_drawdown_percent": summary.get("max_drawdown_percent"),
+                "sharpe_ratio": summary.get("sharpe_ratio"),
+                "start_date": timestamps[0] if timestamps else None,
+                "end_date": timestamps[-1] if timestamps else None,
+                "created_at": backtest.created_at.isoformat() if backtest.created_at else None,
+            }
 
-        # ---- أسماء المؤشرات المتاحة (من أول شمعة كاملة) ----
-        available_indicators: List[str] = []
-        for candle in raw_candles:
-            if isinstance(candle, dict) and isinstance(candle.get("indicators"), dict):
-                available_indicators = sorted(flatten_dict(candle["indicators"]).keys())
-                break
+            # أسماء المؤشرات المتاحة (من أول شمعة كاملة)
+            available_indicators: List[str] = []
+            for candle in raw_candles:
+                if isinstance(candle, dict) and isinstance(candle.get("indicators"), dict):
+                    available_indicators = sorted(flatten_dict(candle["indicators"]).keys())
+                    break
 
-        visible_range_start = (start_index or 0)
+            base = {
+                "raw_len": len(raw_candles),
+                "flat_candles": flat_candles,
+                "trade_points": trade_points,
+                "equity_curve": equity_curve,
+                "drawdown_curve": drawdown_curve,
+                "metadata": metadata,
+                "available_indicators": available_indicators,
+            }
+            _bt_cache_put(cache_key, base)
+
+        # ---- تجهيز الاستجابة من الأساس (تقطيع/نسخ خفيف فقط) ----
+        flat_candles = base["flat_candles"]
+        trade_points = base["trade_points"]
+        metadata = base["metadata"]
+        available_indicators = base["available_indicators"]
+        raw_len = base["raw_len"]
+
+        offset = start_index or 0
+        if start_index is not None or limit is not None:
+            window = flat_candles[offset: offset + limit] if limit else flat_candles[offset:]
+        else:
+            window = flat_candles
+
+        if inc_norm is None:
+            formatted_candles = window                      # الشكل الشامل كما هو
+        else:
+            wanted = {str(n) for n in inc_norm}
+            formatted_candles = [
+                {k: v for k, v in c.items() if not k.startswith("ind_") or k[4:] in wanted}
+                for c in window
+            ]
+
+        visible_range_start = offset
         visible_range_end = visible_range_start + len(formatted_candles)
 
+        # ✅ الجولة 10: مؤشرات البنية — تُحسب مرة واحدة على كامل الشموع (لا النافذة)
+        # وتُخزن بكاش مستقل بمعاملاتها — الطلبات المتتالية خلالات فورية.
+        overlays_payload: Optional[Dict[str, Any]] = None
+        if overlays and str(overlays).strip():
+            wanted_ovl = [t.strip().lower() for t in str(overlays).split(",") if t.strip()]
+            if not wanted_ovl or "all" in wanted_ovl or "*" in wanted_ovl:
+                wanted_ovl = list(_OVL_TYPES)
+            unknown = [t for t in wanted_ovl if t not in _OVL_TYPES]
+            if unknown:
+                raise HTTPException(status_code=400, detail=f"أنواع overlays غير معروفة: {unknown}. المسموح: {list(_OVL_TYPES)}")
+            ovl_params: Dict[str, Dict[str, Any]] = {
+                "zigzag": {"length": zz_length},
+                "fib": {"depth": fib_depth, "dev_threshold": fib_dev, "retracement": fib_ret},
+                "trendline": {"period": tl_period, "max_pairs": tl_pairs},
+            }
+            ovl_key_src = json.dumps([wanted_ovl, ovl_params, base["raw_len"]], sort_keys=True, default=str)
+            ovl_key = f"{backtest_id}|ovl|{hashlib.md5(ovl_key_src.encode()).hexdigest()}"
+            overlays_payload = _bt_cache_get(ovl_key)
+            ovl_cached = overlays_payload is not None
+            if overlays_payload is None:
+                ovl_candles = [
+                    {"time": c.get("timestamp"), "open": c.get("open"), "high": c.get("high"),
+                     "low": c.get("low"), "close": c.get("close")}
+                    for c in flat_candles if isinstance(c, dict)
+                ]
+                ovl_result = _compute_overlays(ovl_candles, types=wanted_ovl, params=ovl_params)
+                overlays_payload = {
+                    "types": wanted_ovl,
+                    "bars": ovl_result["bars"],
+                    "time_from": ovl_result["time_from"],
+                    "time_to": ovl_result["time_to"],
+                    "overlays": ovl_result["overlays"],
+                }
+                _bt_cache_put(ovl_key, overlays_payload)
+            overlays_payload = dict(overlays_payload)
+            overlays_payload["cache"] = "hit" if ovl_cached else "built"
+
         return {
-            "backtest_id": backtest.id,
+            "backtest_id": metadata["backtest_id"],
             "metadata": metadata,
-            "equity_curve": equity_curve,
-            "drawdown_curve": drawdown_curve,
+            "equity_curve": base["equity_curve"],
+            "drawdown_curve": base["drawdown_curve"],
             "visual_candles": formatted_candles,
             "trade_points": trade_points,
+            **({"overlays": overlays_payload} if overlays_payload is not None else {}),
             "summary": {
-                "total_candles": len(raw_candles),
+                "total_candles": raw_len,
                 "total_trades": len(trade_points),
                 "win_rate": metadata["win_rate"],
                 "total_pnl": metadata["total_pnl"],
@@ -480,7 +618,9 @@ async def get_chart_data(
                 "sharpe_ratio": metadata["sharpe_ratio"],
                 "available_indicators": available_indicators,
                 "visible_range": f"{visible_range_start}-{visible_range_end}",
-                "has_more_data": visible_range_end < len(raw_candles),
+                "has_more_data": visible_range_end < raw_len,
+                # ✅ الجولة 9: شفافية الكاش للتشخيص
+                "cache": "hit" if was_cached else "built",
             },
         }
     except HTTPException:
@@ -506,6 +646,9 @@ async def delete_backtest_run(
 
         await db.delete(backtest)
         await db.commit()
+
+        # ✅ الجولة 9: إبطال كاش الباك-تست المحذوف
+        _bt_cache_drop(backtest_id)
 
         return {
             "success": True,

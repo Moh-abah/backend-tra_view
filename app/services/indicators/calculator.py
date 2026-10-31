@@ -6,7 +6,7 @@ import asyncio
 import threading
 import time
 from collections import OrderedDict
-from .base import IndicatorConfig, IndicatorResult
+from .base import IndicatorConfig, IndicatorResult, sanitize_indicator_config
 from .registry import IndicatorRegistry
 from concurrent.futures import ThreadPoolExecutor
 
@@ -69,6 +69,216 @@ class IndicatorCalculator:
         with self._cache_lock:
             self.cache.clear()
 
+    # ==================== ✅ الجولة 11: جسر مؤشرات البنية ====================
+
+    # الأسماء المقبولة (القصيرة والكاملة — يدعم أيضاً الاسم النقطي base.sub):
+    _OVERLAY_ALIASES = {
+        "zigzag": "zigzag", "zigzag_channels": "zigzag",
+        "fib": "fib", "auto_fib_retracement": "fib",
+        "trendline": "trendline", "auto_trendline": "trendline",
+    }
+    # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11)
+    _OVERLAY_PRIMARY = {"zigzag": "ind_zz_pivot", "fib": "ind_fib_signal", "trendline": "ind_atl_signal"}
+    # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
+    _OVERLAY_SUB_COLUMNS = {
+        "zz_state": "ind_zz_state", "state": "ind_zz_state", "os": "ind_zz_state",
+        "zz_pivot": "ind_zz_pivot", "pivot": "ind_zz_pivot",
+        "zz_pivot_high": "ind_zz_pivot_high", "pivot_high": "ind_zz_pivot_high", "pivothigh": "ind_zz_pivot_high",
+        "zz_pivot_low": "ind_zz_pivot_low", "pivot_low": "ind_zz_pivot_low", "pivotlow": "ind_zz_pivot_low",
+        "zz_prev_pivot_low": "ind_zz_prev_pivot_low", "prev_pivot_low": "ind_zz_prev_pivot_low",
+        "zz_prev_pivot_high": "ind_zz_prev_pivot_high", "prev_pivot_high": "ind_zz_prev_pivot_high",
+        "fib_dir": "ind_fib_dir", "dir": "ind_fib_dir",
+        "fib_start": "ind_fib_start", "start": "ind_fib_start",
+        "fib_end": "ind_fib_end", "end": "ind_fib_end",
+        "fib_target": "ind_fib_target", "target": "ind_fib_target",
+        "fib_signal": "primary", "signal": "primary",
+        "atl_upper": "ind_atl_upper", "tl_upper": "ind_atl_upper", "upper": "ind_atl_upper",
+        "atl_lower": "ind_atl_lower", "tl_lower": "ind_atl_lower", "lower": "ind_atl_lower",
+        "atl_signal": "ind_atl_signal",
+        "atl_cross_upper": "ind_atl_cross_upper", "tl_cross_upper": "ind_atl_cross_upper", "cross_upper": "ind_atl_cross_upper",
+        "atl_cross_lower": "ind_atl_cross_lower", "tl_cross_lower": "ind_atl_cross_lower", "cross_lower": "ind_atl_cross_lower",
+    }
+
+    def _calculate_overlay_indicator(self, dataframe, config):
+        """✅ الجولة 11 — جسر مؤشرات البنية إلى محرك الاستراتيجيات/الباك-تست.
+
+        الأسماء المقبولة (غير حساسة لحالة الأحرف):
+          zigzag | zigzag.zz_state | zigzag.zz_pivot_high | zigzag.zz_pivot_low
+          fib | fib.signal | fib.fib_start | fib.fib_end | fib.fib_target
+          trendline | trendline.signal | trendline.tl_upper | trendline.tl_lower
+                    | trendline.tl_cross_upper | trendline.tl_cross_lower
+
+        الاسم المجرد (بدون نقطة) يعيد عمود الإشارة الجاهز للشروط:
+          zigzag:    +1 تأكيد قاع (شرائي) / -1 تأكيد قمة (بيعي) / 0 — عند شمعة التأكيد (بدون repaint)
+          fib:       +1 Buy Retrace / -1 Sell Retrace / 0 — عند شمعة تحقق مستوى الإدارة
+          trendline: +1 تقاطع صاعد فوق أي خط (اختراق العلوي أو استعادة السفلي) /
+                     -1 تقاطع هابط تحت أي خط (فقدان السفلي أو العودة تحت العلوي) / 0
+
+        يعيد None إن لم يكن الاسماً من أسماء البنية (لتمرّ للسجل الكلاسيكي كما هو).
+        """
+        try:
+            raw_name = str((config or {}).get('name') or '')
+            if not raw_name:
+                return None
+            parts = raw_name.split('.')
+            base = self._OVERLAY_ALIASES.get(parts[0].strip().lower())
+            if base is None:
+                return None
+            sub = parts[1].strip().lower() if len(parts) > 1 and parts[1].strip() else None
+            params = dict((config or {}).get('params') or {})
+
+            # استيراد مؤجل — compute_overlays نقية 100% وتقبل DataFrame مباشرة،
+            # والأعمدة تُشتق من الوحدة المركزية overlay_columns (مصدر حقيقة واحد
+            # للمحرك + الحاسبة + chart-data — مطابقة بايت-ببايت).
+            from app.services.indicators.overlays import compute_overlays
+            from app.services.indicators.overlay_columns import (
+                columns_from_overlays_result,
+                CONTRACT_COLUMNS,
+            )
+
+            idx = list(dataframe.index)
+
+            if base == 'zigzag':
+                kw = {}
+                if 'length' in params:
+                    kw['length'] = max(2, int(float(params['length'])))
+            elif base == 'fib':
+                kw = {}
+                if 'depth' in params:
+                    kw['depth'] = max(1, int(float(params['depth'])))
+                for k in ('dev_threshold', 'dev', 'deviation', 'deviation_threshold'):
+                    if k in params:
+                        kw['dev_threshold'] = float(params[k])
+                        break
+                for k in ('retracement', 'ret', 'target_ratio'):
+                    if k in params:
+                        kw['retracement'] = float(params[k])
+                        break
+                for k in ('reverse', 'extend_left', 'extend_right'):
+                    if k in params:
+                        kw[k] = bool(params[k])
+                lv = params.get('level_ratios', params.get('levels'))
+                if isinstance(lv, (list, tuple)) and lv:
+                    kw['level_ratios'] = [float(x) for x in lv]
+            else:  # trendline
+                kw = {}
+                for k in ('period', 'n', 'fractal_period'):
+                    if k in params:
+                        kw['period'] = max(2, int(float(params[k])))
+                        break
+                for k in ('max_pairs', 'pairs', 'max_tl'):
+                    if k in params:
+                        kw['max_pairs'] = max(1, int(float(params[k])))
+                        break
+                if 'extend' in params:
+                    kw['extend'] = str(params['extend'])
+
+            res = compute_overlays(dataframe, types=[base], params={base: kw})
+            cols = columns_from_overlays_result(res)
+            primary = self._OVERLAY_PRIMARY[base]
+            sub_used = primary
+            if sub:
+                col = self._OVERLAY_SUB_COLUMNS.get(sub.strip().lower())
+                if col and col != 'primary':
+                    sub_used = col
+            data = cols.get(sub_used)
+            if data is None:
+                data = cols.get(primary) or [None] * len(dataframe)
+                sub_used = primary
+            desc = ('أعمدة العقد الملزم: ' + ', '.join(CONTRACT_COLUMNS.get(base) or [])
+                    + ' — الأساسي هنا: ' + primary)
+
+            return {
+                "name": raw_name,
+                "values": {"data": data, "index": idx, "dtype": "object"},
+                "signals": None,
+                "metadata": {
+                    "overlay": base,
+                    "sub": sub_used,
+                    "params": kw,
+                    "available_columns": sorted(cols.keys()),
+                    "description": desc,
+                    "engine": "overlays_v2 (الجولة 11)",
+                },
+            }
+        except Exception:
+            # لا نبتلع بصمت: نطبع التتبع ونعيد None ليمر الاسم للسجل الكلاسيكي
+            # (الذي سيعيد نتيجة الخطأ المعتادة — نفس سلوك الإصدارات السابقة).
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                "Overlay bridge failed for '%s' — falling back to registry",
+                (config or {}).get('name'),
+            )
+            return None
+
+    @staticmethod
+    def _overlay_available_subs(base: str):
+        from app.services.indicators.overlay_columns import CONTRACT_COLUMNS
+        return list(CONTRACT_COLUMNS.get(base) or [])
+
+    @staticmethod
+    def _zigzag_signal_from_state(state):
+        """+1 عند تأكيد قاع (انتقال 0→1)، -1 عند تأكيد قمة (1→0)، وإلا 0.
+
+        مطابق لمنطق Pine: top = os==0 and os[1]!=0 / btm = os==1 and os[1]!=1.
+        الإشارة توضع على شمعة التأكيد نفسها — بلا repaint.
+        """
+        out = [0.0] * len(state)
+        prev = None
+        for i, v in enumerate(state):
+            if v is None:
+                continue
+            if prev is not None:
+                if v == 1 and prev == 0:
+                    out[i] = 1.0
+                elif v == 0 and prev == 1:
+                    out[i] = -1.0
+            prev = v
+        return out, 'signal'
+
+    @staticmethod
+    def _fib_signal_from_events(signals, n_bars: int):
+        """+1 عند شمعة Buy Retrace، -1 عند شمعة Sell Retrace، وإلا 0."""
+        out = [0.0] * n_bars
+        for ev in signals or []:
+            try:
+                bar = int(ev.get('bar'))
+            except (TypeError, ValueError):
+                continue
+            if not (0 <= bar < n_bars):
+                continue
+            side = str(ev.get('side') or '').strip().lower()
+            sig = str(ev.get('signal') or '').strip().lower()
+            if side == 'buy' or sig.startswith('buy'):
+                out[bar] = 1.0
+            elif side == 'sell' or sig.startswith('sell'):
+                out[bar] = -1.0
+        return out, 'signal'
+
+    @staticmethod
+    def _trendline_signal_from_crosses(crosses, n_bars: int):
+        """+1 تقاطع صاعد (over فوق أي خط)، -1 تقاطع هابط (under تحت أي خط)، وإلا 0.
+
+        over فوق الخط العلوي = اختراق مقاومة الاتجاه (شرائي)؛
+        over فوق الخط السفلي = استعادة دعم الاتجاه (شرائي)؛
+        under تحت الخط السفلي = كسر الدعم (بيعي)؛
+        under تحت الخط العلوي = رجوع تحت مقاومة الاتجاه (بيعي).
+        """
+        out = [0.0] * n_bars
+        for cr in crosses or []:
+            try:
+                bar = int(cr.get('bar'))
+            except (TypeError, ValueError):
+                continue
+            if not (0 <= bar < n_bars):
+                continue
+            direction = str(cr.get('direction') or '').strip().lower()
+            if direction == 'over':
+                out[bar] += 1.0
+            elif direction == 'under':
+                out[bar] -= 1.0
+        return [max(-1.0, min(1.0, v)) for v in out], 'signal'
+
     def _calculate_single_indicator(self, dataframe, config, use_cache):
         import pandas as pd
         import numpy as np
@@ -87,7 +297,19 @@ class IndicatorCalculator:
             if cached is not None:
                 return name, cached
 
+        # ✅ الجولة 11: جسر مؤشرات البنية (zigzag/fib/trendline) — تُحسب مباشرة
+        # من app/services/indicators/overlays.py بدل السجل الكلاسيكي الذي لا يعرفها.
+        # هذا يُصلح: "Indicator 'fib' not found in registry" في strategies1/run والباك-تست.
+        overlay_result = self._calculate_overlay_indicator(dataframe, config)
+        if overlay_result is not None:
+            if use_cache:
+                self._cache_set(cache_key, overlay_result)
+            return name, overlay_result
+
         try:
+            # ✅ الجولة 5: طبّع النوع الفاسد الوارد من العملاء (مثل "oscillator")
+            # قبل pydantic — بدل فشل الحساب كل نبضة وإرجاع قيم NaN للفرونت.
+            config = sanitize_indicator_config(config)
             indicator_config = IndicatorConfig(**config)
             indicator = self.registry.create_indicator(indicator_config)
             result = indicator.calculate(dataframe)

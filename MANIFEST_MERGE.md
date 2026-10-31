@@ -1,242 +1,83 @@
-# 📦 بيان حزمة الدمج (Merge Manifest)
+# حزمة دمج — الجولة 6.1 (تحسينات الفرونت الثلاثة + تحصين التخزين القديم)
 
-**تاريخ الحزم:** 2026-10-27 23:12 UTC  
-**مقارنة مع:** المشروع الأصلي المنزّل من Google Drive  
-**طريقة الدمج:** استخرج الـ ZIP فوق جذر مشروعك (نفس المسارات) — سيستبدل الملفات التالفة بالمعدلة ويضيف الجديدة.
-
-**قبل الدمج:** خذ نسخة احتياطية، وأوقف الخدمة (uvicorn/celery workers).
-
-**بعد الدمج:**
-```bash
-pip install -r requirements.txt        # بيئة نظيفة يُفضّل
-python scripts/fetch_history.py        # (اختياري) جلب سنة بيانات BTC/ETH لكل الفريمات
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-celery -A app.celery_app worker --loglevel=info   # للباك-تست غير المتزامن
-```
+**التاريخ:** 30/10/2026
+**الأساس:** مستودع الباك إند الحالي (الذي يعمل في الإنتاج 161.97.73.254:8000 الآن)
+**طريقة الدمج:** استبدل الملفات الأربعة التالية بمواقعها في المشروع — لا حذف ولا إعدادات جديدة مطلوبة.
 
 ---
 
-## 🆕 ملفات جديدة (38)
+## 1) ملفات الحزمة (4 ملفات فقط)
 
-- `.dockerignore` (0.9 KB)
-- `.env.example` (3.4 KB)
-- `README.md` (33.6 KB)
-- `app/routers/mtf.py` (5.2 KB)
-- `app/services/indicators/indicators/parametric.py` (5.6 KB)
-- `app/services/mtf_analyzer.py` (23.8 KB)
-- `app/utils/json_safe.py` (2.5 KB)
-- `data/history/_integrity.json` (6.4 KB)
-- `examples/backtest_request.json` (10.8 KB)
-- `reports/FINAL_REPORT_AR.md` (8.0 KB)
-- `reports/REPORT_BACKTEST_YEAR.md` (12.9 KB)
-- `reports/REPORT_DATABASE_API.md` (2.6 KB)
-- `reports/REPORT_MTF_SCENARIOS.md` (3.5 KB)
-- `reports/REPORT_VALIDATION.md` (2.5 KB)
-- `reports/backtest_results.json` (51.1 KB)
-- `reports/mtf_scenario_results.json` (6.6 KB)
-- `scripts/bench_backtest.py` (2.3 KB)
-- `scripts/build_merge_package.py` (7.0 KB)
-- `scripts/fetch_history.py` (9.3 KB)
-- `scripts/generate_reports.py` (23.7 KB)
-- `scripts/run_year_backtests.py` (10.4 KB)
-- `scripts/test_mtf_scenarios.py` (14.2 KB)
-- `scripts/validation/01_generate_test_data.py` (4.1 KB)
-- `scripts/validation/02_validate_indicators.py` (12.7 KB)
-- `scripts/validation/03_validate_backtest.py` (10.8 KB)
-- `scripts/validation/04_builtin_strategies.py` (3.7 KB)
-- `scripts/validation/05_new_strategies.py` (11.9 KB)
-- `scripts/validation/06_benchmark.py` (6.6 KB)
-- `scripts/validation/data/constant.csv` (16.7 KB)
-- `scripts/validation/data/linear_down.csv` (30.9 KB)
-- `scripts/validation/data/linear_up.csv` (31.4 KB)
-- `scripts/validation/data/random_walk.csv` (83.6 KB)
-- `scripts/validation/data/sawtooth.csv` (16.6 KB)
-- `scripts/validation/data/v_shape.csv` (41.1 KB)
-- `strategies/.gitkeep` (0.0 KB)
-- `strategies/bollinger_oversold_sniper.json` (2.0 KB)
-- `strategies/macd_zero_line_momentum.json` (2.3 KB)
-- `strategies/volume_climax_reversal_pro.json` (2.0 KB)
+| # | الملف | الحالة | السبب |
+|---|-------|--------|-------|
+| 1 | `app/routers/market_data.py` | **معدّل** | ✨ نقطة جديدة: `GET /api/v1/market/candles/{market}/{symbol}/range?timeframe=&from=&to=` (تحسين الفرونت #1) — الشموع نفسها والترقيم لم يُمَسا |
+| 2 | `app/routers/drawings.py` | **معدّل** | ✨ حذف دفعي: `DELETE /api/v1/chart/drawings/{market}/{symbol}?drawing_ids=a,b,c` (تحسين الفرونت #2) — سلوك `drawing_id` المفرد والمسح الكامل كما هما حرفياً |
+| 3 | `app/main.py` | **معدّل** | ✨ ترويسة `X-Max-Limit` على كل استجابات نقاط الشموع (تحسين الفرونت #3) — بقي `/health/storage` وتقرير الإقلاع من الجولة 6 كما هما |
+| 4 | `app/core/chart_storage.py` | **معدّل** | 🔒 تحصين: وحدة قديمة غير مستخدمة كانت بمسار SQLite نسبي مباشر (قنبلة readonly كامنة) — مرّت الآن عبر `ensure_sqlite_ready` |
 
-## ✏️ ملفات معدلة (58)
+> لا توجد أي تغييرات أخرى. كل ملفات الجولة 6 الأساسية (storage_health / chart_ws / live_stream / binance_market_stream) موجودة أصلاً في مستودعك الحالي والمنشور في الإنتاج — **هذه الحزمة فوقه مباشرة**.
 
-- `.env.production`
-- `.gitignore`
-- `Dockerfile`
-- `app/backtest/engine1.py`
-- `app/backtest/metrics.py`
-- `app/backtest/reports.py`
-- `app/backtest/schemas.py`
-- `app/celery_app.py`
-- `app/config.py`
-- `app/core/indicators.py`
-- `app/core/live_stream.py`
-- `app/core/managers.py`
-- `app/database/__init__.py`
-- `app/database/redis_client.py`
-- `app/database/session.py`
-- `app/dependencies.py`
-- `app/main.py`
-- `app/models/__init__.py`
-- `app/models/signal.py`
-- `app/providers/alphavantage_client.py`
-- `app/providers/binance_indicators_stream.py`
-- `app/providers/binance_market_stream.py`
-- `app/providers/binance_provider.py`
-- `app/providers/us_stock_provider.py`
-- `app/providers/yahoo_client.py`
-- `app/routers/api.py`
-- `app/routers/backtest.py`
-- `app/routers/filtering.py`
-- `app/routers/indicators.py`
-- `app/routers/market_data.py`
-- `app/routers/settings.py`
-- `app/routers/stock_analysis.py`
-- `app/routers/strategies.py`
-- `app/routers/strategies1.py`
-- `app/routers/users.py`
-- `app/routers/websocket.py`
-- `app/schemas/user.py`
-- `app/services/auth.py`
-- `app/services/data_service.py`
-- `app/services/filtering/core.py`
-- `app/services/indicator_state_service.py`
-- `app/services/indicators/__init__.py`
-- `app/services/indicators/base.py`
-- `app/services/indicators/calculator.py`
-- `app/services/indicators/indicators/__init__.py`
-- `app/services/indicators/indicators/indicators.py`
-- `app/services/signals/engine.py`
-- `app/services/strategy/__init__.py`
-- `app/services/strategy/conditions.py`
-- `app/services/strategy/schemas.py`
-- `app/services/strategy/strategy_engine1.py`
-- `app/tasks/backtest_tasks.py`
-- `app/websocket/__init__.py`
-- `app/websocket/chart_ws.py`
-- `app/websocket/signals_ws.py`
-- `app/websocket/stream_handler.py`
-- `docker-compose.yml`
-- `requirements.txt`
+---
 
-## ♻️ ملفات لم تتغير (46) — تُحزم أيضًا للاطمئنان
+## 2) ما الجديد للفرونت (العقد)
 
-- `app/backtest/__init__.py`
-- `app/markets/us/__init__.py`
-- `app/markets/us/market_config.py`
-- `app/markets/us/market_movers.py`
-- `app/markets/us/symbol_registry.py`
-- `app/metrics/normalizer.py`
-- `app/models/backtest_run.py`
-- `app/models/strategy.py`
-- `app/models/user.py`
-- `app/schemas/indicators.py`
-- `app/schemas/signals.py`
-- `app/services/chart_storage.py`
-- `app/services/data_provider.py`
-- `app/services/filtering/__init__.py`
-- `app/services/filtering/schemas.py`
-- `app/services/indicators/indicators/smc/smc_order_block.py`
-- `app/services/indicators/pine_transpiler.py`
-- `app/services/indicators/registry.py`
-- `app/services/signals/__init__.py`
-- `app/services/signals/candle_tracker.py`
-- `app/services/signals/schemas.py`
-- `app/services/signals/signal.py`
-- `app/services/signals/state.py`
-- `app/services/strategy/climax_stratigyes.json`
-- `app/services/strategy/core.py`
-- `app/services/strategy/full_strategy.py`
-- `app/services/strategy/loader.py`
-- `app/services/strategy/smcop.json`
-- `app/services/strategy/strategys/__init__.py`
-- `app/services/strategy/strategys/macd_strategy.py`
-- `app/services/strategy/strategys/mean_reversion_strategy.py`
-- `app/services/strategy/strategys/rsi_strategy.py`
-- `app/services/strategy/strategys/test_strategy.py`
-- `app/services/strategy/strategys/trend_strategy.py`
-- `app/utils/converters.py`
-- `app/utils/security.py`
-- `app/websocket/manager.py`
-- `app/websocket/schemas.py`
-- `strategies/Multi-Timeframe MACD Complex Conditions`
-- `tests/__init__.py`
-- `tests/conftest.py`
-- `tests/run_tests.py`
-- `tests/unit/routers/test_strategies.py`
-- `tests/unit/services/test_strategy_service.py`
-- `tests/unit/test_core_indicators.py`
-- `tests/unit/test_indicators_base.py`
+### أ) `GET /api/v1/market/candles/{market}/{symbol}/range?timeframe=&from=&to=&limit=`
+- `from`/`to` **epoch-ms شاملة الطرفين**، `from > to` → `400`.
+- `limit` اختياري (افتراضي 5000، حد أقصى **20000**) — يُعاد **الأحدث** داخل النطاق.
+- **العقد الثابت محفوظ حرفياً:** نفس استجابة `{ candles: [...], has_more, next_before }` بحقول الشمعة `time|open|high|low|close|volume` و`time` بالملي ثانية وترتيب تصاعدي.
+- حقول إضافية: `from`, `to`, `truncated` (النطاق كان أوسع من limit), `limit`, `oldest_time`, `newest_time`, `market_status` (للأسهم).
+- استمرارية التمرير: عند `has_more=true` مرّر `next_before` إلى نقطة `/candles?before=` كالعادة.
+- **سريع دائماً:** حتى لو طلبت نطاق 10 سنوات على 1m، الجلب مقيّد بنافذة تكفي `limit` شمعة فقط — والنتيجة مطابقة لأن الأحدث داخل النطاق هو المُعاد على أي حال.
+- مثال تم اختباره حياً (بيانات BTCUSDT حقيقية):
+  `GET /range?timeframe=1h&from=1789196400000&to=1792792800000&limit=2000` → `count=1000`، كل الشموع داخل النطاق، `X-Max-Limit: 20000`.
 
-## 🗑️ ملفات حذفناها من مشروعنا (59) — لن يزيلها الدمج، احذفها يدويًا إن وجدت (نسخ قديمة/مكررة)
+### ب) `DELETE /api/v1/chart/drawings/{market}/{symbol}?drawing_ids=a,b,c`
+- يقبل **فواصل** (`?drawing_ids=a,b,c`) **أو تكرار المعامل** (`?drawing_ids=a&drawing_ids=b`).
+- **مع `timeframe`:** يُطبق على ذلك الفريم فقط. **بدونه:** يُطبق على كل فريمات الرمز (مثالي لزر «مسح الكل»).
+- الاستجابة: `{"success": true, "deleted": N, "deleted_ids": [...], "not_found": [...], "timeframes_affected": ["15m","1m"]}` — مفتاحا `success`/`deleted` كما في السلوك القديم.
+- إذا صار تخزين فريم فارغاً بعد الحذف يُحذف صفّه كلياً (GET يُرجع `count=0` كما هو متوقع).
+- **التوافق القديم كامل:** `?drawing_id=` المفرد و`?timeframe=` (مسح فريم) وبدون معاملات (مسح الكل) تعمل كما كانت حرفياً.
 
-- `app/backtest/backtestsendbody copy 2.json`
-- `app/backtest/backtestsendbody copy 3.json`
-- `app/backtest/backtestsendbody copy 4.json`
-- `app/backtest/backtestsendbody copy 5.json`
-- `app/backtest/backtestsendbody copy.json`
-- `app/backtest/backtestsendbody.json`
-- `app/backtest/climaxbacktetst.json`
-- `app/backtest/decision.py`
-- `app/backtest/engine.py`
-- `app/backtest/engine_copy.py`
-- `app/backtest/golden.json`
-- `app/backtest/s.json`
-- `app/backtest/strategy_context.py`
-- `app/chart/broadcaster.py`
-- `app/chart/chart_hub.py`
-- `app/chart/chart_session.py`
-- `app/core/chart_storage.py`
-- `app/core/streaming/market_stream.py`
-- `app/database/models.py`
-- `app/markets/candle_builder.py`
-- `app/markets/candle_store.py`
-- `app/markets/indicator_scheduler.py`
-- `app/markets/models.py`
-- `app/markets/runtime.py`
-- `app/markets/timeframe.py`
-- `app/models/portfolio.py`
-- `app/models/settings.py`
-- `app/providers/alpaca_provider.py`
-- `app/providers/binance_market_streamca.py`
-- `app/providers/stock_websocket.py`
-- `app/providers/ws_server.py`
-- `app/routers/backtest1.py`
-- `app/routers/chart_snapshot.py`
-- `app/routers/core.py`
-- `app/routers/logging_config.py`
-- `app/routers/signals.py`
-- `app/services/candle_aggregator.py`
-- `app/services/chart_manager.py`
-- `app/services/data/timeframe_aligner.py`
-- `app/services/indicators/core_indicators.py`
-- `app/services/indicators/engine.py`
-- `app/services/indicators/indicators.py`
-- `app/services/indicators/processor.py`
-- `app/services/indicators/reliable_calculator.py`
-- `app/services/indicators/rsi.py`
-- `app/services/indicators/sma.py`
-- `app/services/indicators/trend.py`
-- `app/services/indicators/volume.py`
-- `app/services/live_monitor.py`
-- `app/services/market/candle_tracker.py`
-- `app/services/market_pipeline.py`
-- `app/services/market_service.py`
-- `app/services/strategy/climax_stratigyes copy.json`
-- `app/services/strategy/core_copy.py`
-- `app/services/strategy/smcop copy.json`
-- `app/websocket/indicators_ws.py`
-- `app/websocket/managersignal.py`
-- `app/websocket/stock_handler.py`
-- `tests/unit/test_trend_indicators.py`
+### ج) ترويسة `X-Max-Limit`
+- على **كل** استجابات مسار `/api/v1/market/candles*` (حتى 422/500):
+  - `/candles/{market}/{symbol}` → `X-Max-Limit: 5000`
+  - `/candles/{market}/{symbol}/range` → `X-Max-Limit: 20000`
+- `limit=99999` → `422` **مع الترويسة** — يكتشفها العميل ذاتياً بلا توثيق خارجي.
 
-> ملاحظة: ملفات "copy" القديمة (engine_copy.py, core_copy.py, backtest1/, strategies1/, إلخ) ضمن المحذوفات — حذفها ضروري لتجنب تعارض الاستيرادات.
+---
 
-## 📊 إحصائيات
+## 3) ما تغيّر على الفرونت؟ لا شيء إلزامي
+- كل نقاطكم الحالية بنفس الأشكال — التغيير **إضافي فقط** (نقطة جديدة + معامل اختياري جديد + ترويسة).
+- اعتمادوا الريبلاي كما هو: بياناته من الذاكرة المحلية ولا يحتاج شيئاً من هذا.
 
-| البند | العدد |
-|---|---:|
-| ملفات في الحزمة | 142 |
-| جديدة | 38 |
-| معدلة | 58 |
-| غير متغيرة | 46 |
-| محذوفة (احذفها يدويًا) | 59 |
+---
+
+## 4) الأدلة (طلب/استجابة — مُختبرة فعلياً)
+
+### على الإنتاج الحي (الأساس الجولة 6) — 11/11 ✅
+- `GET /health/storage` → `chart_drawings` و`chart_states` **writable=true** على `/app/chart_data/` (مستخدم `trader`).
+- دورة drawings كاملة: POST `saved=3` → GET بنفس المعرفات → DELETE — كانت 500 `unable to open database file` قبل الجولة 6.
+- `GET /candles?limit=100` → `count=100 has_more=true` + `before=` يعمل.
+- WS: `chart_initialized` → مفاتيح `indicators_results = RSI_77a50452` (يطابق `md5("RSI:{\"period\": 14}")[:8]` رياضياً) → بث حي `price_update` → `set_timeframe` → `timeframe_changed` داخل نفس الاتصال (بلا readonly).
+
+### محلياً على حزمة الدمج — 30/32 ✅ (والاثنان هجوم شبكة وليسا كوداً)
+- كل دورات الحذف الدفعي (فواصل/تكرار/عبر فريمات/معرف شبح/not_found) ✅
+- `/range` ببيانات BTCUSDT حقيقية: 1000 شمعة داخل النطاق، تصاعدية، بالملي، ترويسة 20000 ✅
+- AAPL أسهم على `/range` → `count=64 market_status=open` ✅
+- `from > to` → `400` ✅ — `limit=99999` → `422` مع `X-Max-Limit: 5000` ✅
+- WS init+oscillator+set_timeframe محلياً ✅
+- ⚠️ الفشلان المتبقيان (نطاق عميق 8 سنوات + فريم 2m عبر الشبكة) سببهما **حظر Binance مؤقت لعنوان بيئة الاختبار (418 cooldown)** — والمنطق نفسه أُثبت معزولاً بالكامل أدناه.
+
+### إثبات معزول لمنطق النطاق العميق (مزوّد مزيّف — بلا شبكة) — 9/9 ✅
+- نطاق 8 سنوات (~70 ألف شمعة 1h) + `limit=5000` → `count=5000`، `truncated=true`، `has_more=true`، `next_before=أقدم معادة`، آخر شمعة ملاصقة لـ `to`.
+- نطاق 100 شمعة → `count=100` بالضبط (شاملة الطرفين)، `truncated=false`.
+- فريم مركب 2m → شموع 2m محاذاة `% 120000 == 0`.
+
+---
+
+## 5) ماذا يتوقع الفرونت بعد النشر؟
+1. `curl -s "http://161.97.73.254:8000/api/v1/market/candles/crypto/BTCUSDT/range?timeframe=1h&from=X&to=Y"` → 200 بالشكل أعلاه (قبل النشر: 404).
+2. `curl -sI -X DELETE ".../drawings/crypto/BTCUSDT?drawing_ids=a,b"` → 200 مع `deleted_ids`.
+3. ترويسة `X-Max-Limit` في أي استجابة شموع.
+
+**انتهى — هذه آخر شيء يحتاجه الفرونت من الباك إند في هذه الجولة.**

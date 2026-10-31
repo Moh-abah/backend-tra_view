@@ -12,24 +12,62 @@ import os
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.core.live_stream import live_stream_manager
-from app.core.managers import chart_manager
+from app.core.managers import chart_manager, indicator_id
 from app.schemas.indicators import ChartSubscription, IndicatorConfig
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+def _indicator_id(indicator_dict: Any) -> str:
+    """معرّف موحد ومستقر للمؤشر — يفوّض للتنفيذ المعياري في managers.py"""
+    return indicator_id(indicator_dict)
+
+
+def _get_chart(symbol: str, timeframe: Any):
+    """إرجاع حالة الشارت إن وُجدت (بلا استثناءات)"""
+    key = chart_manager.get_chart_key(symbol, timeframe)
+    return chart_manager.charts.get(key)
+
+
+def _rekey(symbol: str, timeframe: Any, results: Dict) -> Dict:
+    """توحيد مفاتيح نتائج المؤشرات على indicator_id (انظر managers._rekey_results_by_id)"""
+    chart = _get_chart(symbol, timeframe)
+    if chart is None:
+        return results or {}
+    try:
+        return chart_manager._rekey_results_by_id(chart, results or {})
+    except Exception:  # noqa: BLE001
+        return results or {}
+
 class ChartStateDB:
     """قاعدة بيانات لحفظ حالة الشارت والمؤشرات"""
     GLOBAL_KEY = "GLOBAL_USER_INDICATORS"
-    def __init__(self, db_path: str = "chart_states.db"):
-        self.db_path = db_path
-        self.init_db()
-    
+    def __init__(self, db_path: str = ""):
+        # ✅ الجولة 6: مسار قابل للضبط بالبيئة + تجهيز ذاتي — كان الإنتاج يفشل
+        # بـ "attempt to write a readonly database" لأن ربط ملف واحد في
+        # docker-compose جعل الملف مملوكاً لـ root بينما الحاوية تعمل بـ trader.
+        # ensure_sqlite_ready يفحص الكتابة فعلياً وينتقل لمسار بديل مع نسخ
+        # البيانات إن لزم — فيبقى حفظ المؤشرات يعمل مهما كانت صلاحيات المضيف.
+        from app.core.storage_health import ensure_sqlite_ready
+        raw = db_path or os.environ.get("CHART_STATE_DB_PATH", "chart_states.db")
+        self.db_path = ensure_sqlite_ready(raw, label="chart_states")
+        try:
+            self.init_db()
+        except Exception:  # noqa: BLE001 — لا نُسقط التطبيق كله لو فشل التهيئة
+            logger.exception("❌ Failed to init chart states DB at %s", self.db_path)
+
+    def _connect(self) -> sqlite3.Connection:
+        """اتصال موحّد بمهلة انتظار تمنع أخطاء 'database is locked' عند التزامن."""
+        conn = sqlite3.connect(self.db_path, timeout=10)
+        conn.execute("PRAGMA busy_timeout=10000")
+        return conn
+
     def init_db(self):
         """تهيئة قاعدة البيانات وإنشاء الجداول"""
         os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else ".", exist_ok=True)
         
-        conn = sqlite3.connect(self.db_path)
+        conn = self._connect()
         cursor = conn.cursor()
         
         # جدول لحالة الشارت
@@ -65,7 +103,7 @@ class ChartStateDB:
         """حفظ المؤشرات بشكل عام لتطبيقها على جميع الشارتات"""
         try:
             indicators_json = json.dumps(indicators)
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             cursor = conn.cursor()
             
             # نستخدم المفتاح الثابت "GLOBAL_USER_INDICATORS"
@@ -86,7 +124,7 @@ class ChartStateDB:
     def load_global_indicators(self) -> Optional[List[Dict]]:
         """تحميل المؤشرات العامة المحفوظة"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             cursor = conn.cursor()
             
             cursor.execute('''
@@ -102,7 +140,22 @@ class ChartStateDB:
             if result:
                 indicators = json.loads(result[0])
                 logger.info(f"📂 Loaded global indicators: {len(indicators)} indicators")
-                return indicators
+                # ✅ الجولة 5: تطهير عند القراءة + إصلاح ذاتي للقاعدة — كان تكوين
+                # محفوظ بنوع فاسد ("oscillator") يُعيد فشل الحساب كل نبضة حتى
+                # بعد إعادة التشغيل. نُصلح النوع ونكتب النسخة النظيفة للقاعدة.
+                try:
+                    from app.services.indicators.base import sanitize_indicator_config
+                    cleaned = [
+                        sanitize_indicator_config(i) if isinstance(i, dict) else i
+                        for i in indicators
+                    ]
+                    if cleaned != indicators:
+                        logger.warning("🧬 Sanitized %d saved indicator config(s) with invalid type — self-healing DB", 
+                                       sum(1 for a, b in zip(indicators, cleaned) if a != b))
+                        self.save_global_indicators(cleaned)
+                    return cleaned
+                except Exception:  # noqa: BLE001
+                    return indicators
             return None
         except Exception as e:
             logger.error(f"❌ Failed to load global indicators: {e}")
@@ -120,7 +173,7 @@ class ChartStateDB:
             chart_key = self.generate_chart_key(symbol, timeframe)
             indicators_json = json.dumps(indicators)
             
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             cursor = conn.cursor()
             
             # حفظ أو تحديث الحالة الحالية
@@ -160,7 +213,7 @@ class ChartStateDB:
         try:
             chart_key = self.generate_chart_key(symbol, timeframe)
             
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             cursor = conn.cursor()
             
             cursor.execute('''
@@ -185,7 +238,7 @@ class ChartStateDB:
     def get_all_chart_states(self) -> Dict[str, Any]:
         """الحصول على جميع حالات الشارت المحفوظة"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             cursor = conn.cursor()
             
             cursor.execute('''
@@ -215,7 +268,7 @@ class ChartStateDB:
     def cleanup_old_states(self, days_old: int = 30):
         """تنظيف الحالات القديمة"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self._connect()
             cursor = conn.cursor()
             
             cursor.execute('''
@@ -415,6 +468,17 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
         indicators_to_use = requested_indicators
         using_saved_indicators = False
 
+        # ✅ الجولة 5: تطهير أنواع المؤشرات الواردة من العميل قبل أي تحقق pydantic —
+        # كان type فاسد ("oscillator") يقتل الاتصال كاملاً بلا chart_initialized.
+        try:
+            from app.services.indicators.base import sanitize_indicator_config
+            indicators_to_use = [
+                sanitize_indicator_config(i) if isinstance(i, dict) else i
+                for i in indicators_to_use
+            ]
+        except Exception:  # noqa: BLE001
+            pass
+
         if not requested_indicators:
             # ✅ التعديل: التغيير إلى load_global_indicators
             saved_indicators = await asyncio.to_thread(chart_state_db.load_global_indicators)
@@ -427,12 +491,46 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
         chart = await chart_manager.get_or_create_chart(symbol, timeframe, market=init_data.get("market", "crypto"))
         
         # 4. إنشاء كائن الاشتراك
-        subscription = ChartSubscription(
-            symbol=symbol,
-            timeframe=timeframe,
-            market=init_data.get("market", "crypto"),
-            indicators=indicators_to_use
-        )
+        # ✅ الجولة 5: درع صارم — كان تكوين محفوظ بمعاملات خارجة عن الحدود (مثل rsi period=3)
+        # أو نوع فاسد يُسقط pydantic على كامل الاشتراك فيموت الاتصال بلا chart_initialized
+        # ولا id_map ولا قيم (وهو جذر بلاغ الفرونت "WS يرفض 1006" و"id_map لا يصل").
+        # الآن: نُسقط التكوين الفاسد وحده ولا نقتل الاتصال أبداً.
+        def _build_subscription(indicator_list):
+            return ChartSubscription(
+                symbol=symbol,
+                timeframe=timeframe,
+                market=init_data.get("market", "crypto"),
+                indicators=indicator_list,
+            )
+
+        try:
+            subscription = _build_subscription(indicators_to_use)
+        except Exception as _sub_err:  # noqa: BLE001
+            logger.warning("⚠️ init: invalid subscription payload (%s) — filtering indicators individually", _sub_err)
+            _valid: list = []
+            from pydantic import ValidationError as _PydValError
+            for _ind in indicators_to_use:
+                try:
+                    if isinstance(_ind, dict):
+                        from app.schemas.indicators import IndicatorConfig as _IC
+                        _IC(**_ind)
+                    _valid.append(_ind)
+                except _PydValError as _e:
+                    logger.warning("⚠️ init: dropping invalid indicator config %s — %s", _ind, str(_e)[:160])
+                except Exception:  # noqa: BLE001
+                    _valid.append(_ind)
+            indicators_to_use = _valid
+            try:
+                subscription = _build_subscription(indicators_to_use)
+            except Exception as _fatal:  # noqa: BLE001 — حتى الفريم/الرمز فاسد: أغلق بنظيف لا بقتل
+                logger.error("❌ init: subscription invalid even after filtering: %s", _fatal)
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Invalid chart subscription: {_fatal}",
+                    "time": int(datetime.utcnow().timestamp() * 1000),
+                })
+                await websocket.close(code=1008)
+                return
         
         # 5. الاتصال بـ WebSocket Manager
         key = await ws_manager.connect(websocket, connection_id, symbol, timeframe)
@@ -484,7 +582,25 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
        
         # 8. إرسال البيانات الأولية
         chart_data = await chart_manager.get_chart_data(symbol, timeframe)
-        
+
+        # ✅ الجولة 4: مفاتيح results موحدة على indicator_id + خريطة id←name،
+        # والقيم مضمونة حقيقية (حساب فوري إذا كانت الشموع جاهزة والنتائج فارغة).
+        init_results = chart_data.get("indicators_results", {})
+        if not init_results and chart_data.get("candles"):
+            try:
+                bootstrap = await chart_manager.calculate_full_indicators(symbol, timeframe)
+                if bootstrap:
+                    chart_data["indicators_results"] = bootstrap
+                    init_results = bootstrap
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"⚠️ init bootstrap calc failed: {e}")
+        init_results = _rekey(symbol, timeframe, init_results)
+        chart_data["indicators_results"] = init_results
+        chart_data["indicators_id_map"] = {
+            indicator_id(ind): (ind.get("name") if isinstance(ind, dict) else str(ind))
+            for ind in indicators_to_use if isinstance(ind, dict)
+        }
+
         await websocket.send_json({
             "type": "chart_initialized",
             "symbol": subscription.symbol,
@@ -493,6 +609,8 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
             "data": chart_data,
             "saved_indicators_used": not bool(requested_indicators) and bool(indicators_to_use),
             "indicators_count": len(indicators_to_use),
+            # ✅ الجولة 4: علم للفرونت — التاريخ لم يكتمل بعد وستأتي chart_backfilled
+            "backfill_in_progress": bool(chart_data.get("candles")) is False or len(chart_data.get("candles", [])) < 5000,
             "time": _now_ms()
         })
 
@@ -504,28 +622,34 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
             async def send_saved_indicators():
                 try:
                     await asyncio.sleep(3)  # انتظار 3 ثواني
-                    chart_data = await chart_manager.get_chart_data(symbol, timeframe)
-                    indicators_results = chart_data.get("indicators_results", {})
+                    # ✅ الجولة 4: القيم حقيقية دائماً — حساب فوري إذا كانت النتائج
+                    # لم تُبنَ بعد (سباق التهيئة)، والمفاتيح موحدة على indicator_id.
+                    results = chart_manager.get_chart_indicators_results(symbol, timeframe)
+                    if not results:
+                        results = await chart_manager.calculate_full_indicators(symbol, timeframe) or {}
+                    results = _rekey(symbol, timeframe, results)
                     for indicator_config in indicators_to_use:
                         indicator_dict = indicator_config if isinstance(indicator_config, dict) else indicator_config.dict()
                         indicator_name = indicator_dict.get("name", "unknown")
+                        ind_id = indicator_id(indicator_dict)
 
-                        
                         await asyncio.sleep(0.5)
 
                         indicator_data = {}
-                        if indicator_name in indicators_results:
-                            indicator_data = {
-                                indicator_name: indicators_results[indicator_name]
-                            }                        
+                        if ind_id in results:
+                            indicator_data = {ind_id: results[ind_id]}
+                        elif indicator_name in results:
+                            indicator_data = {ind_id: results[indicator_name]}
+
                         await websocket.send_json({
                             "type": "indicator_added",
                             "indicator": indicator_name,
+                            "indicator_id": ind_id,
                             "indicators_results": indicator_data,
                             "saved": True,
                             "time": _now_ms()
                         })
-                        logger.info(f"✅ Sent indicator_added for saved indicator: {indicator_name}")
+                        logger.info(f"✅ Sent indicator_added for saved indicator: {indicator_name} ({ind_id})")
                 
                 # ✅ إضافة: هذه الأهم لإيقاف المهمة بهدوء عند إغلاق الاتصال
                 except asyncio.CancelledError:
@@ -558,51 +682,111 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
                             chart_state_db.save_global_indicators,
                             current_chart_data.get("indicators", [])
                         )
-                        # حفظ الحالة الحالية بعد إضافة المؤشر
-                        # await save_current_indicators(symbol, timeframe, chart_manager)
-                    
-                        updated_data = await chart_manager.get_chart_data(symbol, timeframe)
+
+                        updated_results = current_chart_data.get("indicators_results", {})
+                        if not updated_results:
+                            updated_results = await chart_manager.calculate_full_indicators(symbol, timeframe) or {}
+                        ind_id = indicator_id(indicator_dict)
                         await websocket.send_json({
                             "type": "indicator_added",
                             "indicator": indicator_dict.get("name"),
-                            "indicators_results": updated_data["indicators_results"],
+                            "indicator_id": ind_id,
+                            "indicators_results": _rekey(symbol, timeframe, updated_results),
                             "saved": True,  # تم الحفظ تلقائياً
                             "time": _now_ms()
                         })
-                        logger.info(f"✅ Indicator {indicator_dict.get('name')} added and saved for {symbol}")
+                        logger.info(f"✅ Indicator {indicator_dict.get('name')} ({ind_id}) added and saved for {symbol}")
                 
                 elif action == "remove_indicator":
-                    # إزالة مؤشر
-                    indicator_name = data.get("indicator_name")
-                    if indicator_name:
-                        success = await chart_manager.remove_indicator(symbol, timeframe, indicator_name)
-                        if success:
+                    # ✅ الجولة 4: إزالة حقيقية دائمة — بالاسم أو بـ indicator_id،
+                    # من الشارت الحي ومن قائمة المؤشرات المحفوظة معاً.
+                    # (السابق: كان يفحص قائمة كأنها dict فلا يحذف شيئاً من المحفوظات،
+                    #  ويعيد المؤشر عند كل إعادة اتصال).
+                    identifier = (
+                        data.get("indicator_id")
+                        or data.get("indicator_name")
+                        or data.get("indicator")
+                    )
+                    if identifier:
+                        identifier = str(identifier)
+                        saved = await asyncio.to_thread(chart_state_db.load_global_indicators) or []
 
-                            current_chart_data = await chart_manager.get_chart_data(symbol, timeframe)
+                        # 1) حلّ المعرف → اسم المؤشر الفعلي (من الشارت الحي ثم من المحفوظات)
+                        target_name = None
+                        live_chart = _get_chart(symbol, timeframe)
+                        candidates = (
+                            list(live_chart.indicators) if live_chart else []
+                        ) + list(saved)
+                        for ind in candidates:
+                            if isinstance(ind, dict) and (
+                                str(ind.get("name")) == identifier
+                                or indicator_id(ind) == identifier
+                            ):
+                                target_name = str(ind.get("name"))
+                                break
 
-                            chart_indicators = current_chart_data.get("indicators", {})
+                        # 2) إزالة من الشارت الحي — بالمعرف إن وصل معرفاً
+                        # (يمسّ نسخة واحدة فقط حتى مع RSI 14 + RSI 7 معاً)
+                        removed_live = False
+                        if target_name:
+                            removed_live = await chart_manager.remove_indicator(
+                                symbol, timeframe, target_name,
+                                target_id=identifier if identifier != target_name else None)
 
-                            if indicator_name in chart_indicators:
-                                del chart_indicators[indicator_name] 
-                                print(f"🗑️ [WS] Force removed {indicator_name} from DB snapshot")
-                        
-                            
-                            await asyncio.to_thread(chart_state_db.save_global_indicators, chart_indicators)
-                            # حفظ الحالة بعد الإزالة
-                       
+                        # 3) ✅ الحذف الدائم من المحفوظات — بدقة النسخة:
+                        #    حذف بمعرف → يطابق معرفاً واحداً فقط (RSI 14 يبقى و7 يُحذف)
+                        #    حذف بالاسم (قديم) → يزيل كل النسخ بنفس الاسم
+                        kept = []
+                        removed_saved = 0
+                        is_id_based = identifier != target_name
+                        for ind in saved:
+                            if not isinstance(ind, dict):
+                                kept.append(ind)
+                                continue
+                            if is_id_based:
+                                matched = indicator_id(ind) == identifier
+                            else:
+                                matched = str(ind.get("name")) == identifier
+                            if matched:
+                                removed_saved += 1
+                            else:
+                                kept.append(ind)
+                        if removed_saved:
+                            await asyncio.to_thread(
+                                chart_state_db.save_global_indicators, kept)
+
+                        if removed_live or removed_saved:
+                            current_chart_data = await chart_manager.get_chart_data(
+                                symbol, timeframe)
                             await websocket.send_json({
                                 "type": "indicator_removed",
-                                "indicators_results": current_chart_data.get("indicators_results", {}),
-                                "indicator": indicator_name,
+                                "indicators_results": _rekey(
+                                    symbol, timeframe,
+                                    current_chart_data.get("indicators_results", {})),
+                                "indicator": target_name or identifier,
+                                "indicator_id": identifier,
+                                "removed_from_saved": removed_saved,
                                 "saved": True,
                                 "time": _now_ms()
                             })
+                            logger.info(
+                                f"🗑️ Removed '{identifier}' (live={removed_live}, saved={removed_saved}) "
+                                f"for {symbol}_{timeframe}")
 
                 elif action == "update_indicator":
-                    # ✅ إضافة جديدة: تعديل معلمات مؤشر موجود
-                    indicator_name = data.get("name")
+                    # ✅ تعديل معلمات مؤشر موجود — بالاسم أو بـ indicator_id
+                    indicator_name = data.get("name") or data.get("indicator_name")
+                    target_id = data.get("indicator_id")
                     new_params = data.get("params")
-                    
+
+                    # حلّ indicator_id → اسم المؤشر إن لم يصل الاسم
+                    if not indicator_name and target_id:
+                        chart = _get_chart(symbol, timeframe)
+                        for ind in (chart.indicators if chart else []):
+                            if isinstance(ind, dict) and indicator_id(ind) == target_id:
+                                indicator_name = ind.get("name")
+                                break
+
                     if indicator_name and new_params:
                         success = await chart_manager.update_indicator(symbol, timeframe, indicator_name, new_params)
                         if success:
@@ -612,12 +796,14 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
                                 chart_state_db.save_global_indicators,
                                 current_chart_data.get("indicators", [])
                             )
-                            
+
+                            updated_entry = {"name": indicator_name, "params": new_params}
                             await websocket.send_json({
                                 "type": "indicator_updated",
                                 "indicator": indicator_name,
+                                "indicator_id": target_id or indicator_id(updated_entry),
                                 "params": new_params,
-                                "indicators_results": current_chart_data["indicators_results"],
+                                "indicators_results": _rekey(symbol, timeframe, current_chart_data.get("indicators_results", {})),
                                 "time": _now_ms()
                             })
 
@@ -672,9 +858,11 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
                 #             "saved": True,
                 #             "time": _now_ms()
                 #         })
-                elif action == "update_timeframe":
-                    new_timeframe = data.get("new_timeframe")
-                    if new_timeframe:
+                elif action in ("update_timeframe", "set_timeframe"):
+                    # ✅ الجولة 4: تبديل الفريم داخل نفس الاتصال — اسم action الجديد
+                    # set_timeframe (المطلوب من الفرونت) مع دعم الاسم القديم.
+                    new_timeframe = data.get("new_timeframe") or data.get("timeframe")
+                    if new_timeframe and new_timeframe != timeframe:
                         # 1. حفظ المؤشرات الحالية في القائمة العامة (ضمان التحديث)
                         current_chart_data = await chart_manager.get_chart_data(symbol, timeframe)
                         await asyncio.to_thread(
@@ -692,7 +880,9 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
                         timeframe = new_timeframe
                         
                         # 5. الحصول على أو إنشاء الشارت الجديد
-                        chart = await chart_manager.get_or_create_chart(symbol, timeframe, market="crypto")
+                        # ✅ إصلاح: تمرير السوق الفعلي (كان hardcoded crypto — يكسر الأسهم)
+                        conn_market = subscription.market if isinstance(subscription.market, str) else getattr(subscription.market, "value", "crypto")
+                        chart = await chart_manager.get_or_create_chart(symbol, timeframe, market=conn_market)
                         
                         # 6. إعادة الاشتراك في الاتصال بالفاتش سوكيت مانجر
                         key = await ws_manager.connect(websocket, connection_id, symbol, timeframe)
@@ -718,6 +908,11 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
                         
                         # 9. إرسال البيانات المحدثة للفرونت إند
                         fresh_data = await chart_manager.get_chart_data(symbol, timeframe)
+                        fresh_results = fresh_data.get("indicators_results", {})
+                        if not fresh_results and fresh_data.get("candles"):
+                            fresh_results = await chart_manager.calculate_full_indicators(symbol, timeframe) or {}
+                            fresh_data["indicators_results"] = fresh_results
+                        fresh_data["indicators_results"] = _rekey(symbol, timeframe, fresh_results)
                         await websocket.send_json({
                             "type": "timeframe_changed",
                             "old_timeframe": data.get("old_timeframe"), # أو القيمة القديمة المخزنة
@@ -729,16 +924,16 @@ async def chart_websocket(websocket: WebSocket, symbol: str):
                         })
                         logger.info(f"🔄 Switched to {new_timeframe}, applied {applied_count} global indicators.")                
                 elif data.get("type") == "price_update":
+                    # ✅ الجولة 4: صدّر الشمعة الحية كما هي — كان يضيف +1ms على الوقت
+                    # فيفسد طوابع الأسهم (…001 بعد حد اليوم).
                     if chart.live_candle:
-                        candle_data = chart.live_candle.copy()
-                        last_time = chart.candles[-1]["time"] if chart.candles else 0
-                        if candle_data["time"] <= last_time:
-                            candle_data["time"] = last_time + 1
-                        
                         await ws_manager.broadcast(key, {
                             "type": "price_update",
-                            "live_candle": candle_data,
-                            "indicators": chart.indicators_results,
+                            "symbol": symbol,
+                            "timeframe": timeframe,
+                            "live_candle": chart.live_candle,
+                            "indicators": _rekey(symbol, timeframe, chart.indicators_results),
+                            "market_status": chart.market_status,
                             "time": _now_ms()
                         })
                     

@@ -54,6 +54,13 @@ services:
     environment:
       # كاش الشموع — حجم مسمى يملكه مستخدم trader داخل الحاوية (لا مشاكل صلاحيات Windows)
       HISTORY_CACHE_DIR: /app/data/history
+      # ✅ الجولة 6: تخزين SQLite للمؤشرات المحفوظة وأدوات الرسم في حجم مسمى —
+      # يملكه trader دائماً ويبقى بعد إعادة البناء. ينهي نهائياً أخطاء
+      # "unable to open database file" و"attempt to write a readonly database"
+      # التي كانت سببها ربط ملف واحد (Docker يُنشئ directory فارغاً بدل ملف
+      # غير موجود + ملفات بملكية root لا يكتبها trader).
+      CHART_STATE_DB_PATH: /app/chart_data/chart_states.db
+      DRAWINGS_DB_PATH: /app/chart_data/chart_drawings.db
     ports:
       - "8000:8000"
     volumes:
@@ -61,6 +68,7 @@ services:
       - ./strategies:/app/strategies
       - ./reports:/app/reports
       - history_cache:/app/data/history   # parquet kline cache — ينجو من إعادة التشغيل بصلاحيات سليمة
+      - chart_data:/app/chart_data        # ✅ الجولة 6: قاعدتا SQLite في حجم مسمى
     depends_on:
       redis:
         condition: service_healthy
@@ -97,3 +105,4 @@ services:
 volumes:
   postgres_data:
   history_cache:   # كاش شموع parquet — ملكية trader داخل الحاوية (يحل PermissionError)
+  chart_data:      # ✅ الجولة 6: chart_states.db + chart_drawings.db — ملكية trader، ينجو من إعادة البناء

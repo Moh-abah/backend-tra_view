@@ -7,6 +7,12 @@ import math
 from .base import IndicatorConfig, IndicatorResult, IndicatorType
 from .registry import IndicatorFactory, IndicatorRegistry
 from .calculator import IndicatorCalculator
+
+# ✅ الجولة 11 (v2): تسجيل مؤشرات البنية في السجل الكلاسيكي عند الإقلاع
+# (zigzag_channels / auto_fib_retracement / auto_trendline + مرادفاتها
+#  القصيرة zigzag / fib / trendline) — كي تظهر في /indicators/available
+# وتمرّ فحص validate وتُستنتج type=support_resistance تلقائياً.
+from . import overlay_adapters as _overlay_adapters  # noqa: F401
 from .pine_transpiler import PineScriptTranspiler
 
 

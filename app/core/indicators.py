@@ -45,12 +45,21 @@ class IndicatorManager:
         
         # مفتاح التخزين المؤقت
         cache_key = f"{symbol}_{timeframe}_{hash(str(indicators_config))}"
-        
+
+        # ✅ الجولة 4: بصمة زمنية — منع إرجاع كاش جلسة سابقة (شموع بنفس العدد لكن
+        # أوقات مختلفة) الذي كان يجعل init يرسل قيماً قديمة/غير محاذاة.
+        input_first_time = int(candles[0].get("time", 0) or 0) if isinstance(candles[0], dict) else 0
+        input_last_time = int(candles[-1].get("time", 0) or 0) if isinstance(candles[-1], dict) else 0
+
         async with self.calculation_lock:
             if on_close: # نستخدم الكاش فقط عند إغلاق الشمعة (البيانات ثابتة)
                 if cache_key in self.indicators_cache:
                     cached_data = self.indicators_cache[cache_key]
-                    if len(candles) == cached_data.get("candle_count"):
+                    if (
+                        len(candles) == cached_data.get("candle_count")
+                        and input_last_time == cached_data.get("last_time")
+                        and input_first_time == cached_data.get("first_time")
+                    ):
                         return cached_data["results"]
             # 2. تحضير البيانات (تأكد أن الشمعة الحية مدمجة في القائمة الممررة)
             df = self._prepare_dataframe(candles)
@@ -71,7 +80,9 @@ class IndicatorManager:
                     self.indicators_cache[cache_key] = {
                         "results": results,
                         "timestamp": datetime.utcnow().isoformat(),
-                        "candle_count": len(candles)
+                        "candle_count": len(candles),
+                        "first_time": input_first_time,
+                        "last_time": input_last_time,
                     }
                     # تنظيف الكاش إذا تجاوز الحد الأقصى
                     await self._clean_cache()

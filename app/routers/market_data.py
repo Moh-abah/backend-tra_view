@@ -17,6 +17,12 @@ from app.database.session import AsyncSessionLocal, get_db
 from app.database.redis_client import redis_client
 from app.routers.websocket import initialize_websocket_services
 from app.services.data_service import DataService
+from app.utils.dataframe_utils import (
+    composite_base_tf,
+    is_composite_tf,
+    resample_candles,
+    sanitize_candle_time_ms,
+)
 from app.websocket.manager import manager
 
 logger = logging.getLogger(__name__)
@@ -186,7 +192,7 @@ _CANDLE_PAGE_MAX = 5000
 async def get_candles_paginated(
     market: str,
     symbol: str,
-    timeframe: str = Query("1h", pattern="^(1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|1d|3d|1w)$"),
+    timeframe: str = Query("1h", pattern="^(1m|2m|3m|5m|10m|15m|30m|1h|2h|4h|6h|8h|12h|1d|2d|3d|1w|2w|1M)$"),
     limit: int = Query(_CANDLE_PAGE_DEFAULT, ge=10, le=_CANDLE_PAGE_MAX),
     before: Optional[int] = Query(
         None, ge=0,
@@ -210,31 +216,48 @@ async def get_candles_paginated(
     if provider is None:
         raise HTTPException(status_code=400, detail=f"Unsupported market: {market}")
 
-    # طول الشمعة بالملي ثانية لتحديد نافذة الطلب
-    tf_ms = int(_tf_to_minutes(timeframe)) * 60 * 1000
+    # فريم مركّب (2m/10m/2d/2w/1M)؟ نجلب الفريم الأساسي ثم نجمّع محلياً
+    composite = is_composite_tf(timeframe)
+    fetch_tf = composite_base_tf(timeframe)[0] if composite else timeframe
+
+    # طول الشمعة المُجلب بها بالملي ثانية لتحديد نافذة الطلب
+    tf_ms = int(_tf_to_minutes(fetch_tf)) * 60 * 1000
 
     # end = قبل الشمعة المحمّلة الأقدم بفارق شمعة واحدة (لا تكرار ولا فجوات)
     if before is not None:
         end_dt = datetime.utcfromtimestamp(before / 1000.0)
     else:
         end_dt = datetime.utcnow()
-    # نطلب نافذة أوسع قليلًا من limit لتغطية الفجوات (عطلات/توقف منصة)
-    span_ms = tf_ms * int(limit * 1.25) + tf_ms * 10
-    start_dt = end_dt - timedelta(milliseconds=span_ms)
 
     try:
         if normalized_market == "crypto":
+            # نطلب نافذة أوسع من limit لتغطية الفجوات (عطلات/توقف منصة).
+            # للمركّبات: factor = عدد شموع الأساس داخل bucket الواحد
+            # (2m×2 | 10m×2 | 2d×2 | 2w×14 | 1M×31) × 1.3 هامش أمان
+            if composite:
+                _, factor = composite_base_tf(timeframe)
+                span_ms = tf_ms * int(limit * factor * 1.3) + tf_ms * 10
+            else:
+                span_ms = tf_ms * int(limit * 1.25) + tf_ms * 10
+            start_dt = end_dt - timedelta(milliseconds=span_ms)
             df = await provider.get_historicalcandl(
-                symbol=symbol, timeframe=timeframe,
+                symbol=symbol, timeframe=fetch_tf,
                 start_date=start_dt, end_date=end_dt,
             )
+            if composite and df is not None and not df.empty:
+                # تجميع الفريم الأساسي إلى المركّب — ثم كل المنطق أدناه يعمل كما هو
+                df = resample_candles(df, timeframe, time_col="time")
         else:
-            df = await provider.get_historical_data(
-                symbol=symbol, timeframe=timeframe,
-                period=f"{max(1, (end_dt - start_dt).days)}d",
-                start=start_dt.strftime("%Y-%m-%d"),
-                end=end_dt.strftime("%Y-%m-%d"),
-            )
+            # أسهم: إطار كامل من كاش التاريخ الكامل (يستبقى العقد الدقيقة
+            # 1m/5m وعمق 17+ سنة يومي) — تقسيم صفحات محلي سريع وhas_more دقيق
+            df = await provider.get_full_history(symbol, timeframe)
+            if df is not None and not df.empty and isinstance(df.index, pd.DatetimeIndex):
+                idx_ms = df.index.astype("int64") // 10**6
+                df = df.reset_index(drop=True).assign(_t=idx_ms)
+                # تطبيق الـ cursor محلياً — الإطار الكامل يجب تقطيعه هنا
+                # (كريبتو يطبقه داخل نافذة المزود، لكن الأسهم تخدم من إطار كامل)
+                if before is not None:
+                    df = df[df["_t"] < int(before)]
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid market, symbol or no data available")
     except Exception:
@@ -260,8 +283,10 @@ async def get_candles_paginated(
             "next_before": before,
         }
 
-    # توحيد عمود الوقت إلى epoch-ms
-    if not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
+    # توحيد عمود الوقت إلى epoch-ms (مسار الأسهم يجهّز _t مباشرة أعلاه)
+    if "_t" in df.columns:
+        pass  # محوّل مسبقاً
+    elif not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
         time_series = df["time"]
         if pd.api.types.is_numeric_dtype(time_series):
             # epoch-ms صريح (مسار العملات)
@@ -279,8 +304,10 @@ async def get_candles_paginated(
     page = df.tail(limit)
 
     def _row(r) -> Dict[str, Any]:
+        # ✅ الجولة 4: طابع موحّد — epoch-ms محاذاة الفريم تماماً (بلا بقايا ±tz)
+        t_clean = sanitize_candle_time_ms(int(r["_t"]), timeframe)
         return {
-            "time": int(r["_t"]),
+            "time": t_clean,
             "open": float(r["open"]),
             "high": float(r["high"]),
             "low": float(r["low"]),
@@ -289,6 +316,15 @@ async def get_candles_paginated(
         }
 
     candles = [_row(r) for _, r in page.iterrows()]
+    # إزالة التكرار الناتج عن تقريب المحاذاة (نادر — bucket واحد يلتقط صفين)
+    if candles:
+        _seen = set()
+        _uniq = []
+        for c in candles:
+            if c["time"] not in _seen:
+                _seen.add(c["time"])
+                _uniq.append(c)
+        candles = _uniq
     oldest = candles[0]["time"] if candles else None
     # إذا حصلنا على صفحة كاملة فالأغلب أن هناك مزيدًا؛ وإذا أقل فوصلنا لبداية التاريخ
     has_more = len(candles) >= limit
@@ -299,16 +335,247 @@ async def get_candles_paginated(
     if fetch_incomplete and candles:
         has_more = True
 
+    # ✅ الجولة 4: حالة سوق الأسهم مع استجابة الشموع (open/closed/pre_market/...)
+    resp_market_status = None
+    if normalized_market in ("stocks", "stock"):
+        try:
+            from app.providers.us_stock_provider import get_market_status
+            resp_market_status = get_market_status()
+        except Exception:  # noqa: BLE001
+            resp_market_status = None
+
     return {
         "symbol": symbol.upper(),
         "market": normalized_market,
         "timeframe": timeframe,
+        "market_status": resp_market_status,
         "candles": candles,
         "count": len(candles),
         "oldest_time": oldest,
         "newest_time": candles[-1]["time"] if candles else None,
         "has_more": has_more,
         "next_before": oldest,
+    }
+
+
+# ---------------------------------------------------------------------------
+# ✅ الجولة 6: نطاق زمني واحد (Range) — بدل حلقات before عند القفزات العميقة
+# ---------------------------------------------------------------------------
+# طلب الفرونت (تقرير الجولة 5، تحسين #1): قفزة "الانتقال إلى تاريخ" عميقة
+# (>100 ألف شمعة) تتطلب حالياً حلقات before متكررة. هذه النقطة تعيد نطاقاً
+# كاملاً بطلب واحد: /range?timeframe=&from=&to= (epoch-ms شامل الطرفين).
+# العقد الثابت محفوظ: نفس حقول الشموع time|open|high|low|close|volume،
+# ونفس مفاتيح has_more/next_before ليعمل التمرير الرجعي إن لزم.
+_CANDLE_RANGE_MAX = 20000   # حد limit لنقطة النطاق (أكبر من صفحة التمرير)
+
+
+@router.get(
+    "/candles/{market}/{symbol}/range",
+    summary="⭐ الجولة 6: شموع نطاق زمني بطلب واحد — from/to بالملي ثانية (للقفزات العميقة)",
+    responses={
+        200: {
+            "description": "شموع النطاق [from, to] (آخر limit شمعة داخل النطاق) + مؤشرات الاستمرارية",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "symbol": "BTCUSDT",
+                        "market": "crypto",
+                        "timeframe": "1h",
+                        "from": 1698796800000,
+                        "to": 1700000000000,
+                        "candles": [
+                            {
+                                "time": 1699986000000,
+                                "open": 36500.0,
+                                "high": 36620.0,
+                                "low": 36410.0,
+                                "close": 36580.0,
+                                "volume": 512.3,
+                            }
+                        ],
+                        "count": 1,
+                        "oldest_time": 1699986000000,
+                        "newest_time": 1699986000000,
+                        "has_more": True,
+                        "next_before": 1699986000000,
+                        "truncated": False,
+                        "limit": 5000,
+                    }
+                }
+            },
+        }
+    },
+)
+async def get_candles_range(
+    market: str,
+    symbol: str,
+    timeframe: str = Query("1h", pattern="^(1m|2m|3m|5m|10m|15m|30m|1h|2h|4h|6h|8h|12h|1d|2d|3d|1w|2w|1M)$"),
+    from_ms: int = Query(..., ge=0, alias="from",
+                         description="بداية النطاق epoch-ms (شاملة)"),
+    to_ms: int = Query(..., ge=0, alias="to",
+                       description="نهاية النطاق epoch-ms (شاملة)"),
+    limit: int = Query(_CANDLE_PAGE_DEFAULT, ge=10, le=_CANDLE_RANGE_MAX,
+                       description=f"أقصى عدد شموع معاد (نُبقي الأحدث). الحد الأقصى {_CANDLE_RANGE_MAX}"),
+    db: AsyncSession = Depends(get_db),
+):
+    """شموع نطاق زمني [from, to] بطلب واحد — تسريع "الانتقال إلى تاريخ".
+
+    العقد الثابت كما في نقطة /candles:
+      - الشموع تصاعدية بحقول time|open|high|low|close|volume وtime بالملي ثانية.
+      - has_more/next_before بنفس دلالات التمرير الرجعي (next_before = أقدم شمعة
+        معادة؛ مرّرها إلى /candles?before= إن أردت ما هو أقدم).
+    سلوك النطاق:
+      - يُعاد آخر `limit` شمعة داخل النطاق (الأحدث عند `to`)؛ إن كان النطاق
+        أوسع من `limit` تُضبط truncated=true وتستمر بالتمرير الرجعي عند الحاجة.
+      - جلب العملات يُقيَّد بنافذة تكفي `limit` شمعة فقط (سريع دائماً حتى لو
+        طُلب نطاق 10 سنوات — لأن الأحدث داخل النطاق هو المُعاد على أي حال).
+    الترويسة: X-Max-Limit: 20000 على كل استجابات هذه النقطة.
+    """
+    if from_ms > to_ms:
+        raise HTTPException(status_code=400, detail="from must be <= to (epoch-ms)")
+
+    market_map = {"stock": "stocks", "stocks": "stocks", "crypto": "crypto", "binance": "crypto"}
+    normalized_market = market_map.get(market.lower(), market)
+
+    data_service = DataService(db)
+    provider = data_service.providers.get(normalized_market)
+    if provider is None:
+        raise HTTPException(status_code=400, detail=f"Unsupported market: {market}")
+
+    composite = is_composite_tf(timeframe)
+    fetch_tf = composite_base_tf(timeframe)[0] if composite else timeframe
+    tf_ms = int(_tf_to_minutes(fetch_tf)) * 60 * 1000
+
+    to_dt = datetime.utcfromtimestamp(to_ms / 1000.0)
+    # نافذة الجلب: النطاق المطلوب مقيّداً بما يكفي limit شمعة فقط (×1.3 هامش فجوات)
+    if composite:
+        _, factor = composite_base_tf(timeframe)
+        cap_ms = tf_ms * int(limit * factor * 1.3) + tf_ms * 10
+    else:
+        cap_ms = tf_ms * int(limit * 1.3) + tf_ms * 10
+    span_ms = min(to_ms - from_ms, cap_ms)
+    clamped_fetch = span_ms < (to_ms - from_ms)
+    start_dt = to_dt - timedelta(milliseconds=span_ms)
+
+    try:
+        if normalized_market == "crypto":
+            df = await provider.get_historicalcandl(
+                symbol=symbol, timeframe=fetch_tf,
+                start_date=start_dt, end_date=to_dt,
+            )
+            if composite and df is not None and not df.empty:
+                df = resample_candles(df, timeframe, time_col="time")
+        else:
+            # أسهم: كاش التاريخ الكامل محلياً — تقطيع [from, to] فوري
+            df = await provider.get_full_history(symbol, timeframe)
+            if df is not None and not df.empty and isinstance(df.index, pd.DatetimeIndex):
+                idx_ms = df.index.astype("int64") // 10**6
+                df = df.reset_index(drop=True).assign(_t=idx_ms)
+                df = df[(df["_t"] >= int(from_ms)) & (df["_t"] <= int(to_ms))]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid market, symbol or no data available")
+    except Exception:
+        logger.exception("Range candles fetch failed for %s/%s", market, symbol)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    _df_attrs = getattr(df, "attrs", {}) or {}
+    fetch_incomplete = bool(_df_attrs.get("fetch_incomplete", False)) if df is not None else False
+
+    empty_resp = {
+        "symbol": symbol.upper(),
+        "market": normalized_market,
+        "timeframe": timeframe,
+        "from": from_ms,
+        "to": to_ms,
+        "candles": [],
+        "count": 0,
+        "oldest_time": None,
+        "newest_time": None,
+        "has_more": fetch_incomplete,
+        "next_before": None,
+        "truncated": False,
+        "limit": limit,
+    }
+    if df is None or df.empty:
+        return empty_resp
+
+    # توحيد الوقت إلى epoch-ms (نفس منطق نقطة الترقيم)
+    if "_t" in df.columns:
+        pass
+    elif not isinstance(df.index, pd.DatetimeIndex) and "time" in df.columns:
+        time_series = df["time"]
+        if pd.api.types.is_numeric_dtype(time_series):
+            df = df.assign(_t=time_series.astype("int64"))
+        else:
+            df = df.assign(_t=pd.to_datetime(time_series).astype("int64") // 10**6)
+    elif isinstance(df.index, pd.DatetimeIndex):
+        idx_ms = df.index.astype("int64") // 10**6
+        df = df.reset_index(drop=True).assign(_t=idx_ms)
+    else:
+        raise HTTPException(status_code=500, detail="Unexpected candle payload shape")
+
+    df = df.sort_values("_t").drop_duplicates(subset=["_t"], keep="last")
+    # النطاق المطلوب فقط (للمسار الكريبتو: نافذة الجلب تقريبه أصلاً — تأكيد الحدود)
+    df = df[(df["_t"] >= int(from_ms)) & (df["_t"] <= int(to_ms))]
+
+    if df.empty:
+        return empty_resp
+
+    in_window = len(df)
+    page = df.tail(limit)  # الأحدث داخل النطاق
+
+    def _row(r) -> Dict[str, Any]:
+        t_clean = sanitize_candle_time_ms(int(r["_t"]), timeframe)
+        return {
+            "time": t_clean,
+            "open": float(r["open"]),
+            "high": float(r["high"]),
+            "low": float(r["low"]),
+            "close": float(r["close"]),
+            "volume": float(r.get("volume", 0) or 0),
+        }
+
+    candles = [_row(r) for _, r in page.iterrows()]
+    if candles:
+        _seen = set()
+        _uniq = []
+        for c in candles:
+            if c["time"] not in _seen:
+                _seen.add(c["time"])
+                _uniq.append(c)
+        candles = _uniq
+    oldest = candles[0]["time"] if candles else None
+
+    # has_more بنفس دلالات التمرير الرجعي: هل توجد شموع أقدم من المُعاد؟
+    has_more = bool((df["_t"] < oldest).any()) if oldest is not None else False
+    if fetch_incomplete and candles:
+        has_more = True
+    # truncated: النطاق كان أوسع من limit فاقتُعت الأحدث فقط
+    truncated = bool(clamped_fetch and len(candles) >= limit and in_window >= limit)
+
+    resp_market_status = None
+    if normalized_market in ("stocks", "stock"):
+        try:
+            from app.providers.us_stock_provider import get_market_status
+            resp_market_status = get_market_status()
+        except Exception:  # noqa: BLE001
+            resp_market_status = None
+
+    return {
+        "symbol": symbol.upper(),
+        "market": normalized_market,
+        "timeframe": timeframe,
+        "market_status": resp_market_status,
+        "from": from_ms,
+        "to": to_ms,
+        "candles": candles,
+        "count": len(candles),
+        "oldest_time": oldest,
+        "newest_time": candles[-1]["time"] if candles else None,
+        "has_more": has_more,
+        "next_before": oldest,
+        "truncated": truncated,
+        "limit": limit,
     }
 
 

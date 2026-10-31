@@ -17,10 +17,13 @@ from app.routers import (
     agent_docs,
     api,
     backtest,
+    backtest1,  # ✅ الجولة 11: كان موجوداً في الكود وغير مسجّل — سبب 404 على /backtest1/*
+    drawings,
     filtering,
     indicators,
     market_data,
     mtf,
+    overlays,  # ✅ الجولة 10: مؤشرات البنية (ZigZag/Fib/Trendline)
     settings as settings_router,
     stock_analysis,
     strategies,
@@ -51,6 +54,14 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Failed to initialize database")
         raise RuntimeError("Database initialization failed; refusing to serve requests")
+
+    # ✅ الجولة 6: تقرير صحة تخزين SQLite عند الإقلاع — يظهر في docker logs
+    # ويعطي المسار/الصلاحيات/البديل المُفعّل لكل قاعدة (رؤية كاملة بلا تخمين).
+    try:
+        from app.core.storage_health import log_storage_report
+        log_storage_report()
+    except Exception:  # noqa: BLE001
+        logger.exception("Storage health report failed (non-fatal)")
 
     yield
 
@@ -149,6 +160,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ----------------------------------------------------------------------------
+# ✅ الجولة 6: توثيق ذاتي لحد limit الأقصى (طلب الفرونت — تقرير الجولة 5 #3)
+# كل استجابات نقاط الشموع تحمل X-Max-Limit بقيمة الحد المقبول للنقطة نفسها:
+#   /api/v1/market/candles/{market}/{symbol}        → 5000  (صفحة التمرير)
+#   /api/v1/market/candles/{market}/{symbol}/range  → 20000 (نطاق from/to)
+# ترويسة ثابتة على كل الاستجابات (200/422/500) ليكتشفها العميل ذاتياً.
+# ----------------------------------------------------------------------------
+_X_MAX_LIMIT_DEFAULT = 5000
+_X_MAX_LIMIT_RANGE = 20000
+
+
+@app.middleware("http")
+async def candles_max_limit_header(request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/api/v1/market/candles"):
+        if path.endswith("/range"):
+            response.headers["X-Max-Limit"] = str(_X_MAX_LIMIT_RANGE)
+        else:
+            response.headers["X-Max-Limit"] = str(_X_MAX_LIMIT_DEFAULT)
+    return response
+
+
 # ----------------------------------------------------------------------------
 # Routers
 # ----------------------------------------------------------------------------
@@ -157,6 +192,7 @@ API_PREFIX = settings.API_V1_PREFIX
 app.include_router(api.router, prefix=API_PREFIX)
 app.include_router(market_data.router, prefix=f"{API_PREFIX}/market")
 app.include_router(backtest.router, prefix=f"{API_PREFIX}/backtest")
+app.include_router(backtest1.router, prefix=f"{API_PREFIX}/backtest1")  # ✅ الجولة 11: تسجيل الراوتر المفقود
 app.include_router(indicators.router, prefix=f"{API_PREFIX}/indicators")
 app.include_router(strategies.router, prefix=f"{API_PREFIX}/strategies")
 app.include_router(strategies1.router, prefix=f"{API_PREFIX}/strategies1")
@@ -165,7 +201,9 @@ app.include_router(filtering.router, prefix=f"{API_PREFIX}/filtering")
 app.include_router(users.router, prefix=f"{API_PREFIX}/users")
 app.include_router(settings_router.router, prefix=f"{API_PREFIX}/settings")
 app.include_router(stock_analysis.router, prefix=f"{API_PREFIX}/stocks")
+app.include_router(drawings.router, prefix=f"{API_PREFIX}/chart")  # ✅ الجولة 4: أدوات الرسم
 app.include_router(mtf.router, prefix=f"{API_PREFIX}/mtf")
+app.include_router(overlays.router, prefix=f"{API_PREFIX}/overlays")  # ✅ الجولة 10: ZigZag/Fib/Trendline
 
 
 # ----------------------------------------------------------------------------
@@ -194,6 +232,15 @@ async def root():
 async def health():
     """Simple liveness probe."""
     return {"status": "ok"}
+
+
+@app.get("/health/storage", tags=["meta"])
+async def health_storage():
+    """✅ الجولة 6: تشخيص حي لتخزين SQLite — المسارات، الصلاحيات، المستخدم،
+    وأي مسار بديل مُفعّل. أداة إثبات مباشرة أن مشاكل
+    'unable to open database file' / 'readonly database' انتهت (أو تشخيصها فوراً)."""
+    from app.core.storage_health import storage_status
+    return storage_status()
 
 
 # ----------------------------------------------------------------------------
