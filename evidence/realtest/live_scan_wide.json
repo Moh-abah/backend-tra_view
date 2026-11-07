@@ -1,0 +1,66 @@
+{
+ "meta": {
+  "base": "http://127.0.0.1:8001",
+  "note": "مسح حي على الكود المصحح ج33",
+  "cells": 8
+ },
+ "results": [
+  {
+   "cell": "BTCUSDT@1m",
+   "ms": 1734.0,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "ETHUSDT@5m",
+   "ms": 1665.7,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "SOLUSDT@15m",
+   "ms": 1803.8,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "BNBUSDT@1m",
+   "ms": 1649.9,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "XRPUSDT@5m",
+   "ms": 1667.9,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "TRXUSDT@1m",
+   "ms": 1658.6,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "ADAUSDT@15m",
+   "ms": 1645.9,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  },
+  {
+   "cell": "DOGEUSDT@1m",
+   "ms": 1668.2,
+   "state": "invalidated",
+   "signal_label": null,
+   "decision_reason": null
+  }
+ ],
+ "active_sample": null
+}

@@ -11,7 +11,7 @@ def get_sma_crossover_strategy():
         "base_timeframe": "1h",  # مطابقة timeframe في الطلب
         "position_side": "long",
         "initial_capital": 10000.0,
-        "commission_rate": 0.001,
+        "commission_rate": 0.0,  # ✅ الجولة 13 (Zero-Fee): بلا عمولات نهائياً
         
         "indicators": [
             {

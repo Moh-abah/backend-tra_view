@@ -1,0 +1,516 @@
+{
+ "round": 34,
+ "strategy": "ROUND34 — المحرك الموحد zigzag_core (زقزاق واحد + فيبو واحد للثلاث استراتيجيات) + إصلاح أزمنة الباك تست",
+ "checks": 40,
+ "passed": 40,
+ "failed": 0,
+ "all_pass": true,
+ "data": {
+  "source": "binance",
+  "bars": 1000
+ },
+ "results": [
+  {
+   "n": 1,
+   "name": "trend_fractals: الفراكتال يظهر عند p+n+1 (وفاء إزاحة [1] في Pine)",
+   "pass": true,
+   "details": {
+    "events": [
+     [
+      21,
+      15,
+      115.5
+     ],
+     [
+      46,
+      40,
+      130.428564
+     ]
+    ]
+   }
+  },
+  {
+   "n": 2,
+   "name": "trend_fractals: إحداثيات الخط كاملة (x/t/y للطرفين + الميل + ولادة عند الظهور)",
+   "pass": true,
+   "details": {
+    "line": {
+     "kind": "upper",
+     "x1": 40,
+     "t1": 1700002400000,
+     "y1": 130.428564,
+     "x2": 15,
+     "t2": 1700000900000,
+     "y2": 115.5,
+     "slope": 0.5971425599999998,
+     "formed_at_bar": 46,
+     "formed_at_time": 1700002760000,
+     "active": true,
+     "replaced_at_bar": null
+    }
+   }
+  },
+  {
+   "n": 3,
+   "name": "trend_fractals: قيمة الخط الممتد عند شمعة بعيدة = معادلة التمديد الأيمن",
+   "pass": true,
+   "details": {
+    "series@50": 136.3999896,
+    "manual": 136.3999896
+   }
+  },
+  {
+   "n": 4,
+   "name": "trend_fractals: بلا استشراف — الحساب على بادئة البيانات مطابق حرفياً",
+   "pass": true,
+   "details": {
+    "upper_mismatches": 0,
+    "bias_mismatches": 0
+   }
+  },
+  {
+   "n": 5,
+   "name": "trend_fractals: حدث الاختراق العلوي الصاعد يطلق مرة واحدة عند شمعة التقاطع (وفاء ta.cross)",
+   "pass": true,
+   "details": {
+    "cross_bars": [
+     61
+    ]
+   }
+  },
+  {
+   "n": 6,
+   "name": "trend_fractals: الفترات قالبية (ترند رابع 30 بلا كود) + عتبات الإجماع majority/all/any/رقم",
+   "pass": true,
+   "details": {
+    "p30": true,
+    "thresholds": [
+     4,
+     1,
+     1,
+     1,
+     3
+    ]
+   }
+  },
+  {
+   "n": 7,
+   "name": "trend_fractals: حتمية تامة على بيانات حية (تشغيلان متطابقان)",
+   "pass": true,
+   "details": {
+    "hash": "59078b92e9ce"
+   }
+  },
+  {
+   "n": 8,
+   "name": "trend_fractals: كل السلاسل بطول الشموع تماماً على البيانات الحية",
+   "pass": true,
+   "details": {
+    "series": 38,
+    "N": 1000
+   }
+  },
+  {
+   "n": 9,
+   "name": "الاختبار القاتل: تعطيل البوابة (none) → الترندية = E2E حرفياً في 19 سلسلة (صفر فروق)",
+   "pass": true,
+   "details": {
+    "mismatches": {
+     "zzfe_dir": 0,
+     "zzfe_p1": 0,
+     "zzfe_p2": 0,
+     "zzfe_anchor": 0,
+     "zzfe_range_index": 0,
+     "zzfe_level_0618": 0,
+     "zzfe_level_0382": 0,
+     "zzfe_liq_state": 0,
+     "zzfe_liq_ref_high": 0,
+     "zzfe_liq_ref_vol": 0,
+     "zzfe_liq_vol_ok": 0,
+     "zzfe_signal_s1": 0,
+     "zzfe_signal_s2": 0,
+     "zzfe_signal_s3": 0,
+     "zzfe_signal_any": 0,
+     "zzfe_entry": 0,
+     "zzfe_entry_s1": 0,
+     "zzfe_entry_s2": 0,
+     "zzfe_entry_s3": 0
+    },
+    "total": 0
+   }
+  },
+  {
+   "n": 10,
+   "name": "عقد التمايز: هوية مستقلة كاملة (ZLF-End-To-End-Trendy) على المحرك وكل سجل إشارة",
+   "pass": true,
+   "details": {
+    "engine": "ZLF-End-To-End-Trendy",
+    "spec": "ROUND34-zigzag-core-unified"
+   }
+  },
+  {
+   "n": 11,
+   "name": "اتساق البوابة: المبوَّب = الخام ∧ موافقة الترند · الممنوع = الخام ∧ رفض الترند (لكل الأنواع)",
+   "pass": true,
+   "details": {
+    "violations": 0
+   }
+  },
+  {
+   "n": 12,
+   "name": "عدّادات البوابة متسقة (الخام = المموّب + الممنوع) والبوابة حية على بيانات حية",
+   "pass": true,
+   "details": {
+    "raw": 3.0,
+    "gated": 2.0,
+    "blocked": 1.0,
+    "counts_block": {
+     "raw_entries": 3,
+     "gated_entries": 2,
+     "blocked_entries": 1
+    }
+   }
+  },
+  {
+   "n": 13,
+   "name": "إحداثيات الترند تصل داخل نتيجة الاستراتيجية (خطوط كل فترة بأطرافها وأميلها)",
+   "pass": true,
+   "details": {
+    "periods": [
+     "p7",
+     "p15",
+     "p25"
+    ]
+   }
+  },
+  {
+   "n": 14,
+   "name": "صدى القوالب: trend_periods=[7,15,25] + confirm=majority + gate=s1/s2/s3 + العتبة 2",
+   "pass": true,
+   "details": {
+    "params": {
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "trend_threshold": 2
+    }
+   }
+  },
+  {
+   "n": 15,
+   "name": "إضافة ترند رابع (30) من القالب/المعامل وحده — مرايا وأعمدة تظهر تلقائياً",
+   "pass": true,
+   "details": {
+    "periods": [
+     7,
+     15,
+     25,
+     30
+    ],
+    "mirror": true
+   }
+  },
+  {
+   "n": 16,
+   "name": "بوابة جزئية (s2 فقط): S1/S3 تبقى خاماً حرفياً والاتساق محفوظ",
+   "pass": true,
+   "details": {
+    "s1_raw_eq_gate": true,
+    "s3_raw_eq_gate": true,
+    "s2": {
+     "raw": 1.0,
+     "gated": 1.0,
+     "blocked": 0.0
+    }
+   }
+  },
+  {
+   "n": 17,
+   "name": "الانحدار الصفري: الأنواع الخمسة القديمة مطابقة بايت-ببايت للقطة ما قبل الجولة",
+   "pass": true,
+   "details": {
+    "zigzag": "IDENTICAL",
+    "fib": "IDENTICAL",
+    "trendline": "IDENTICAL",
+    "zzfib": "IDENTICAL",
+    "zzfib_e2e": "IDENTICAL",
+    "zzfib_e2e_trendy": "IDENTICAL",
+    "trend_fractal": "IDENTICAL"
+   }
+  },
+  {
+   "n": 18,
+   "name": "الانحدار الصفري: القوالب الثلاثة القديمة لم تتغير ببيت",
+   "pass": true,
+   "details": {
+    "presets": {
+     "zigzag_hl_v2_zero_fee": "bd0e435f",
+     "zlf_triple_signal_zero_fee": "9a054129",
+     "zlf_e2e_triple_signal_zero_fee": "332a3995"
+    }
+   }
+  },
+  {
+   "n": 19,
+   "name": "كل أعمدة العقد القديمة موجودة + الجديدان يعملان (أعمدة zzfet + trf كاملة)",
+   "pass": true,
+   "details": {
+    "old_columns": 153,
+    "zzfet": 47,
+    "trf": 38
+   }
+  },
+  {
+   "n": 20,
+   "name": "قائمة الأنواع السبعة كاملة (الخمسة القديمة + الترندية + الترند المستقل)",
+   "pass": true,
+   "details": {
+    "types": [
+     "zigzag",
+     "fib",
+     "trendline",
+     "zzfib",
+     "zzfib_e2e",
+     "zzfib_e2e_trendy",
+     "trend_fractal"
+    ]
+   }
+  },
+  {
+   "n": 21,
+   "name": "columns_for_configs (مسار الشارت والاستراتيجية): تكوين البريسِت يولد كل أعمدة العقد",
+   "pass": true,
+   "details": {
+    "produced": 47,
+    "missing": []
+   }
+  },
+  {
+   "n": 22,
+   "name": "جسر المؤشرات (calculator): الأساسي والفرعي للترندية والترند المستقل يعملان",
+   "pass": true,
+   "details": {
+    "trendy_primary": true,
+    "trendy_sub": true,
+    "trf_primary": true,
+    "trf_sub": true
+   }
+  },
+  {
+   "n": 23,
+   "name": "التسجيل الذاتي: zigzag_fib_e2e_trendy في سجل المؤشرات + المرادف zzfib_e2e_trendy",
+   "pass": true,
+   "details": {
+    "registered": true
+   }
+  },
+  {
+   "n": 24,
+   "name": "مرادفات الأسماء: zigzag_fib_e2e_trendy/zzfib_e2e_trendy/trend_fractal تُطبَّع صح",
+   "pass": true,
+   "details": {}
+  },
+  {
+   "n": 25,
+   "name": "البريسِت الرسمي «zlf_e2e_trendy_triple_signal_zero_fee» في الكتالوج (4 قوالب)",
+   "pass": true,
+   "details": {
+    "ids": [
+     "zigzag_hl_v2_zero_fee",
+     "zlf_triple_signal_zero_fee",
+     "zlf_e2e_triple_signal_zero_fee",
+     "zlf_e2e_trendy_triple_signal_zero_fee"
+    ]
+   }
+  },
+  {
+   "n": 26,
+   "name": "حمولة البريسِت تُقبل بمخطط الاستراتيجية (الشرط المركّب AND سليم)",
+   "pass": true,
+   "details": {
+    "error": null
+   }
+  },
+  {
+   "n": 27,
+   "name": "كل مراجع الشروط (indicator:…:col) في البريسِت تحل لأعمدة ينتجها المحرك فعلاً",
+   "pass": true,
+   "details": {
+    "refs": [
+     "indicator:zigzag_fib_e2e_trendy:zzfet_entry_s1",
+     "indicator:zigzag_fib_e2e_trendy:zzfet_trend_ok",
+     "indicator:zigzag_fib_e2e_trendy:zzfet_entry_s2",
+     "indicator:zigzag_fib_e2e_trendy:zzfet_trend_ok",
+     "indicator:zigzag_fib_e2e_trendy:zzfet_entry_s3",
+     "indicator:zigzag_fib_e2e_trendy:zzfet_trend_ok",
+     "indicator:zigzag_fib_e2e_trendy:zzfet_dir"
+    ],
+    "missing": []
+   }
+  },
+  {
+   "n": 28,
+   "name": "بوابة الترند ضمن شروط الاستراتيجية صراحةً (شرط AND ثانٍ في كل قاعدة دخول)",
+   "pass": true,
+   "details": {
+    "entry_rules": 3
+   }
+  },
+  {
+   "n": 29,
+   "name": "محرك الباك تست الحقيقي: استراتيجية الترندية تنتج صفقات بأسماء إشاراتها (ZLF-E2E-Trendy S1/S2/S3)",
+   "pass": true,
+   "details": {
+    "trades": 1,
+    "ms": 527.9,
+    "reasons_sample": [
+     ""
+    ]
+   }
+  },
+  {
+   "n": 30,
+   "name": "شموع الرسم (visual candles) تحمل أعمدة الترندية كاملة (الدخول/البوابة/الممنوع/خطوط الفترات)",
+   "pass": true,
+   "details": {
+    "present": [
+     "ind_zzfet_entry",
+     "ind_zzfet_trend_ok",
+     "ind_zzfet_entry_blocked_s1",
+     "ind_zzfet_tr_p7_upper"
+    ]
+   }
+  },
+  {
+   "n": 31,
+   "name": "المسار الكامل: تعطيل الترند كاملاً (بوابة none + بلا شرط الترند) → صفقات الترندية = صفقات E2E حرفياً",
+   "pass": true,
+   "details": {
+    "e2e_entries": 1,
+    "trendy_off_entries": 1,
+    "trendy_gated_entries": 1
+   }
+  },
+  {
+   "n": 32,
+   "name": "صفقات البوابة المفعلة مجموعة فرعية من صفقات E2E (البوابة تصفّي ولا تضيف أبداً)",
+   "pass": true,
+   "details": {
+    "gated": 1,
+    "raw": 1
+   }
+  },
+  {
+   "n": 33,
+   "name": "مسار البث الحي: كل الأسماء المستعارة تحل لمحرك zlf_e2e_trendy",
+   "pass": true,
+   "details": {
+    "aliases": [
+     "zigzag_fib_e2e_trendy",
+     "zlf_e2e_trendy",
+     "zlf_e2e_trendy_triple_signal",
+     "zlf_e2e_trendy_triple_signal_zero_fee",
+     "zlf_end_to_end_trendy"
+    ]
+   }
+  },
+  {
+   "n": 34,
+   "name": "مسار البث الحي: قالب الترندية يُبنى بمعاملاته الشفافة في meta.params_applied",
+   "pass": true,
+   "details": {
+    "applied": {
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ]
+    }
+   }
+  },
+  {
+   "n": 35,
+   "name": "تجاوزات الحية: «7,15,25,30» تُقبل (إضافة ترند رابع من الواجهة) + none للتعطيل",
+   "pass": true,
+   "details": {
+    "parsed": {
+     "trend_periods": [
+      7,
+      15,
+      25,
+      30
+     ],
+     "trend_confirm": "all",
+     "trend_gate": [
+      "s2"
+     ]
+    },
+    "none": {
+     "trend_gate": "none"
+    }
+   }
+  },
+  {
+   "n": 36,
+   "name": "رفض العقد الصريح (→400): بوابة غير معروفة/فترات غير رقمية/liq_* على الترندية/trend_* على E2E",
+   "pass": true,
+   "details": {
+    "gate_s9": true,
+    "periods_abc": true,
+    "liq_on_trendy": true,
+    "trend_on_e2e": true
+   }
+  },
+  {
+   "n": 37,
+   "name": "شارت الباك تست: معاملات الرسم الصريح للنوعين الجديدين + الافتراضي لم يتغير (بلا ترسيخ)",
+   "pass": true,
+   "details": {}
+  },
+  {
+   "n": 38,
+   "name": "راوتر compute: التطبيع يمرر قوالب الترند (حتى نصاً «7,15,25») و_parse_types تقبل الجديدين وترفض المجهول",
+   "pass": true,
+   "details": {
+    "normalized": {
+     "trend_periods": "7,15,25",
+     "trend_confirm": "majority",
+     "trend_gate": "s1,s2,s3",
+     "mode": "luxalgo",
+     "length": 100
+    },
+    "parsed": true,
+    "bogus_rejected": true
+   }
+  },
+  {
+   "n": 39,
+   "name": "سلامة الشبكة: سلاسل ونتائج الترندية JSON-آمنة تماماً (بلا NaN/Inf)",
+   "pass": true,
+   "details": {}
+  },
+  {
+   "n": 40,
+   "name": "الأداء: تقييم الترندية الكامل على 1000 شمعة حية < 30 ثانية",
+   "pass": true,
+   "details": {
+    "ms": 26.5,
+    "bars": 1000
+   }
+  }
+ ]
+}

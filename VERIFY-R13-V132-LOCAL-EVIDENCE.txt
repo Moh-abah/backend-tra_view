@@ -1,0 +1,56 @@
+local server up (pid=5529) after ~6s
+
+################ PASS-1: رفض العمولة الصريحة (422 + رسالة Zero-Fee) ################
+HTTP: 422
+body: {"detail": [{"type": "value_error", "loc": ["body"], "msg": "Value error, النظام يعمل بلا عمولات ولا انزلاق نهائياً (سياسة Zero-Fee). حقل commission_rate لم يعد مقبولاً بقيمة > 0 — احذفه من الحمولة.", "input": {"name": "R13 fee-reject test", "timeframe": "1h", "market": "crypto", "symbols": ["BTCUSDT"], "days": 30, "initial_capital": 10000, "position_sizing": "percentage", "position_size_percent":
+PASS-1
+✅ PASS-1 — commission_rate=0.001 → 422 برسالة Zero-Fee
+
+################ PASS-1b: slippage_percent=0.1 → 422 ################
+HTTP: 422 | {"detail": [{"type": "value_error", "loc": ["body"], "msg": "Value error, النظام يعمل بلا عمولات ولا انزلاق نهائياً (سياسة Zero-Fee). حقل slippage_percent لم يعد مقبولاً بقيمة > 0 — احذفه من الحمولة.", "input": {"name": 
+PASS-1b
+✅ PASS-1b — slippage_percent>0 → 422
+
+################ PASS-2+3+6: تشغيل البطل — الصيغة الصافية + الدقة + Zero-Fee ################
+HTTP: 200 | status: COMPLETED | mode: inprocess
+trades: 10 | total_pnl_percent: -1.8561111466784315 | fees_applied: 0.0 | fill_model: next_open
+formula: pnl == (exit_price - entry_price) * units * (long? +1 : -1)
+max_abs_error: 0.0 | tolerance: 1e-09
+precision_report: {'formula_tolerance': 1e-09, 'float64': True, 'rounded_fields': []}
+PASS-2 (الصيغة الصافية حرفياً)
+PASS-3 (max_abs_error ≤ 1e-9 + precision_report)
+champion trades: 10 | pnl%: -1.8561111466784315
+PASS-6 (fees_applied=0.0 · commission=0.0 · result_pct==price_delta_pct · البطل يعيد صفقات)
+worst relative pnl error (champion): 0.0
+PASS-5a (هوية pnl بدقة 1e-12 نسبياً على صفقات البطل)
+✅ PASS-2+3+6+5a
+
+################ PASS-4: /indicators/compute — الصيغة النصية مدعومة بلا تجاهل صامت ################
+HTTP: 200
+ind_zzf_* columns: 25 ['ind_zzf_dir', 'ind_zzf_entry', 'ind_zzf_entry_s1', 'ind_zzf_entry_s2', 'ind_zzf_entry_s3', 'ind_zzf_i1', 'ind_zzf_i2', 'ind_zzf_level_0', 'ind_zzf_level_0236', 'ind_zzf_level_0382', 'ind_zzf_level_05', 'ind_zzf_level_0618', 'ind_zzf_level_0786', 'ind_zzf_level_1', 'ind_zzf_liq_ref_high', 'ind_zzf_liq_ref_vol', 'ind_zzf_liq_state', 'ind_zzf_liq_vol_ok', 'ind_zzf_p1', 'ind_zzf_p2', 'ind_zzf_signal_any', 'ind_zzf_signal_s1', 'ind_zzf_signal_s2', 'ind_zzf_signal_s3', 'ind_zzf_touch']
+PASS-4a (الصيغة النصية → 13+ عمود ind_zzf_*)
+invalid format HTTP: 422 | {"detail": "صيغة المؤشرات غير صالحة — استخدم [{\"name\": \"...\", \"params\": {...}}] أو صيغة نصية مبسطة [\"اسم المؤشر\"]"}
+PASS-4b (العناصر غير الصالحة تُرفض 422 — لا تجاهل صامت)
+✅ PASS-4
+
+################ PASS-5: WINUSDT — الدقة تحت السنت + مستوى zzfib 0.618 حرفياً ################
+HTTP: 200 | status: COMPLETED
+WINUSDT close: 6.526e-05 | sub-cent: True
+level rows checked: 50 | worst relative error: 0.0
+PASS-5b (ind_zzf_level_0618 == p1 + (p2−p1)×0.618 حرفياً)
+WINUSDT trades: 11 | fees: 0.0 | audit consistent: True
+worst relative pnl error (WINUSDT): 0.0
+PASS-5c (pnl بدقة 1e-12 نسبياً على أسعار تحت السنت)
+✅ PASS-5
+
+################ PASS-EXTRA: overlays/compute — zzfib levels في summary ################
+summary.zzfib_levels: [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
+summary.zzfib_out_of_range: []
+summary.fib_levels: [{'ratio': 0.0, 'value': 84898.0, 'color': '#808080', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}, {'ratio': 0.236, 'value': 82875.00328, 'color': '#a61c00', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}, {'ratio': 0.382, 'value': 81623.48836, 'color': '#95cc28', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}, {'ratio': 0.5, 'value': 80611.98999999999, 'color': '#28cc28', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}, {'ratio': 0.618, 'value': 79600.49164, 'color': '#28cc95', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}, {'ratio': 0.786, 'value': 78160.39228, 'color': '#2895cc', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}, {'ratio': 1.0, 'value': 76325.98, 'color': '#808080', 'x_from': 458, 't_from': 1792598400000, 'x_to': 676, 't_to': 1793383200000, 'extend_right': True, 'extend_left': False}] | fib_out_of_range: []
+PASS-EXTRA
+✅ PASS-EXTRA — levels/out_of_range مرفوعة إلى summary
+
+(local server stopped)
+==============================
+VERIFY-R13: ALL PASS ✅
+==============================

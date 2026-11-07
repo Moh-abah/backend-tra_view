@@ -1,0 +1,47 @@
+PASS  T1 1d-Saudi opens at 21:00 UTC (00:00 Riyadh) — first_open=2026-10-01T21:00:00+00:00
+PASS  T1 1d-Saudi OHLCV == manual aggregation — n=10
+PASS  T1 1d-UTC opens differ from 1d-Saudi
+PASS  T2 4h-Saudi cross-base equivalence (from 1h == from 30m)
+PASS  T2 4h-Saudi boundary rule (open+3h)%4h==0 — first_open=2026-10-01T01:00:00+00:00
+PASS  T2 4h-Saudi OHLCV == manual aggregation
+PASS  T2 invalid base (2h, 180%120≠0) diverges → dispatcher must not pick it
+PASS  T3 widths dividing 3h are byte-identical under +3h — widths: 1m,3m,5m,10m,15m,30m,45m,1h,90m
+PASS  T4 1M-Saudi months (from 1h base) == manual (Jan/Feb only, current dropped) — n=2
+PASS  T4 1M-Saudi January opens 2025-12-31T21:00Z — 2025-12-31 21:00:00+00:00
+PASS  T4 1M-UTC opens differ from 1M-Saudi
+PASS  T4 1M-UTC from 1h == from 1d (no regression)
+PASS  T5 incomplete last window dropped under shift — now_ms=1791496800000, last_end=1791493200000
+PASS  T6 off=0 == pre-14.0 grid (4h from 1h)
+PASS  T6 off=0 == pre-14.0 grid (45m from 15m)
+PASS  T7 resolve Asia/Riyadh == +180
+PASS  T7 resolve case-insensitive 'asia/RIYADH' == +180
+PASS  T7 resolve 'KSA' == +180
+PASS  T7 resolve 'UTC' == 0
+PASS  T7 resolve 'UTC+3' == +180
+PASS  T7 resolve '+03:00' == +180
+PASS  T7 resolve 'Asia/Dubai' == +240
+PASS  T7 resolve 'UTC-05:30' == -330
+PASS  T7 reject DST zone 'America/New_York'
+PASS  T7 config.tz_offset_minutes == 180
+PASS  T7 naive dates aligned on Riyadh wall (start → 2026-09-30T21:00Z) — 2026-09-30T21:00:00+00:00
+PASS  T7 naive dates aligned on Riyadh wall (end → 2026-10-31T21:00Z) — 2026-10-31T21:00:00+00:00
+PASS  T7 default timezone is UTC (no regression)
+PASS  T8 1h(+3h) stays native-direct — ['1h']
+PASS  T8 4h(+3h) resamples from 1h base (straddle-safe picker) — ['1h']
+PASS  T8 4h(+3h) boundary rule
+PASS  T8 2h(+3h) resamples from 1h base — ['1h']
+PASS  T8 8h(+3h) resamples from 1h base — ['1h']
+PASS  T8 12h(+3h) resamples from 1h base — ['1h']
+PASS  T8 1d(+3h) resamples from 1h base — ['1h']
+PASS  T8 1d(+3h) opens at 21:00 UTC — first=2026-09-30T21:00:00+00:00
+PASS  T8 1w(+3h) rejected with clear contract
+PASS  T8 1w(UTC) stays native-direct (no regression) — ['1w']
+PASS  T8 45m(+3h) resamples from 15m — ['15m']
+PASS  T8 45m(+3h) identical to 45m(UTC) — n=320
+PASS  T8 1M(+3h) resamples from 1h base (straddle-safe) — ['1h']
+PASS  T8 1M(+3h) month opens at 21:00 UTC (September → 2026-08-31T21:00Z) — n=1 last_open=2026-08-31 21:00:00+00:00
+PASS  T8 '2q' rejected by contract
+PASS  T9 data_service forwards tz_offset_minutes=180 to provider — 180
+
+TOTAL=44 PASS=44 FAIL=0
+ALL-PASS

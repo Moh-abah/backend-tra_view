@@ -24,7 +24,8 @@ def build_full_strategy() -> StrategyConfig:
         allowed_timeframes=["15m", "1h", "4h"],
         position_side=PositionSide.LONG,
         initial_capital=10000.0,
-        commission_rate=0.001,
+        # ✅ الجولة 13 (سياسة Zero-Fee): النظام بلا عمولات نهائياً
+        commission_rate=0.0,
 
         # ===== المؤشرات =====
         indicators=[

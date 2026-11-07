@@ -67,7 +67,20 @@ class ConditionEvaluator:
                         return True
                 return False
             else:
-                logger.error(f"Unknown composite condition type: {condition.type}")
+                # ✅ الجولة 12: لا صمت بعد اليوم — رسالة واضحة للشكل غير المعروف
+                # (كان {"type":"composite","logic":"and"} يُقيّم False بصمت → 0 صفقة)
+                if str(condition.type).strip().lower() == "composite":
+                    logger.error(
+                        "❌ شكل شرط مركّب غير معروف: type='composite' — الصيغة الصحيحة: "
+                        '{"type": "and" | "or", "conditions": [...]} — وليس '
+                        '{"type": "composite", "logic": "..."}. القاعدة: %s',
+                        getattr(condition, 'name', '?') if hasattr(condition, 'name') else '?',
+                    )
+                else:
+                    logger.error(
+                        "❌ نوع شرط مركّب غير معروف: '%s' — المقبول: and | or (أو logical_and | logical_or)",
+                        condition.type,
+                    )
                 return False
         
         # 2. إذا كان Condition عادي
@@ -201,12 +214,16 @@ class ConditionEvaluator:
                 if len(parts) >= 3 and parts[2].strip():
                     col = parts[2].strip()
                     ind_col = col if col.startswith('ind_') else f"ind_{col}"
-                    # 1) عمود ind_* المدمج في df (مؤشرات البنية — العقد الملزم)
-                    if ind_col in data.columns:
-                        return self._column_value(data, ind_col, index)
-                    # 2) عمود مباشر بالاسم كما هو
-                    if col in data.columns:
-                        return self._column_value(data, col, index)
+                    # ✅ الجولة 12: مرادفات zzfib_* / zzf_* → أعمدة ind_zzf_* (فيبو الزيجزاق المدمج)
+                    candidates = [ind_col]
+                    if col.startswith('zzfib_'):
+                        candidates.append("ind_zzf_" + col[len('zzfib_'):])
+                    if col.startswith('zzf_'):
+                        candidates.append("ind_zzf_" + col[len('zzf_'):])
+                    candidates.append(col)
+                    for cand in candidates:
+                        if cand in data.columns:
+                            return self._column_value(data, cand, index)
                     # 3) قاموس المؤشرات (ndarray/Series/dict)
                     indicator_data = None
                     for key in (ind_col, col, value):

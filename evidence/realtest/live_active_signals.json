@@ -1,0 +1,158 @@
+[
+ {
+  "symbol": "LTCUSDT",
+  "market": "crypto",
+  "timeframe": "1m",
+  "strategy": "zlf_e2e_trendy",
+  "has_signal": true,
+  "state": "active",
+  "signal": {
+   "label": "S2",
+   "seq": 11,
+   "side": "long",
+   "price": 56.69,
+   "candle_time": 1793811420000,
+   "emitted_at": 1793820198095,
+   "sl": 55.5562,
+   "tp": 112.81309999999999,
+   "decision_reason": "ZLF-E2E-Trendy S2 · الحالة الثانية: الاختراق بدون هيمنة الحجم («ويبرغم عندها لفل حجم سيولتها») + موافقة الترند (7/15/25)"
+  },
+  "updated_at": 1793820198095,
+  "meta": {
+   "window": {
+    "closed_candles": 2000,
+    "first_open": 1793700180000,
+    "last_closed_open": 1793820120000,
+    "live_candle_open": 1793820180000,
+    "live_candle_open_price": 56.03
+   },
+   "fill_model": "next_open",
+   "risk": {
+    "stop_loss_percent": 2.0,
+    "take_profit_percent": 99.0
+   },
+   "engine": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+   "params_applied": {
+    "zz_mode": "luxalgo",
+    "length": 100,
+    "touch_level": 0.618,
+    "trend_periods": [
+     7,
+     15,
+     25
+    ],
+    "trend_confirm": "majority",
+    "trend_gate": [
+     "s1",
+     "s2",
+     "s3"
+    ]
+   },
+   "evaluation_ms": 1624.6
+  }
+ },
+ {
+  "symbol": "TRXUSDT",
+  "market": "crypto",
+  "timeframe": "1m",
+  "strategy": "zlf_e2e_trendy",
+  "has_signal": true,
+  "state": "active",
+  "signal": {
+   "label": "S1",
+   "seq": 6,
+   "side": "long",
+   "price": 0.3201,
+   "candle_time": 1793819280000,
+   "emitted_at": 1793820199718,
+   "sl": 0.313698,
+   "tp": 0.636999,
+   "decision_reason": "ZLF-E2E-Trendy S1 · الحالة الأولى: الاختراق الكامل المؤكد + موافقة الترند (7/15/25)"
+  },
+  "updated_at": 1793820199718,
+  "meta": {
+   "window": {
+    "closed_candles": 2000,
+    "first_open": 1793700180000,
+    "last_closed_open": 1793820120000,
+    "live_candle_open": 1793820180000,
+    "live_candle_open_price": 0.3198
+   },
+   "fill_model": "next_open",
+   "risk": {
+    "stop_loss_percent": 2.0,
+    "take_profit_percent": 99.0
+   },
+   "engine": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+   "params_applied": {
+    "zz_mode": "luxalgo",
+    "length": 100,
+    "touch_level": 0.618,
+    "trend_periods": [
+     7,
+     15,
+     25
+    ],
+    "trend_confirm": "majority",
+    "trend_gate": [
+     "s1",
+     "s2",
+     "s3"
+    ]
+   },
+   "evaluation_ms": 1620.1
+  }
+ },
+ {
+  "symbol": "TRXUSDT",
+  "market": "crypto",
+  "timeframe": "5m",
+  "strategy": "zlf_e2e_trendy",
+  "has_signal": true,
+  "state": "active",
+  "signal": {
+   "label": "S2",
+   "seq": 4,
+   "side": "long",
+   "price": 0.322,
+   "candle_time": 1793766900000,
+   "emitted_at": 1793820201330,
+   "sl": 0.31556,
+   "tp": 0.64078,
+   "decision_reason": "ZLF-E2E-Trendy S2 · الحالة الثانية: الاختراق بدون هيمنة الحجم («ويبرغم عندها لفل حجم سيولتها») + موافقة الترند (7/15/25)"
+  },
+  "updated_at": 1793820201330,
+  "meta": {
+   "window": {
+    "closed_candles": 2000,
+    "first_open": 1793220000000,
+    "last_closed_open": 1793819700000,
+    "live_candle_open": 1793820000000,
+    "live_candle_open_price": 0.32
+   },
+   "fill_model": "next_open",
+   "risk": {
+    "stop_loss_percent": 2.0,
+    "take_profit_percent": 99.0
+   },
+   "engine": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+   "params_applied": {
+    "zz_mode": "luxalgo",
+    "length": 100,
+    "touch_level": 0.618,
+    "trend_periods": [
+     7,
+     15,
+     25
+    ],
+    "trend_confirm": "majority",
+    "trend_gate": [
+     "s1",
+     "s2",
+     "s3"
+    ]
+   },
+   "evaluation_ms": 1609.4
+  }
+ }
+]

@@ -1,0 +1,40 @@
+local server up (pid=3478) after ~6s
+
+################ PASS-Z1: القالب الرسمي ZLF بثلاث قواعد دخول ################
+presets: ['zigzag_hl_v2_zero_fee', 'zlf_triple_signal_zero_fee']
+entry_rules: ['S1 · اختراق سيولة مؤكد (Liquidity Sweep Breakout) → 0.618', 'S2 · اختراق كاذب يرجع قبل الإغلاق (Failed Breakout / SFP) → 0.618', 'S3 · رفض عند القمة بلا اختراق (Rejection, No Break) → 0.618']
+rule refs: ['indicator:zigzag_fib:zzf_entry_s1', 'indicator:zigzag_fib:zzf_entry_s2', 'indicator:zigzag_fib:zzf_entry_s3']
+params: {'length': 100, 'touch_level': 0.618, 'liq_lookback': 20, 'liq_signals': True, 'liq_arm_bars': 60}
+PASS-Z1
+✅ PASS-Z1 — القالب الرسمي بثلاث إشارات دخول S1/S2/S3
+
+################ PASS-Z2: أعمدة ind_zzf_* كاملة (25 عموداً) ################
+HTTP: 200
+ind_zzf_* columns: 25 ['ind_zzf_dir', 'ind_zzf_entry', 'ind_zzf_entry_s1', 'ind_zzf_entry_s2', 'ind_zzf_entry_s3', 'ind_zzf_i1', 'ind_zzf_i2', 'ind_zzf_level_0', 'ind_zzf_level_0236', 'ind_zzf_level_0382', 'ind_zzf_level_05', 'ind_zzf_level_0618', 'ind_zzf_level_0786', 'ind_zzf_level_1', 'ind_zzf_liq_ref_high', 'ind_zzf_liq_ref_vol', 'ind_zzf_liq_state', 'ind_zzf_liq_vol_ok', 'ind_zzf_p1', 'ind_zzf_p2', 'ind_zzf_signal_any', 'ind_zzf_signal_s1', 'ind_zzf_signal_s2', 'ind_zzf_signal_s3', 'ind_zzf_touch']
+PASS-Z2
+✅ PASS-Z2 — 25 عمود ind_zzf_* (13 أصلية + 12 ZLF)
+
+################ PASS-Z3: اتساق آلة حالة السيولة على بيانات حية ################
+rows with state: 700 · vol_ok consistent: 700 · liquidity events: 40 · entries: 3
+PASS-Z3
+✅ PASS-Z3 — آلة حالة السيولة متسقة 100% على بيانات حية
+
+################ PASS-Z4+Z5: باك-تست ZLF الكامل — دقة + Zero-Fee + إسناد الإشارات ################
+HTTP: 200 | status: COMPLETED | mode: inprocess
+trades: 12 | total_pnl_percent: 14.161448690545459 | fees_applied: 0.0 | fill_model: next_open
+formula: pnl == (exit_price - entry_price) * units * (long? +1 : -1)
+max_abs_error: 0.0 | precision_report: {'formula_tolerance': 1e-09, 'float64': True, 'rounded_fields': []}
+PASS-Z4 (COMPLETED · الصيغة الصافية · 1e-9 · precision_report · fees 0)
+entry points: 12 | exit points: 12
+إسناد الإشارات للدخولات: {'S1': 0, 'S2': 2, 'S3': 10}
+PASS-Z5 (كل دخول بإشارته · commission=0.0 · result_pct==price_delta_pct)
+✅ PASS-Z4+Z5 — باك-تست ZLF بدقة 1e-9 وإسناد الإشارات الثلاث
+
+################ PASS-Z6: /strategies1/validate يقبل حمولة ZLF ################
+HTTP: 200 | valid: True
+PASS-Z6
+✅ PASS-Z6 — validate يقبل حمولة ZLF (valid=true)
+
+==============================
+VERIFY-ZLF: ALL PASS ✅
+==============================

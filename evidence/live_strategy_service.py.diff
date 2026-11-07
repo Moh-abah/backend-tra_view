@@ -1,0 +1,110 @@
+--- /tmp/zlf_e2e/latest_project/app/services/live_strategy_service.py	2026-11-03 19:53:03.621688979 +0000
++++ /home/z/zlf-e2e/latest_project/app/services/live_strategy_service.py	2026-11-03 20:04:06.647844736 +0000
+@@ -103,7 +103,7 @@
+ from app.backtest.engine1 import BacktestEngine
+ from app.backtest.schemas import BacktestConfig
+ from app.services.data_service import DataService
+-from app.services.strategy.presets import ZLF_TRIPLE_SIGNAL
++from app.services.strategy.presets import ZLF_TRIPLE_SIGNAL, ZLF_E2E_TRIPLE_SIGNAL
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -121,6 +121,16 @@
+     "zlf": "zlf",
+     "zlf_triple_signal": "zlf",
+     "zlf_triple_signal_zero_fee": "zlf",
++    # ✅ ROUND22: ZLF-End-To-End — الاستراتيجية المنفصلة الجديدة (محرك منفصل باسم مختلف)
++    "zigzag_fib_e2e": "zlf_e2e",
++    "zlf_e2e": "zlf_e2e",
++    "zlf_end_to_end": "zlf_e2e",
++}
++
++# هوية المحركين (تُعلن في meta.engine في كل جواب)
++_ENGINE_META = {
++    "zlf": "ZLF (zigzag_fib — المحرك الحالي كما هو)",
++    "zlf_e2e": "ZLF-End-To-End",
+ }
+ 
+ WINDOW_CANDLES = 2000          # شموع مغلقة للتقييم
+@@ -222,8 +232,31 @@
+     return clean
+ 
+ 
++def _normalize_e2e_overrides(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
++    """✅ ROUND22 — تحقق التجاوزات لمحرك ZLF-End-To-End (منفصل).
++
++    المبيّح: معاملات الزقزاق فقط (zz_mode/zz_depth/zz_deviation/zz_backstep/length).
++    معاملات liq_* غير منطبقة على هذا المحرك — النطاق يعتمد لحظة ظهور الزقزاق
++    ونافذة الحساب = عمر النطاق (لا نافذة منزلقة بعدد شموع في التعريف) —
++    يُرفض إمرارها برسالة واضحة (لا تطبيق صامت — نفس فلسفة البيت).
++    """
++    if not raw:
++        return {}
++    e2e_keys = ("zz_mode", "zz_depth", "zz_deviation", "zz_backstep", "length")
++    unknown = sorted(k for k in raw if k not in e2e_keys)
++    if unknown:
++        non_appl = [k for k in unknown if k in ZLF_PARAM_OVERRIDABLE]
++        hint = (" — معاملات السيولة liq_* غير منطبقة على ZLF-End-To-End "
++                "(النطاق يعتمد لحظة ظهور الزقزاق ونافذة الحساب = عمر النطاق)" if non_appl else "")
++        raise LiveStrategyError(
++            f"Unsupported ZLF-End-To-End param(s): {unknown}{hint} — overridable: {list(e2e_keys)}"
++        )
++    return normalize_zlf_overrides({k: raw[k] for k in raw if k in ZLF_PARAM_OVERRIDABLE})
++
++
+ def _build_strategy_config(
+     param_overrides: Optional[Dict[str, Any]] = None,
++    engine: str = "zlf",
+ ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+     """نسخة عميقة من قالب البطل + تطبيق التجاوزات المبيّحة على معاملات zigzag_fib.
+ 
+@@ -237,7 +270,10 @@
+ 
+     يعيد (config, applied): applied = المعاملات المطبّقة فعلاً (للشفافية في meta).
+     """
+-    cfg = copy.deepcopy(ZLF_TRIPLE_SIGNAL["strategy_config"])
++    # ✅ ROUND22: اختيار قالب المحرك — الافتراضي zlf (المحرك الحالي حرفياً)؛
++    # zlf_e2e = قالب ZLF-End-To-End المنفصل (zigzag_fib_e2e) بلا أي مساس بالأصل.
++    template = ZLF_E2E_TRIPLE_SIGNAL if engine == "zlf_e2e" else ZLF_TRIPLE_SIGNAL
++    cfg = copy.deepcopy(template["strategy_config"])
+     applied: Dict[str, Any] = {}
+     inds = cfg.get("indicators") or []
+     if inds:
+@@ -539,7 +575,8 @@
+ 
+         # 4) تشغيل محرك الباك تست نفسه على النافذة — بطل العقد: SL 2.0 / TP 99.0
+         # ✅ ROUND21: نسخة عميقة + تجاوزات المعاملات المبيّحة (لا تلويث للقالب المعياري)
+-        strategy_cfg, params_applied = _build_strategy_config(param_overrides)
++        # ✅ ROUND22: اختيار القالب حسب المحرك (zlf = الحالي كما هو · zlf_e2e = المنفصل)
++        strategy_cfg, params_applied = _build_strategy_config(param_overrides, engine=strategy_key)
+         config = BacktestConfig(
+             name=f"live-signal:{symbol}:{timeframe}",
+             symbols=[symbol],
+@@ -575,6 +612,8 @@
+             },
+             "fill_model": "next_open",
+             "risk": {"stop_loss_percent": CHAMPION_SL_PERCENT, "take_profit_percent": CHAMPION_TP_PERCENT},
++            # ✅ ROUND22: هوية المحرك صراحةً في كل جواب (zlf أو ZLF-End-To-End)
++            "engine": _ENGINE_META.get(strategy_key, strategy_key),
+         }
+         # ✅ ROUND21: الشفافية — الجواب يعلن المعاملات التي طبّقها هذا التقييم
+         # (يظهر فقط عند تمرير تجاوزات — الأوفّلود الافتراضي بلا تغيير في شكل الجواب)
+@@ -672,11 +711,16 @@
+     if key_strategy not in _STRATEGY_ALIASES:
+         raise LiveStrategyError(
+             f"Unsupported strategy: {strategy!r} — supported: 'zigzag_fib' "
+-            "(ZLF — ZigZag Liquidity Fibonacci · 3 Entry Signals)"
++            "(ZLF — المحرك الحالي) و 'zigzag_fib_e2e' "
++            "(ZLF-End-To-End — المحرك المنفصل الجديد — ROUND22)"
+         )
+     strategy_key = _STRATEGY_ALIASES[key_strategy]
+     # ✅ ROUND21: تحقق التجاوزات قبل أي شيء (خطأ عقد → 400) + توقيعها في مفتاح الكاش
+-    applied = normalize_zlf_overrides(param_overrides)
++    # ✅ ROUND22: تحقق حسب المحرك — للمحرك المنفصل معاملاته الخاصة فقط
++    if strategy_key == "zlf_e2e":
++        applied = _normalize_e2e_overrides(param_overrides)
++    else:
++        applied = normalize_zlf_overrides(param_overrides)
+     override_sig = json.dumps(applied, sort_keys=True, separators=(",", ":")) if applied else ""
+     key = _cache_key(symbol, market, timeframe, strategy_key) + (override_sig,)
+ 

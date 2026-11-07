@@ -1,0 +1,178 @@
+--- /tmp/pristine32/orig/app/services/strategy/presets.py	2026-11-04 19:03:34.636646839 +0000
++++ app/services/strategy/presets.py	2026-11-04 18:56:09.530406185 +0000
+@@ -338,6 +338,154 @@
+ }
+ 
+ 
++# =============================================================================
++# ✅ الجولة 32 (ROUND32) — ZLF-End-To-End-Trendy — «الزقزاق البطل e2e الترنديه»
++# =============================================================================
++# أمر صاحب القرار: «نريد نسوّي استنساخ لاستراتيجيتنا زقزاق e2e نفسها التي فيها
++# النطاق ونضع فوقها إضافة الترند — الباك اند هو من يحسبها — والترند يرسل
++# إحداثياته للباك اند ويُحسب الإشارة بناء عليه — والترند مؤشر يُضاف إلى قائمة
++# المؤشرات ويكون ضمن شروط الاستراتيجية — بمحرك معزول منفصل للباك تست وللشارت
++# الحي — والاعدادات ثلاث ترندات 7 و 15 و 25 بحيث لا تُكتب الأرقام داخل الكود
++# ونكون قادرين على استخدام القالب وتغيير الأرقام حتى إضافة ترند رابع 30».
++#
++# هذا القالب يعتمد:
++#   - المحرك المعزول: zigzag_fib_e2e_trendy (overlays_zlf_e2e_trendy.py — ملف
++#     مستقل: E2E حرفياً + بوابة الترند) والمؤشر المستقل trend_fractal
++#     (trend_fractals.py — وفاء سكربت Auto Trendline [DojiEmoji] حرفياً).
++#   - ✅ الأرقام قالبية بالكامل: trend_periods=[7,15,25] هنا في القالب —
++#     إضافة ترند رابع 30 = تعديل هذه القائمة فقط ("trend_periods": [7,15,25,30])
++#     بلا أي كود. صيغة الإجماع majority = أكثر من النصف (2 من 3).
++#   - البوابة ضمن شروط الاستراتيجية صراحةً: كل قاعدة دخول = شرط مركّب AND
++#     (إشارة الدخول بعد بوابة المحرك ∧ ind_zzfet_trend_ok > 0).
++#   - الشفافية الكاملة: ind_zzfet_entry_raw_* (الخام) و ind_zzfet_entry_blocked_*
++#     (الخام الذي منعه الترند) بجانب ind_zzfet_entry_* (المعتمد).
++#   - الخروج كما في E2E حرفياً (انقلاب النطاق zzfet_dir < 0 + SL القالب).
++ZLF_E2E_TRENDY_TRIPLE_SIGNAL: Dict[str, Any] = {
++    "name": "ZLF-End-To-End-Trendy — الزقزاق البطل e2e الترنديه · 3 Entry Signals — ZERO FEE",
++    "timeframe": "1h",
++    "market": "crypto",
++    "symbols": ["BTCUSDT"],
++    "strategy_config": {
++        "name": "ZLF-End-To-End-Trendy (3 Entry Signals — Range-anchored + Trend gate)",
++        "base_timeframe": "1h",
++        "position_side": "long",
++        "indicators": [
++            {
++                "name": "zigzag_fib_e2e_trendy",
++                "type": "support_resistance",
++                "params": {
++                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — كما في E2E حرفياً
++                    "mode": "luxalgo",
++                    "length": 100,
++                    "touch_level": 0.618,
++                    # ✅✅ ROUND32 — قوالب الترند (الأرقام هنا لا في الكود):
++                    # غيّرها/أضف ترنداً رابعاً 30 أو خامساً 50 بحرية — المحرك
++                    # عام على القائمة. trend_confirm: majority|all|any|رقم.
++                    # trend_gate: الإشارات المبوّبة (s1/s2/s3) أو "none" للتعطيل.
++                    "trend_periods": [7, 15, 25],
++                    "trend_confirm": "majority",
++                    "trend_gate": ["s1", "s2", "s3"],
++                },
++                "enabled": True,
++                "timeframe": "1h",
++            }
++        ],
++        "entry_rules": [
++            {
++                "name": "ZLF-E2E-Trendy S1 · الحالة الأولى: الاختراق الكامل المؤكد + موافقة الترند (7/15/25)",
++                "condition": {
++                    "type": "and",
++                    "conditions": [
++                        {
++                            "type": "indicator_value",
++                            "operator": ">",
++                            "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_entry_s1",
++                            "right_value": 0,
++                        },
++                        {
++                            "type": "indicator_value",
++                            "operator": ">",
++                            "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_trend_ok",
++                            "right_value": 0,
++                        },
++                    ],
++                },
++                "position_side": "long",
++                "weight": 0.34,
++                "enabled": True,
++            },
++            {
++                "name": "ZLF-E2E-Trendy S2 · الحالة الثانية: الاختراق بدون هيمنة الحجم («ويبرغم عندها لفل حجم سيولتها») + موافقة الترند (7/15/25)",
++                "condition": {
++                    "type": "and",
++                    "conditions": [
++                        {
++                            "type": "indicator_value",
++                            "operator": ">",
++                            "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_entry_s2",
++                            "right_value": 0,
++                        },
++                        {
++                            "type": "indicator_value",
++                            "operator": ">",
++                            "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_trend_ok",
++                            "right_value": 0,
++                        },
++                    ],
++                },
++                "position_side": "long",
++                "weight": 0.33,
++                "enabled": True,
++            },
++            {
++                "name": "ZLF-E2E-Trendy S3 · الحالة الثالثة: الامتصاص قبل الاختراق + موافقة الترند (7/15/25)",
++                "condition": {
++                    "type": "and",
++                    "conditions": [
++                        {
++                            "type": "indicator_value",
++                            "operator": ">",
++                            "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_entry_s3",
++                            "right_value": 0,
++                        },
++                        {
++                            "type": "indicator_value",
++                            "operator": ">",
++                            "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_trend_ok",
++                            "right_value": 0,
++                        },
++                    ],
++                },
++                "position_side": "long",
++                "weight": 0.33,
++                "enabled": True,
++            },
++        ],
++        "exit_rules": [
++            {
++                "name": "ZLF-E2E-Trendy · تأكيد قمة — انقلاب النطاق إلى هابطة (نطاق جديد قمة→قاع) · افتراضي مؤقت provisional",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": "<",
++                    "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_dir",
++                    "right_value": 0,
++                },
++                "exit_type": "signal_exit",
++                "enabled": True,
++            }
++        ],
++        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
++    },
++    "initial_capital": 10000,
++    "position_sizing": "percentage",
++    "position_size_percent": 1.0,
++    "max_positions": 1,
++    "commission_rate": 0,
++    "slippage_percent": 0,
++    "leverage": 1,
++}
++
++
+ PRESET_NOTES: List[str] = [
+     "position_size_percent عشري بحد أقصى 1.0 = رأس مال كامل (100%) — لا يُرسل كنسبة مئوية (100).",
+     "الشكل الصحيح للدمج المنطقي: {\"type\": \"and\", \"conditions\": [...]} — وليس {\"type\":\"composite\",\"logic\":\"and\"}؛ "
+@@ -425,4 +573,20 @@
+             "payload": ZLF_E2E_TRIPLE_SIGNAL,
+             "notes": PRESET_NOTES,
+         },
++        # ✅ الجولة 32 (ROUND32) — «الزقزاق البطل e2e الترنديه» (إضافة — القوالب السابقة كما هي)
++        {
++            "id": "zlf_e2e_trendy_triple_signal_zero_fee",
++            "title": "ZLF-E2E-Trendy — الزقزاق البطل e2e الترنديه · 3 Entry Signals — ZERO FEE",
++            "description": "استنساخ معزول لاستراتيجية E2E (النطاق والمصفوفة S1/S2/S3 حرفياً) + بوابة ترند على الدخول: "
++                           "ثلاث ترندات فراكتالية 7/15/25 (قالبية — غيّرها أو أضف ترنداً رابعاً 30 من القالب بلا كود) "
++                           "بمنطق سكربت Auto Trendline (وصل آخر فراكتالَين + تمديد أيمن + تقاطعات ta.cross) — "
++                           "الترند يرسل إحداثياته للباك اند ويُحسب الإشارة بناء عليه: الدخول يستلزم انحيازاً صاعداً "
++                           "بإجماع majority (2 من 3). الخام والممنوع ظاهران (entry_raw_*/entry_blocked_*) — "
++                           "والخروج كما في E2E (انقلاب النطاق + SL 2%).",
++            "source": "الجولة 32 — أمر صاحب القرار: استنساخ E2E + إضافة الترند بمحرك معزول للباك تست والشارت الحي "
++                     "وفترات قالبية لا تُكتب داخل الكود",
++            "reference_result": "يُعاد التحقق منه حياً بعد النشر — عقد Zero-Fee/الدقة لم يُلمس",
++            "payload": ZLF_E2E_TRENDY_TRIPLE_SIGNAL,
++            "notes": PRESET_NOTES,
++        },
+     ]

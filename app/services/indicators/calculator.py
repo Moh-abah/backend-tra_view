@@ -76,9 +76,26 @@ class IndicatorCalculator:
         "zigzag": "zigzag", "zigzag_channels": "zigzag",
         "fib": "fib", "auto_fib_retracement": "fib",
         "trendline": "trendline", "auto_trendline": "trendline",
+        # الجولة 12: فيبو الزيجزاق المدمج
+        "zigzag_fib": "zzfib", "zzfib": "zzfib",
+        # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد
+        "zigzag_fib_e2e": "zzfib_e2e", "zzfib_e2e": "zzfib_e2e",
+        # ✅ ROUND32: الترندية (استنساخ E2E + بوابة الترند) + مؤشر الترند المستقل
+        "zigzag_fib_e2e_trendy": "zzfib_e2e_trendy", "zzfib_e2e_trendy": "zzfib_e2e_trendy",
+        "trend_fractal": "trend_fractal", "fractal_trendlines": "trend_fractal",
     }
-    # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11)
-    _OVERLAY_PRIMARY = {"zigzag": "ind_zz_pivot", "fib": "ind_fib_signal", "trendline": "ind_atl_signal"}
+    # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
+    _OVERLAY_PRIMARY = {
+        "zigzag": "ind_zz_pivot",
+        "fib": "ind_fib_signal",
+        "trendline": "ind_atl_signal",
+        "zzfib": "ind_zzf_touch",
+        # ✅ ROUND22: الأساسي للمحرك المنفصل = عمود الدخول الجامع
+        "zzfib_e2e": "ind_zzfe_entry",
+        # ✅ ROUND32: الترندية = عمود الدخول الجامع بعد البوابة · الترند = بوابة الإجماع
+        "zzfib_e2e_trendy": "ind_zzfet_entry",
+        "trend_fractal": "ind_trf_trend_ok",
+    }
     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
     _OVERLAY_SUB_COLUMNS = {
         "zz_state": "ind_zz_state", "state": "ind_zz_state", "os": "ind_zz_state",
@@ -97,6 +114,52 @@ class IndicatorCalculator:
         "atl_signal": "ind_atl_signal",
         "atl_cross_upper": "ind_atl_cross_upper", "tl_cross_upper": "ind_atl_cross_upper", "cross_upper": "ind_atl_cross_upper",
         "atl_cross_lower": "ind_atl_cross_lower", "tl_cross_lower": "ind_atl_cross_lower", "cross_lower": "ind_atl_cross_lower",
+        # الجولة 12: أعمدة فيبو الزيجزاق المدمج
+        "zzfib_dir": "ind_zzf_dir", "zzf_dir": "ind_zzf_dir",
+        "zzfib_p1": "ind_zzf_p1", "zzf_p1": "ind_zzf_p1",
+        "zzfib_p2": "ind_zzf_p2", "zzf_p2": "ind_zzf_p2",
+        "zzfib_i1": "ind_zzf_i1", "zzf_i1": "ind_zzf_i1",
+        "zzfib_i2": "ind_zzf_i2", "zzf_i2": "ind_zzf_i2",
+        "zzfib_touch": "ind_zzf_touch", "zzf_touch": "ind_zzf_touch", "touch": "ind_zzf_touch",
+        # ✅ ROUND22 (ZLF-End-To-End) — أعمدة المحرك المنفصل (أسماء جديدة كلياً)
+        "zzfe_dir": "ind_zzfe_dir", "zzfib_e2e_dir": "ind_zzfe_dir",
+        "zzfe_p1": "ind_zzfe_p1", "zzfe_p2": "ind_zzfe_p2",
+        "zzfe_i1": "ind_zzfe_i1", "zzfe_i2": "ind_zzfe_i2",
+        "zzfe_liq_state": "ind_zzfe_liq_state", "zzfe_state": "ind_zzfe_liq_state",
+        "zzfe_liq_ref_high": "ind_zzfe_liq_ref_high", "zzfe_ref_high": "ind_zzfe_liq_ref_high",
+        "zzfe_liq_ref_vol": "ind_zzfe_liq_ref_vol", "zzfe_ref_vol": "ind_zzfe_liq_ref_vol",
+        "zzfe_liq_vol_ok": "ind_zzfe_liq_vol_ok", "zzfe_vol_ok": "ind_zzfe_liq_vol_ok",
+        "zzfe_signal_s1": "ind_zzfe_signal_s1", "zzfe_signal_s2": "ind_zzfe_signal_s2",
+        "zzfe_signal_s3": "ind_zzfe_signal_s3", "zzfe_signal_any": "ind_zzfe_signal_any",
+        "zzfe_entry": "ind_zzfe_entry", "entry": "ind_zzfe_entry",
+        "zzfe_entry_s1": "ind_zzfe_entry_s1", "zzfe_entry_s2": "ind_zzfe_entry_s2",
+        "zzfe_entry_s3": "ind_zzfe_entry_s3",
+        # ✅ ROUND32 (الترندية) — أعمدة المحرك المعزول الجديد (أسماء جديدة كلياً)
+        "zzfet_dir": "ind_zzfet_dir", "zzfib_e2e_trendy_dir": "ind_zzfet_dir",
+        "zzfet_p1": "ind_zzfet_p1", "zzfet_p2": "ind_zzfet_p2",
+        "zzfet_i1": "ind_zzfet_i1", "zzfet_i2": "ind_zzfet_i2",
+        "zzfet_anchor": "ind_zzfet_anchor", "zzfet_range_index": "ind_zzfet_range_index",
+        "zzfet_liq_state": "ind_zzfet_liq_state", "zzfet_state": "ind_zzfet_liq_state",
+        "zzfet_liq_ref_high": "ind_zzfet_liq_ref_high", "zzfet_ref_high": "ind_zzfet_liq_ref_high",
+        "zzfet_liq_ref_vol": "ind_zzfet_liq_ref_vol", "zzfet_ref_vol": "ind_zzfet_liq_ref_vol",
+        "zzfet_liq_vol_ok": "ind_zzfet_liq_vol_ok", "zzfet_vol_ok": "ind_zzfet_liq_vol_ok",
+        "zzfet_signal_s1": "ind_zzfet_signal_s1", "zzfet_signal_s2": "ind_zzfet_signal_s2",
+        "zzfet_signal_s3": "ind_zzfet_signal_s3", "zzfet_signal_any": "ind_zzfet_signal_any",
+        "zzfet_entry": "ind_zzfet_entry",
+        "zzfet_entry_raw": "ind_zzfet_entry_raw",
+        "zzfet_entry_s1": "ind_zzfet_entry_s1", "zzfet_entry_s2": "ind_zzfet_entry_s2",
+        "zzfet_entry_s3": "ind_zzfet_entry_s3",
+        "zzfet_entry_raw_s1": "ind_zzfet_entry_raw_s1", "zzfet_entry_raw_s2": "ind_zzfet_entry_raw_s2",
+        "zzfet_entry_raw_s3": "ind_zzfet_entry_raw_s3",
+        "zzfet_entry_blocked_s1": "ind_zzfet_entry_blocked_s1", "zzfet_entry_blocked_s2": "ind_zzfet_entry_blocked_s2",
+        "zzfet_entry_blocked_s3": "ind_zzfet_entry_blocked_s3",
+        "zzfet_trend_ok": "ind_zzfet_trend_ok", "zzfet_trend_bias": "ind_zzfet_trend_bias",
+        "zzfet_trend_votes_bull": "ind_zzfet_trend_votes_bull", "zzfet_trend_votes_bear": "ind_zzfet_trend_votes_bear",
+        # ✅ ROUND32 (مؤشر الترند المستقل) — المجاميع والبوابة
+        "trf_trend_ok": "ind_trf_trend_ok", "trf_bias": "ind_trf_bias",
+        "trf_bull_votes": "ind_trf_bull_votes", "trf_bear_votes": "ind_trf_bear_votes",
+        "trf_threshold": "ind_trf_threshold",
+        "trf_cross_upper": "ind_trf_cross_upper", "trf_cross_lower": "ind_trf_cross_lower",
     }
 
     def _calculate_overlay_indicator(self, dataframe, config):
@@ -160,6 +223,164 @@ class IndicatorCalculator:
                 lv = params.get('level_ratios', params.get('levels'))
                 if isinstance(lv, (list, tuple)) and lv:
                     kw['level_ratios'] = [float(x) for x in lv]
+            elif base == 'zzfib':
+                # الجولة 12: فيبو الزيجزاق المدمج
+                kw = {}
+                if 'length' in params:
+                    kw['length'] = max(2, int(float(params['length'])))
+                if 'reverse' in params:
+                    kw['reverse'] = bool(params['reverse'])
+                lv = params.get('levels', params.get('level_ratios'))
+                if isinstance(lv, (list, tuple)) and lv:
+                    kw['levels'] = [float(x) for x in lv]
+                for k in ('extend_right', 'extend_leg_to_live'):
+                    if k in params:
+                        kw[k] = bool(params[k])
+                for k in ('touch_level', 'touch', 'target'):
+                    if k in params:
+                        kw['touch_level'] = float(params[k])
+                        break
+                # ✅ ROUND19: وضع زقزاق TradingView + معاملاته (mode/depth/deviation/
+                # backstep) — كانت تُسقَط هنا بصمت فبقية المسار الحي يعمل luxalgo
+                # رغم البريسِت. مُصلَح الآن في الجسور الثلاثة (calculator /
+                # overlay_adapters / config_to_overlay_params) بذات الدلالة.
+                if 'mode' in params:
+                    kw['mode'] = str(params['mode']).strip().lower()
+                _v = params.get('depth')
+                if _v is not None:
+                    try:
+                        kw['depth'] = max(2, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('deviation')
+                if _v is not None:
+                    try:
+                        kw['deviation'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('backstep')
+                if _v is not None:
+                    try:
+                        kw['backstep'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                # ✅ معاملات السيولة (الجولات 13.1/13.2) — كانت تمر عبر
+                # config_to_overlay_params فقط؛ تُوحَّد هنا أيضاً (نفس القيم
+                # كانت تسري كافتراضيات — الآن تُمرَّر حرفياً من أي بريسِت).
+                _v = params.get('liq_lookback')
+                if _v is not None:
+                    try:
+                        kw['liq_lookback'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('liq_arm_bars')
+                if _v is not None:
+                    try:
+                        kw['liq_arm_bars'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                if 'liq_signals' in params:
+                    kw['liq_signals'] = bool(params['liq_signals'])
+                if 'liq_sfp_signals' in params:
+                    kw['liq_sfp_signals'] = bool(params['liq_sfp_signals'])
+            elif base == 'zzfib_e2e':
+                # ✅ ROUND22 (ZLF-End-To-End) — المحرك المنفصل: نفس معاملات الزقزاق
+                # (+ launch_touch_ticks). لا liq_* — النطاق يعتمد لحظة ظهور الزقزاق
+                # ونافذة الحساب = عمر النطاق (لا عدد شموع في التعريف).
+                kw = {}
+                if 'length' in params:
+                    kw['length'] = max(2, int(float(params['length'])))
+                if 'reverse' in params:
+                    kw['reverse'] = bool(params['reverse'])
+                lv = params.get('levels', params.get('level_ratios'))
+                if isinstance(lv, (list, tuple)) and lv:
+                    kw['levels'] = [float(x) for x in lv]
+                for k in ('extend_right', 'extend_leg_to_live'):
+                    if k in params:
+                        kw[k] = bool(params[k])
+                if 'mode' in params:
+                    kw['mode'] = str(params['mode']).strip().lower()
+                _v = params.get('depth')
+                if _v is not None:
+                    try:
+                        kw['depth'] = max(2, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('deviation')
+                if _v is not None:
+                    try:
+                        kw['deviation'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('backstep')
+                if _v is not None:
+                    try:
+                        kw['backstep'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('launch_touch_ticks')
+                if _v is not None:
+                    try:
+                        kw['launch_touch_ticks'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+            elif base == 'zzfib_e2e_trendy':
+                # ✅ ROUND32 — الترندية: نفس معاملات E2E حرفياً + القوالب الترندية
+                # الثلاثة (trend_periods قائمة بأي طول — إضافة ترند رابع = تعديل
+                # القالب بلا أي كود — لا أرقام فترات داخل المنطق).
+                kw = {}
+                if 'length' in params:
+                    kw['length'] = max(2, int(float(params['length'])))
+                if 'reverse' in params:
+                    kw['reverse'] = bool(params['reverse'])
+                lv = params.get('levels', params.get('level_ratios'))
+                if isinstance(lv, (list, tuple)) and lv:
+                    kw['levels'] = [float(x) for x in lv]
+                for k in ('extend_right', 'extend_leg_to_live'):
+                    if k in params:
+                        kw[k] = bool(params[k])
+                if 'mode' in params:
+                    kw['mode'] = str(params['mode']).strip().lower()
+                _v = params.get('depth')
+                if _v is not None:
+                    try:
+                        kw['depth'] = max(2, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('deviation')
+                if _v is not None:
+                    try:
+                        kw['deviation'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('backstep')
+                if _v is not None:
+                    try:
+                        kw['backstep'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('launch_touch_ticks')
+                if _v is not None:
+                    try:
+                        kw['launch_touch_ticks'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('trend_periods', params.get('periods'))
+                if _v is not None:
+                    kw['trend_periods'] = _v
+                if 'trend_confirm' in params:
+                    kw['trend_confirm'] = params['trend_confirm']
+                _v = params.get('trend_gate', params.get('gate'))
+                if _v is not None:
+                    kw['trend_gate'] = _v
+            elif base == 'trend_fractal':
+                # ✅ ROUND32 — مؤشر الترند المستقل: فترات قالبية بأي طول + الإجماع.
+                kw = {}
+                _v = params.get('periods', params.get('trend_periods'))
+                if _v is not None:
+                    kw['periods'] = _v
+                if 'confirm_mode' in params:
+                    kw['confirm_mode'] = params['confirm_mode']
             else:  # trendline
                 kw = {}
                 for k in ('period', 'n', 'fractal_period'):
@@ -178,7 +399,30 @@ class IndicatorCalculator:
             primary = self._OVERLAY_PRIMARY[base]
             sub_used = primary
             if sub:
-                col = self._OVERLAY_SUB_COLUMNS.get(sub.strip().lower())
+                sub_l = sub.strip().lower()
+                col = None
+                # الجولة 12: مستويات zzfib الديناميكية zzfib_level_<L> → ind_zzf_level_<L>
+                if base == 'zzfib':
+                    if sub_l.startswith('zzfib_level_'):
+                        col = 'ind_zzf_level_' + sub_l[len('zzfib_level_'):]
+                    elif sub_l.startswith('zzf_level_'):
+                        col = 'ind_zzf_level_' + sub_l[len('zzf_level_'):]
+                # ✅ ROUND22: مستويات المحرك المنفصل zzfe_level_<L> → ind_zzfe_level_<L>
+                if base == 'zzfib_e2e':
+                    if sub_l.startswith('zzfe_level_'):
+                        col = 'ind_zzfe_level_' + sub_l[len('zzfe_level_'):]
+                    elif sub_l.startswith('zzfib_e2e_level_'):
+                        col = 'ind_zzfe_level_' + sub_l[len('zzfib_e2e_level_'):]
+                # ✅ ROUND32: أي اسم فرعي من عائلة الترندية/الترند يُحل بالقاعدة العامة
+                # (سلسلة zzfet_X/trf_X → عمود ind_zzfet_X/ind_trf_X — يشمل مستويات
+                # zzfet_level_<L> ومرايا الفترات zzfet_tr_p{n}_* وأعمدة trf_p{n}_*).
+                if base in ('zzfib_e2e_trendy', 'trend_fractal'):
+                    if sub_l.startswith('zzfet_') or sub_l.startswith('trf_'):
+                        col = 'ind_' + sub_l
+                    elif base == 'zzfib_e2e_trendy' and sub_l.startswith('zigzag_fib_e2e_trendy_'):
+                        col = 'ind_' + sub_l[len('zigzag_fib_e2e_trendy_'):]
+                if col is None:
+                    col = self._OVERLAY_SUB_COLUMNS.get(sub_l)
                 if col and col != 'primary':
                     sub_used = col
             data = cols.get(sub_used)

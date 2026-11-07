@@ -1,0 +1,278 @@
+{
+ "round": 39,
+ "proof": "additions-only contract completion (reply to frontend R38)",
+ "golden": {
+  "candles": 2000,
+  "time_from": 1793693940000,
+  "time_to": 1793813880000
+ },
+ "summary": {
+  "e2e": {
+   "legs": 9,
+   "pivots": 10,
+   "ranges": 9,
+   "levels_total": 72
+  },
+  "trendy": {
+   "legs": 9,
+   "pivots": 10,
+   "ranges": 9,
+   "levels_total": 72
+  }
+ },
+ "passed": 50,
+ "failed": 0,
+ "duration_sec": 0.6,
+ "checks": [
+  {
+   "name": "zzfib_e2e: المفتاح pivots غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: المفتاح window غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: حقل المستوى display غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: حقل المستوى is_launch غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: المفتاحان موجودان في ج39",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: ج39 − (المفاتيح الجديدة بمواقعها الحصرية) == ج34 حرفياً",
+   "ok": true,
+   "detail": "تطابق كامل بعد الحذف (deep-equal) — لا إزالة/إعادة تسمية/تغيير قيمة واحدة"
+  },
+  {
+   "name": "zzfib_e2e: len(pivots) == len(legs)+1",
+   "ok": true,
+   "detail": "10 محوراً / 9 ساقاً"
+  },
+  {
+   "name": "zzfib_e2e: المحور الأول = بداية أول ساق",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: كل محور k+1 = طرف الساق k (سلسلة متشاركة)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: أزمنة المحاور == أزمنة أطراف الساقات",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: kind المحور = kind ساقته",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: confirmed_at_bar ≥ bar لكل محور",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: الأنواع متناوبة top/bottom",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: كل الأزمنة epoch-ms غير صفرية (إصلاح ج34 قائم)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: الأشرطة تصاعدية بلا تكرار",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: display == round(1−ratio,5) لكل المستويات (72)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: علم واحد بالضبط لكل نطاق غير منحل (9/9)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: قيمة المستوى المعلَّم == launch_line حرفياً",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: المستوى المعلَّم = 0.382 بمقياس المحرك",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: النطاقات المنحلة بلا علم",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: current.levels تحمل display/is_launch كذلك",
+   "ok": true,
+   "detail": "8 مستويات"
+  },
+  {
+   "name": "zzfib_e2e: window.bars == عدد الشموع",
+   "ok": true,
+   "detail": "2000 == 2000"
+  },
+  {
+   "name": "zzfib_e2e: window.time_from == أول شمعة",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e: window.time_to == آخر شمعة",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: المفتاح pivots غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: المفتاح window غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: حقل المستوى display غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: حقل المستوى is_launch غائب في ج34",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: المفتاحان موجودان في ج39",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: ج39 − (المفاتيح الجديدة بمواقعها الحصرية) == ج34 حرفياً",
+   "ok": true,
+   "detail": "تطابق كامل بعد الحذف (deep-equal) — لا إزالة/إعادة تسمية/تغيير قيمة واحدة"
+  },
+  {
+   "name": "zzfib_e2e_trendy: len(pivots) == len(legs)+1",
+   "ok": true,
+   "detail": "10 محوراً / 9 ساقاً"
+  },
+  {
+   "name": "zzfib_e2e_trendy: المحور الأول = بداية أول ساق",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: كل محور k+1 = طرف الساق k (سلسلة متشاركة)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: أزمنة المحاور == أزمنة أطراف الساقات",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: kind المحور = kind ساقته",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: confirmed_at_bar ≥ bar لكل محور",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: الأنواع متناوبة top/bottom",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: كل الأزمنة epoch-ms غير صفرية (إصلاح ج34 قائم)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: الأشرطة تصاعدية بلا تكرار",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: display == round(1−ratio,5) لكل المستويات (72)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: علم واحد بالضبط لكل نطاق غير منحل (9/9)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: قيمة المستوى المعلَّم == launch_line حرفياً",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: المستوى المعلَّم = 0.382 بمقياس المحرك",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: النطاقات المنحلة بلا علم",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: current.levels تحمل display/is_launch كذلك",
+   "ok": true,
+   "detail": "8 مستويات"
+  },
+  {
+   "name": "zzfib_e2e_trendy: window.bars == عدد الشموع",
+   "ok": true,
+   "detail": "2000 == 2000"
+  },
+  {
+   "name": "zzfib_e2e_trendy: window.time_from == أول شمعة",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "zzfib_e2e_trendy: window.time_to == آخر شمعة",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "نفس عدد المحاور بين e2e والترندية",
+   "ok": true,
+   "detail": "10 == 10"
+  },
+  {
+   "name": "المحاور متطابقة قيمةً-بقيمة (زقزاق واحد موحد)",
+   "ok": true,
+   "detail": ""
+  }
+ ]
+}

@@ -1,0 +1,57 @@
+================================================================================
+TEST-TIMEFRAME-UNIT-EVIDENCE.txt — الجولة 13.3 (عقد تبديل الفريم الزمني)
+التاريخ: 2026-11-01 · البيئة: هذا الصندوق (نفس بيئة الجولات 13.0–13.2)
+================================================================================
+
+[U-T1..U-T9 — python3 TEST-TIMEFRAME-UNIT.py · ALL PASS]
+  ✅ U-T7 · رفض 45m   → ValueError صريحة: Unsupported timeframe for backtest:
+                        '45m' — Supported (fixed-width Binance intervals): [...]
+  ✅ U-T8 · رفض 1M    → ValueError صريحة (مطابقة حساسة لحالة الأحرف — الشهرية
+                        لا تسقط إلى الدقيقة؛ عيب lower كُشف بالاختبار وأُصلح)
+  ✅ U-T1 · 1h  BTCUSDT : n=240  · dominant_gap=3600000ms  · grid_gaps=[3600000]
+  ✅ U-T2 · 4h  BTCUSDT : n=120  · dominant_gap=14400000ms · grid_gaps=[14400000]
+  ✅ U-T3 · 15m BTCUSDT : n=288  · dominant_gap=900000ms   · grid_gaps=[900000]
+  ✅ U-T4 · 2h  BTCUSDT : n=48   · dominant_gap=7200000ms  · grid_gaps=[7200000]
+        (كانت 2h تجلب 1h زوراً قبل الإصلاح — الآن شبكة ساعتين فعلاً)
+  ✅ U-T5 · 1w  BTCUSDT : n=12   · dominant_gap=604800000ms
+  ✅ U-T6 · 6h  ETHUSDT : n=20   · dominant_gap=21600000ms (عملة ثانية)
+  ✅ U-T9 · السببية     : last_open+tf_ms <= end_ms (آخر شمعة مغلقة فقط)
+
+  الفريمات المعتمدة (عقد 13.3):
+  ['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','3d','1w']
+
+[VERIFY-TIMEFRAME.sh — سلسلة الباك-تست الكاملة · ALL PASS]
+  PASS-T3 ✅ فريم 45m → status=FAILURE برسالة العقد كاملة:
+          "Unsupported timeframe for backtest: '45m' — Supported (fixed-width
+           Binance intervals): ['1m','3m','5m','15m','30m','1h','2h','4h','6h',
+           '8h','12h','1d','3d','1w']..."
+  PASS-T1 ✅ ZLF 1h (days=45): candles=1080 · dominant_gap=3600000ms ·
+          trades=1 · pnl%=-1.0144162090339885 · fees=0.0 · max_abs_error=0.0
+  PASS-T2 ✅ ZLF 4h (نفس الحمولة، فقط timeframe): candles=270 ·
+          dominant_gap=14400000ms · trades=0 · pnl%=0.0
+          → تبدّل النتائج مؤكد: trades 1→0 · pnl -1.0144→0.0 · شموع 1080→270
+  PASS-T4 ✅ الحفظ الدائم: /backtest/list يعيد السجلين بفريميهما ('1h','4h')
+  PASS-T5 ✅ أعمدة ind_zzf_* = 25 عموداً على فريم 4h (المؤشر حُسب على الشبكة الجديدة)
+
+[EQUIV — إثبات تكافؤ الكود (لا انحدار) · MATCH]
+  EQUIV-TIMEFRAME.py — البطل المرجعي بنافذة مثبتة التواريخ
+  (2026-08-20T00:00Z → 2026-11-01T14:12Z · 1766 شمعة من الكاش — صفر شبكة):
+    OLD code (ما قبل 13.3): trades=2 · pnl%=-6.073121187693978 · 1766 شمعة
+    NEW code (13.3)       : trades=2 · pnl%=-6.073121187693978 · 1766 شمعة
+    diff(old.json, new.json) = فارغ → مطابقة حرفية صفقة-بصفقة
+  الملفات: EQUIV-OLD-CODE.json · EQUIV-NEW-CODE.json
+
+[انحدار البطل المرجعي 13.0 — VERIFY-R13.sh · ALL PASS]
+  trades: 10 | total_pnl_percent: -1.8561111466784315 | fees 0.0 | 1e-9 ✅
+  (ملاحظة تشخيصية: تشغيلة وسيطة أعادت 5 صفقات — السبب حظر Binance 418
+   أثناء الجلب من كاش جديد (2/2 دفعات محظورة → 2800 شمعة بدل ~4800) —
+   مؤكد بسجل الخادم؛ ومع بيانات كاملة يعيد المرجع حرفياً كما أعلاه.)
+
+[انحدار ZLF 13.2 — VERIFY-ZLF.sh · ALL PASS]
+  trades: 34 | total_pnl_percent: 17.05734231007462 | fees 0.0 | 1e-9 ✅
+  Z1..Z6 كلها ناجحة (25 عموداً · إسناد الإشارات · validate)
+
+================================================================================
+الخلاصة: 9/9 وحدة + سلسلة كاملة ALL PASS + بطل مرجعي حرفي + ZLF حرفي +
+تكافؤ كود حرفي — عقد تبديل الفريم الزمني مثبت من أطرافه الأربعة.
+================================================================================

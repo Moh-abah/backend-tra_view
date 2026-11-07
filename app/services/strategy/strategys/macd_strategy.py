@@ -11,7 +11,7 @@ def get_macd_strategy():
         "base_timeframe": "4h",
         "position_side": "both",
         "initial_capital": 10000.0,
-        "commission_rate": 0.001,
+        "commission_rate": 0.0,  # ✅ الجولة 13 (Zero-Fee): بلا عمولات نهائياً
         
         "indicators": [
             {

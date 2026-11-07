@@ -1,0 +1,131 @@
+--- /tmp/zlf_e2e/latest_project/app/services/strategy/presets.py	2026-11-03 19:53:03.623688992 +0000
++++ /home/z/zlf-e2e/latest_project/app/services/strategy/presets.py	2026-11-03 20:03:17.153533749 +0000
+@@ -236,6 +236,108 @@
+ }
+ 
+ 
++# =============================================================================
++# ✅ الجولة 22 (ROUND22) — ZLF-End-To-End — الاستراتيجية الجديدة المنفصلة
++# =============================================================================
++# صاحب القرار: «اكتب نسخة بدون أن تعدل على النظام الحالي — استنسخها في محرك
++# منفصل اسمه ZLF-End-To-End، وإشاراتها تظهر باسم مختلف، وكل شيء حاليا يبقى
++# كما هو — هذه استراتيجية جديدة». هذا القالب يعتمد:
++#   - المؤشر المنفصل: zigzag_fib_e2e (overlays_zlf_e2e.py — ملف مستقل)
++#   - النطاق يُعتمد لحظة ظهور الزقزاق (لا نافذة منزلقة بعدد شموع إطلاقاً)
++#   - R = أكبر حمراء حجماً في ساق النطاق (قمة هي خط الاختراق وحجمها المرجع)
++#   - S1 اختراق∧حجم أكبر · S2 اختراق∧حجم أقل أو مساوٍ · S3 رفض∧حجم أكبر
++#   - الدخول بشمعة الإشارة نفسها (next_open) — لا خطة بديلة (النطاق لا يوجد
++#     قبل ظهور الزقزاق)
++#   - الخروج: انقلاب النطاق إلى هابطة (zzfe_dir < 0) + SL 2% (نفس روح البطل)
++# أسماء الإشارات في decision_reason تحمل «ZLF-E2E» لتمييزها عن محرك ZLF الأصلي.
++ZLF_E2E_TRIPLE_SIGNAL: Dict[str, Any] = {
++    "name": "ZLF-End-To-End — ZigZag Liquidity Fib (Range-anchored) · 3 Entry Signals — ZERO FEE",
++    "timeframe": "1h",
++    "market": "crypto",
++    "symbols": ["BTCUSDT"],
++    "strategy_config": {
++        "name": "ZLF-End-To-End (3 Entry Signals — Range-anchored)",
++        "base_timeframe": "1h",
++        "position_side": "long",
++        "indicators": [
++            {
++                "name": "zigzag_fib_e2e",
++                "type": "support_resistance",
++                "params": {
++                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل (luxalgo length=100):
++                    # تأكيد الزقزاق بعد 100 شمعة = لحظة «ظهور الزقزاق» المتأخرة
++                    # التي بُنيت عليها المواصفة (قمة 15:14 → قاع 15:28 → ظهور 17:08).
++                    "mode": "luxalgo",
++                    "length": 100,
++                    "touch_level": 0.618,
++                },
++                "enabled": True,
++                "timeframe": "1h",
++            }
++        ],
++        "entry_rules": [
++            {
++                "name": "ZLF-E2E S1 · الحالة الأولى: الاختراق الكامل المؤكد (اختراق قمة الحمراء بحجم أكبر)",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e:zzfe_entry_s1",
++                    "right_value": 0,
++                },
++                "position_side": "long",
++                "weight": 0.34,
++                "enabled": True,
++            },
++            {
++                "name": "ZLF-E2E S2 · الحالة الثانية: الاختراق بدون هيمنة الحجم على الحمراء (اختراق القمة وحجم أقل أو مساوٍ) — «ويبرغم عندها لفل حجم سيولتها»",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e:zzfe_entry_s2",
++                    "right_value": 0,
++                },
++                "position_side": "long",
++                "weight": 0.33,
++                "enabled": True,
++            },
++            {
++                "name": "ZLF-E2E S3 · الحالة الثالثة: الامتصاص قبل الاختراق (بلا اختراق للقمة وحجم أكبر)",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e:zzfe_entry_s3",
++                    "right_value": 0,
++                },
++                "position_side": "long",
++                "weight": 0.33,
++                "enabled": True,
++            },
++        ],
++        "exit_rules": [
++            {
++                "name": "ZLF-E2E · تأكيد قمة — انقلاب النطاق إلى هابطة (نطاق جديد قمة→قاع) · افتراضي مؤقت provisional",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": "<",
++                    "left_value": "indicator:zigzag_fib_e2e:zzfe_dir",
++                    "right_value": 0,
++                },
++                "exit_type": "signal_exit",
++                "enabled": True,
++            }
++        ],
++        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
++    },
++    "initial_capital": 10000,
++    "position_sizing": "percentage",
++    "position_size_percent": 1.0,
++    "max_positions": 1,
++    "commission_rate": 0,
++    "slippage_percent": 0,
++    "leverage": 1,
++}
++
++
+ PRESET_NOTES: List[str] = [
+     "position_size_percent عشري بحد أقصى 1.0 = رأس مال كامل (100%) — لا يُرسل كنسبة مئوية (100).",
+     "الشكل الصحيح للدمج المنطقي: {\"type\": \"and\", \"conditions\": [...]} — وليس {\"type\":\"composite\",\"logic\":\"and\"}؛ "
+@@ -308,4 +410,19 @@
+             "payload": ZLF_TRIPLE_SIGNAL,
+             "notes": PRESET_NOTES,
+         },
++        # ✅ الجولة 22 (ROUND22) — الاستراتيجية الجديدة المنفصلة (إضافة — القوالب السابقة كما هي)
++        {
++            "id": "zlf_e2e_triple_signal_zero_fee",
++            "title": "ZLF-End-To-End — ZigZag Liquidity Fib (Range-anchored) · 3 Entry Signals — ZERO FEE",
++            "description": "المحرك المنفصل الجديد (استنساخ بلا مساس بالأصل): النطاق يُعتمد لحظة ظهور الزقزاق "
++                           "ويُرسم الفيبو عليه ويبدأ الحساب من شمعة الظهور (الشموع بين القاع وظهوره مستبعدة)؛ "
++                           "R = أكبر حمراء حجماً في ساق النطاق (قمة = خط الاختراق، حجمها = المرجع)؛ "
++                           "S1 اختراق بحجم أكبر · S2 اختراق بحجم أقل أو مساوٍ («ويبرغم عندها لفل حجم سيولتها») · "
++                           "S3 امتصاص بلا اختراق بحجم أكبر — الدخول بشمعة الإشارة نفسها (next_open)، "
++                           "والخروج بانقلاب النطاق إلى هابطة + SL 2%.",
++            "source": "الجولة 22 — مواصفة صاحب القرار المصادقة (الحالات الثلاث حرفياً + دورة حياة النطاق بلحظة ظهور الزقزاق)",
++            "reference_result": "يُعاد التحقق منه حياً بعد النشر — عقد Zero-Fee/الدقة لم يُلمس",
++            "payload": ZLF_E2E_TRIPLE_SIGNAL,
++            "notes": PRESET_NOTES,
++        },
+     ]

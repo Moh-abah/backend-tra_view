@@ -5,6 +5,8 @@ Mounted at /api/v1/market (see app/main.py).
 
 import json
 import logging
+import time as _time_mod
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -60,19 +62,19 @@ async def _check_redis() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 @router.get(
     "/status",
-    summary="صحة النظام الحقيقية (قاعدة البيانات + Redis)",
+    summary="صحة النظام الحقيقية (قاعدة البيانات — Redis اختياري وأُزيل من الحالة في الجولة 12)",
 )
 async def system_status():
-    """Real system status: probes the database and Redis, degrades if any is down.
+    """Real system status: probes the database, degrades if it is down.
 
     الاستجابة:
-        {"status": "ok"|"degraded", "services": {"database": {...}, "redis": {...}}, "timestamp": ...}
-    استخدمها للتحقق الجانبي قبل الاتصال بالبيانات.
+        {"status": "ok"|"degraded", "services": {"database": {...}}, "timestamp": ...}
+    ✅ الجولة 12: Redis تبعية اختيارية (كاش) — أُزيل من فحص الصحة كي لا يُسقط
+    الحالة إلى degraded زوراً.
     """
     try:
         services = {
             "database": await _check_database(),
-            "redis": await _check_redis(),
         }
         overall = "ok" if all(s["status"] == "up" for s in services.values()) else "degraded"
         return {
@@ -146,6 +148,38 @@ async def get_available_symbols(
 # لا يوجد حد إجمالي على عدد الشموع إطلاقًا (الحجم الأقصى هو حجم الصفحة الواحدة).
 _CANDLE_PAGE_DEFAULT = 2000
 _CANDLE_PAGE_MAX = 5000
+
+
+# ---------------------------------------------------------------------------
+# ✅ الجولة 12: كاش صفحات الشموع داخل العملية — كان التمرير اليسار على 1m
+# يعيد الجلب/الدمج لكل طلب. صفحات التمرير التاريخية (before=<epoch-ms>) غير
+# قابلة للتغيّر (الشموع مغلقة) فتُخدَّم من الذاكرة فوراً؛ أحدث صفحة (before=None)
+# TTL قصير فقط كي تبقى حية.
+# ---------------------------------------------------------------------------
+_CANDLE_PAGE_CACHE_MAX = 96
+_page_cache: "OrderedDict[str, tuple]" = OrderedDict()
+
+
+def _candle_page_cache_get(key: str) -> Optional[Dict[str, Any]]:
+    entry = _page_cache.get(key)
+    if entry is None:
+        return None
+    expires_at, payload = entry
+    if _time_mod.monotonic() > expires_at:
+        _page_cache.pop(key, None)
+        return None
+    _page_cache.move_to_end(key)
+    return payload
+
+
+def _candle_page_cache_put(key: str, payload: Dict[str, Any], ttl: float) -> None:
+    try:
+        _page_cache[key] = (_time_mod.monotonic() + ttl, payload)
+        _page_cache.move_to_end(key)
+        while len(_page_cache) > _CANDLE_PAGE_CACHE_MAX:
+            _page_cache.popitem(last=False)
+    except Exception:  # noqa: BLE001 — الكاش لا يُعطّل الطلب أبداً
+        pass
 
 
 @router.get(
@@ -222,6 +256,13 @@ async def get_candles_paginated(
 
     # طول الشمعة المُجلب بها بالملي ثانية لتحديد نافذة الطلب
     tf_ms = int(_tf_to_minutes(fetch_tf)) * 60 * 1000
+
+    # ✅ الجولة 12: كاش الصفحة — التاريخية 5 دقائق (غير قابلة للتغيّر)، الأحدث 10 ثوانٍ
+    _pc_key = f"{normalized_market}|{symbol}|{fetch_tf}|{timeframe}|{before}|{limit}"
+    _pc_ttl = 300.0 if before is not None else 10.0
+    _cached_page = _candle_page_cache_get(_pc_key)
+    if _cached_page is not None:
+        return dict(_cached_page)
 
     # end = قبل الشمعة المحمّلة الأقدم بفارق شمعة واحدة (لا تكرار ولا فجوات)
     if before is not None:
@@ -344,7 +385,8 @@ async def get_candles_paginated(
         except Exception:  # noqa: BLE001
             resp_market_status = None
 
-    return {
+    # ✅ الجولة 12: بناء الحمولة مرة واحدة → تخزين في الكاش → الإرجاع
+    payload = {
         "symbol": symbol.upper(),
         "market": normalized_market,
         "timeframe": timeframe,
@@ -356,6 +398,8 @@ async def get_candles_paginated(
         "has_more": has_more,
         "next_before": oldest,
     }
+    _candle_page_cache_put(_pc_key, payload, _pc_ttl)
+    return payload
 
 
 # ---------------------------------------------------------------------------

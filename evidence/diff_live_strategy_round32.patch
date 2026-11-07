@@ -1,0 +1,39 @@
+--- /tmp/pristine32/orig/app/routers/live_strategy.py	2026-11-04 19:03:34.636646839 +0000
++++ app/routers/live_strategy.py	2026-11-04 18:56:49.735418021 +0000
+@@ -31,9 +31,11 @@
+ 
+ # ✅ ROUND21 — المعاملات المبيّحة لتجاوز إعدادات zigzag_fib في نقطة الحية
+ # (الافتراضي: قالب البطل دون أي تغيير — التوافق الخلفي كامل)
++# ✅ ROUND32 — مفاتيح قوالب الترند للترندية (تُقبل فقط عند strategy=zigzag_fib_e2e_trendy)
+ _OVERRIDE_QP = {
+     "liq_lookback", "liq_arm_bars", "liq_signals", "liq_sfp_signals",
+     "zz_mode", "zz_depth", "zz_deviation", "zz_backstep", "touch_level",
++    "trend_periods", "trend_confirm", "trend_gate",
+ }
+ # مفاتيح شائعة لإبطال الكاش تُقبل بصمت حتى لا نكسر عملاء يضيفونها
+ _CACHEBUSTERS_QP = {"_", "t", "ts", "v", "cb", "cache", "nocache", "nonce"}
+@@ -60,6 +62,14 @@
+         description="انحراف زقزاق TV بوحدات أعشار المئة (20 = 2.0%)"),
+     zz_backstep: Optional[int] = Query(None, ge=1, le=100, description="backstep زقزاق TV"),
+     touch_level: Optional[float] = Query(None, ge=0.0, le=1.0, description="مستوى لمس الفيبو"),
++    # ✅ ROUND32 — قوالب الترند للترندية (strategy=zigzag_fib_e2e_trendy) — كلها قالبية:
++    # إضافة ترند رابع 30 = تمرير «7,15,25,30» من الواجهة بلا أي كود.
++    trend_periods: Optional[str] = Query(None,
++        description="فترات الترند مفصولة بفواصل — مثل 7,15,25 (أو أضف رابعاً: 7,15,25,30) — للترندية فقط"),
++    trend_confirm: Optional[str] = Query(None,
++        description="صيغة إجماع الفترات: majority | all | any | رقم صريح — للترندية فقط"),
++    trend_gate: Optional[str] = Query(None,
++        description="الإشارات المبوّبة بالترند: s1,s2,s3 أو none للتعطيل — للترندية فقط"),
+ ):
+     """الإشارة الحية الأخيرة فقط — طبقة تقييم فوق محرك الباك تست دون المساس به.
+ 
+@@ -84,6 +94,9 @@
+             "liq_signals": liq_signals, "liq_sfp_signals": liq_sfp_signals,
+             "zz_mode": zz_mode, "zz_depth": zz_depth, "zz_deviation": zz_deviation,
+             "zz_backstep": zz_backstep, "touch_level": touch_level,
++            # ✅ ROUND32: قوالب الترند — تُمرَّر نصاً ويطبّعها/يتحقق منها محرك الخدمة
++            "trend_periods": trend_periods, "trend_confirm": trend_confirm,
++            "trend_gate": trend_gate,
+         }.items() if v is not None
+     }
+     try:

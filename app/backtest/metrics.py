@@ -105,10 +105,9 @@ class PerformanceMetrics:
         current_capital = initial_capital
         
         for trade in sorted_trades:
-            # عند الدخول، يحدث تغيير فوري (نفقات العمولة)
-            entry_pnl = -trade.commission if trade.commission else 0
-            curve.append(curve[-1] + entry_pnl)
-            current_capital += entry_pnl
+            # ✅ الجولة 13 — إبادة العمولة: لا خصم عمولة عند الدخول (كود commission ممسوح)
+            # النقطة الثابتة تحافظ على شكل المنحنى فقط
+            curve.append(curve[-1])
             
             # عند الخروج
             if trade.exit_time and trade.pnl is not None:
@@ -116,7 +115,6 @@ class PerformanceMetrics:
                 # في المحاكاة الحقيقية، الخروج يحدث في بار معين
                 # هنا نعتمد على التسلسل
                 curve.append(curve[-1] + trade.pnl)
-                current_capital += trade.pnl
 
         # التأكد من أن المنحنى تنتهي برأس المال النهائي
         # إذا كان هناك ربح/خسارة لم يتم احتسابه

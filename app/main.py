@@ -15,12 +15,15 @@ from app.config import settings
 from app.database import close_db, init_db
 from app.routers import (
     agent_docs,
+    agent_report,  # ✅ ROUND34: تقرير وكيل الفرونت اند الحي عبر API
     api,
     backtest,
     backtest1,  # ✅ الجولة 11: كان موجوداً في الكود وغير مسجّل — سبب 404 على /backtest1/*
     drawings,
+    exit_strategy,  # ✅ ROUND40: محرك استراتيجية الخروج (Exit-Engine) — /exit-strategy/*
     filtering,
     indicators,
+    live_strategy,  # ✅ الجولة 16: الإشارة الحية للاستراتيجية (عقد ROUND16)
     market_data,
     mtf,
     overlays,  # ✅ الجولة 10: مؤشرات البنية (ZigZag/Fib/Trendline)
@@ -204,6 +207,9 @@ app.include_router(stock_analysis.router, prefix=f"{API_PREFIX}/stocks")
 app.include_router(drawings.router, prefix=f"{API_PREFIX}/chart")  # ✅ الجولة 4: أدوات الرسم
 app.include_router(mtf.router, prefix=f"{API_PREFIX}/mtf")
 app.include_router(overlays.router, prefix=f"{API_PREFIX}/overlays")  # ✅ الجولة 10: ZigZag/Fib/Trendline
+app.include_router(live_strategy.router, prefix=f"{API_PREFIX}/live")  # ✅ الجولة 16: GET /live/strategy/signal
+app.include_router(agent_report.router, prefix=f"{API_PREFIX}/agent")  # ✅ ROUND34: تقرير وكيل الفرونت (GET /agent/report · /agent/report/live · /agent/health)
+app.include_router(exit_strategy.router, prefix=f"{API_PREFIX}/exit-strategy")  # ✅ ROUND40: محرك الخروج (health · defaults · validate · describe · backtest)
 
 
 # ----------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+1a9d5733eb727b69666892921c81e055  app/services/indicators/overlays.py
+726f67d61d6f5f7059cdce57c5975fe5  app/services/indicators/overlay_columns.py
+2e39e08b8c947151038f580095d084a5  app/services/strategy/presets.py
+a34781d7c17058e6445bafe0dd1f6de7  VERIFY-ZLF.sh
+7dde96d00ad112d5821e81b023a2bf8d  test_zlf_unit.py

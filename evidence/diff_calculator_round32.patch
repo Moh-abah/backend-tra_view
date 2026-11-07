@@ -1,0 +1,134 @@
+--- /tmp/pristine32/orig/app/services/indicators/calculator.py	2026-11-04 19:03:34.636646839 +0000
++++ app/services/indicators/calculator.py	2026-11-04 18:55:45.730396857 +0000
+@@ -80,6 +80,9 @@
+         "zigzag_fib": "zzfib", "zzfib": "zzfib",
+         # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد
+         "zigzag_fib_e2e": "zzfib_e2e", "zzfib_e2e": "zzfib_e2e",
++        # ✅ ROUND32: الترندية (استنساخ E2E + بوابة الترند) + مؤشر الترند المستقل
++        "zigzag_fib_e2e_trendy": "zzfib_e2e_trendy", "zzfib_e2e_trendy": "zzfib_e2e_trendy",
++        "trend_fractal": "trend_fractal", "fractal_trendlines": "trend_fractal",
+     }
+     # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
+     _OVERLAY_PRIMARY = {
+@@ -89,6 +92,9 @@
+         "zzfib": "ind_zzf_touch",
+         # ✅ ROUND22: الأساسي للمحرك المنفصل = عمود الدخول الجامع
+         "zzfib_e2e": "ind_zzfe_entry",
++        # ✅ ROUND32: الترندية = عمود الدخول الجامع بعد البوابة · الترند = بوابة الإجماع
++        "zzfib_e2e_trendy": "ind_zzfet_entry",
++        "trend_fractal": "ind_trf_trend_ok",
+     }
+     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
+     _OVERLAY_SUB_COLUMNS = {
+@@ -128,6 +134,32 @@
+         "zzfe_entry": "ind_zzfe_entry", "entry": "ind_zzfe_entry",
+         "zzfe_entry_s1": "ind_zzfe_entry_s1", "zzfe_entry_s2": "ind_zzfe_entry_s2",
+         "zzfe_entry_s3": "ind_zzfe_entry_s3",
++        # ✅ ROUND32 (الترندية) — أعمدة المحرك المعزول الجديد (أسماء جديدة كلياً)
++        "zzfet_dir": "ind_zzfet_dir", "zzfib_e2e_trendy_dir": "ind_zzfet_dir",
++        "zzfet_p1": "ind_zzfet_p1", "zzfet_p2": "ind_zzfet_p2",
++        "zzfet_i1": "ind_zzfet_i1", "zzfet_i2": "ind_zzfet_i2",
++        "zzfet_anchor": "ind_zzfet_anchor", "zzfet_range_index": "ind_zzfet_range_index",
++        "zzfet_liq_state": "ind_zzfet_liq_state", "zzfet_state": "ind_zzfet_liq_state",
++        "zzfet_liq_ref_high": "ind_zzfet_liq_ref_high", "zzfet_ref_high": "ind_zzfet_liq_ref_high",
++        "zzfet_liq_ref_vol": "ind_zzfet_liq_ref_vol", "zzfet_ref_vol": "ind_zzfet_liq_ref_vol",
++        "zzfet_liq_vol_ok": "ind_zzfet_liq_vol_ok", "zzfet_vol_ok": "ind_zzfet_liq_vol_ok",
++        "zzfet_signal_s1": "ind_zzfet_signal_s1", "zzfet_signal_s2": "ind_zzfet_signal_s2",
++        "zzfet_signal_s3": "ind_zzfet_signal_s3", "zzfet_signal_any": "ind_zzfet_signal_any",
++        "zzfet_entry": "ind_zzfet_entry",
++        "zzfet_entry_raw": "ind_zzfet_entry_raw",
++        "zzfet_entry_s1": "ind_zzfet_entry_s1", "zzfet_entry_s2": "ind_zzfet_entry_s2",
++        "zzfet_entry_s3": "ind_zzfet_entry_s3",
++        "zzfet_entry_raw_s1": "ind_zzfet_entry_raw_s1", "zzfet_entry_raw_s2": "ind_zzfet_entry_raw_s2",
++        "zzfet_entry_raw_s3": "ind_zzfet_entry_raw_s3",
++        "zzfet_entry_blocked_s1": "ind_zzfet_entry_blocked_s1", "zzfet_entry_blocked_s2": "ind_zzfet_entry_blocked_s2",
++        "zzfet_entry_blocked_s3": "ind_zzfet_entry_blocked_s3",
++        "zzfet_trend_ok": "ind_zzfet_trend_ok", "zzfet_trend_bias": "ind_zzfet_trend_bias",
++        "zzfet_trend_votes_bull": "ind_zzfet_trend_votes_bull", "zzfet_trend_votes_bear": "ind_zzfet_trend_votes_bear",
++        # ✅ ROUND32 (مؤشر الترند المستقل) — المجاميع والبوابة
++        "trf_trend_ok": "ind_trf_trend_ok", "trf_bias": "ind_trf_bias",
++        "trf_bull_votes": "ind_trf_bull_votes", "trf_bear_votes": "ind_trf_bear_votes",
++        "trf_threshold": "ind_trf_threshold",
++        "trf_cross_upper": "ind_trf_cross_upper", "trf_cross_lower": "ind_trf_cross_lower",
+     }
+ 
+     def _calculate_overlay_indicator(self, dataframe, config):
+@@ -292,6 +324,63 @@
+                         kw['launch_touch_ticks'] = float(_v)
+                     except (TypeError, ValueError):
+                         pass
++            elif base == 'zzfib_e2e_trendy':
++                # ✅ ROUND32 — الترندية: نفس معاملات E2E حرفياً + القوالب الترندية
++                # الثلاثة (trend_periods قائمة بأي طول — إضافة ترند رابع = تعديل
++                # القالب بلا أي كود — لا أرقام فترات داخل المنطق).
++                kw = {}
++                if 'length' in params:
++                    kw['length'] = max(2, int(float(params['length'])))
++                if 'reverse' in params:
++                    kw['reverse'] = bool(params['reverse'])
++                lv = params.get('levels', params.get('level_ratios'))
++                if isinstance(lv, (list, tuple)) and lv:
++                    kw['levels'] = [float(x) for x in lv]
++                for k in ('extend_right', 'extend_leg_to_live'):
++                    if k in params:
++                        kw[k] = bool(params[k])
++                if 'mode' in params:
++                    kw['mode'] = str(params['mode']).strip().lower()
++                _v = params.get('depth')
++                if _v is not None:
++                    try:
++                        kw['depth'] = max(2, int(float(_v)))
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('deviation')
++                if _v is not None:
++                    try:
++                        kw['deviation'] = float(_v)
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('backstep')
++                if _v is not None:
++                    try:
++                        kw['backstep'] = max(1, int(float(_v)))
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('launch_touch_ticks')
++                if _v is not None:
++                    try:
++                        kw['launch_touch_ticks'] = float(_v)
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('trend_periods', params.get('periods'))
++                if _v is not None:
++                    kw['trend_periods'] = _v
++                if 'trend_confirm' in params:
++                    kw['trend_confirm'] = params['trend_confirm']
++                _v = params.get('trend_gate', params.get('gate'))
++                if _v is not None:
++                    kw['trend_gate'] = _v
++            elif base == 'trend_fractal':
++                # ✅ ROUND32 — مؤشر الترند المستقل: فترات قالبية بأي طول + الإجماع.
++                kw = {}
++                _v = params.get('periods', params.get('trend_periods'))
++                if _v is not None:
++                    kw['periods'] = _v
++                if 'confirm_mode' in params:
++                    kw['confirm_mode'] = params['confirm_mode']
+             else:  # trendline
+                 kw = {}
+                 for k in ('period', 'n', 'fractal_period'):
+@@ -324,6 +413,14 @@
+                         col = 'ind_zzfe_level_' + sub_l[len('zzfe_level_'):]
+                     elif sub_l.startswith('zzfib_e2e_level_'):
+                         col = 'ind_zzfe_level_' + sub_l[len('zzfib_e2e_level_'):]
++                # ✅ ROUND32: أي اسم فرعي من عائلة الترندية/الترند يُحل بالقاعدة العامة
++                # (سلسلة zzfet_X/trf_X → عمود ind_zzfet_X/ind_trf_X — يشمل مستويات
++                # zzfet_level_<L> ومرايا الفترات zzfet_tr_p{n}_* وأعمدة trf_p{n}_*).
++                if base in ('zzfib_e2e_trendy', 'trend_fractal'):
++                    if sub_l.startswith('zzfet_') or sub_l.startswith('trf_'):
++                        col = 'ind_' + sub_l
++                    elif base == 'zzfib_e2e_trendy' and sub_l.startswith('zigzag_fib_e2e_trendy_'):
++                        col = 'ind_' + sub_l[len('zigzag_fib_e2e_trendy_'):]
+                 if col is None:
+                     col = self._OVERLAY_SUB_COLUMNS.get(sub_l)
+                 if col and col != 'primary':

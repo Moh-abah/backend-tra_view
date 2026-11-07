@@ -1,0 +1,6 @@
+855e148c6f3f0a7b118cd4022ebceb38  app/backtest/engine1.py
+0c127d29b5fd7bed0037c4f8d52608df  app/backtest/schemas.py
+5e888e5182c40877ade0ca06a859d0fa  app/routers/backtest.py
+4ef8fdde9af93f0de9edc3e1f54ddcc8  app/routers/backtest1.py
+eb3d06742446986e539aed5d9264ecd9  app/routers/strategies1.py
+c53be6cf92885c7f1ba42c3f26498e74  app/services/indicators/overlays.py

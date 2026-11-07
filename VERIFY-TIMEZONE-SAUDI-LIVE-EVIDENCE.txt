@@ -1,0 +1,20 @@
+ℹ️ using official market-data mirror: data-api.binance.vision
+PASS  L1 1d-UTC opens at 00:00Z — n=30 first=2026-10-03T00:00:00+00:00
+PASS  L1 1d-Saudi opens at 21:00Z (00:00 Riyadh) — n=30 first=2026-10-02T21:00:00+00:00
+PASS  L1 1d counts match (±1 window) — utc=30 saudi=30
+PASS  L2 1d-Saudi(provider) == manual-from-1h(offset=180) — provider=30 manual=30
+PASS  L2 1d-UTC(provider) == manual-from-1h(offset=0) — no regression — provider=30 manual=30
+PASS  L2 first Saudi daily candle OHLCV == union of its 24 hourly candles (1e-9) — window=2026-10-02T21:00:00+00:00..2026-10-03T21:00:00+00:00 candles=24
+PASS  L3 4h-Saudi(provider) == manual-from-1h — n=180
+PASS  L3 4h-Saudi boundary rule (open+3h)%4h==0 — first=2026-10-03T09:00:00+00:00 (= 2026-10-03T12:00:00+00:00 Riyadh)
+PASS  L4 1h-UTC == 1h-Saudi (identical frames) — n=732
+PASS  L5 15m-UTC == 15m-Saudi (identical frames) — n=192
+PASS  L6 1M-UTC opens at first-day 00:00Z — n=4 first=2026-07-01T00:00:00+00:00
+PASS  L6 1M-Saudi opens at 21:00Z (Riyadh month start) — n=4 first=2026-06-30T21:00:00+00:00
+PASS  L6 1M month counts equal — utc=4 saudi=4
+PASS  L6b 1M-Saudi(provider) == manual-from-1h(offset=180) — provider=4 manual=4
+PASS  L7 1w(+3h) rejected with clear contract
+PASS  L8 45m-UTC == 45m-Saudi (180%45==0 → identical) — n=64
+
+TOTAL=16 PASS=16 FAIL=0
+ALL-PASS-LIVE

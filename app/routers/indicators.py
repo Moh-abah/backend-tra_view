@@ -3,9 +3,12 @@
 Mounted at /api/v1/indicators (see app/main.py).
 """
 
+import asyncio
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
@@ -111,6 +114,268 @@ async def list_available_indicators(
     except Exception:
         logger.exception("Failed to list available indicators")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post(
+    "/compute",
+    summary="✅ الجولة 12: حساب مؤشرات على شموع رمز وإرجاع أعمدة ind_* جاهزة (كل أعمدة مؤشرات البنية)",
+)
+async def compute_indicators_post(
+    symbol: str = Query("BTCUSDT", min_length=1),
+    timeframe: str = Query("1h"),
+    market: str = Query("crypto"),
+    days: int = Query(30, ge=1, le=3650),
+    limit: int = Query(0, ge=0, le=50000, description="أعِد آخر N شمعة فقط (0 = الكل)"),
+    include_candles: bool = Query(True, description="أدرج عمود time و open/high/low/close/volume في الصفوف"),
+    body: Optional[Dict[str, Any]] = Body(None, description='{"indicators":[...], "candles":[...] اختياري}'),
+    db: AsyncSession = Depends(get_db),
+):
+    """حساب المؤشرات وإرجاع الأعمدة المسطّحة داخل صفوف الشموع.
+
+    - مؤشرات البنية (zigzag/zigzag_channels, fib/auto_fib_retracement,
+      trendline/auto_trendline, zigzag_fib/zzfib) تُعيد **كل أعمدتها التعاقدية**
+      ind_zz_* / ind_fib_* / ind_atl_* / ind_zzf_* داخل كل صف.
+    - المؤشرات الكلاسيكية (rsi, macd, ...) تُعيد عموداً واحداً ind_<name>.
+    - يقبل شموعاً مضمّنة اختيارياً عبر body.candles (بدون الاتصال بمزود).
+    """
+    indicators_payload = []
+    candles_payload = None
+    if isinstance(body, dict):
+        indicators_payload = list(body.get("indicators") or [])
+        candles_payload = body.get("candles")
+    return await _compute_indicators_impl(
+        symbol=symbol, timeframe=timeframe, market=market, days=days,
+        limit=limit, include_candles=include_candles,
+        indicators_config=indicators_payload, candles_payload=candles_payload, db=db,
+    )
+
+
+@router.get(
+    "/compute",
+    summary="✅ الجولة 12: نسخة GET من /compute (indicators كنص JSON في الاستعلام)",
+)
+async def compute_indicators_get(
+    symbol: str = Query("BTCUSDT", min_length=1),
+    timeframe: str = Query("1h"),
+    market: str = Query("crypto"),
+    days: int = Query(30, ge=1, le=3650),
+    limit: int = Query(0, ge=0, le=50000),
+    include_candles: bool = Query(True),
+    indicators: Optional[str] = Query(None, description='JSON list مثل [{"name":"zigzag_fib","params":{"length":100}}]'),
+    db: AsyncSession = Depends(get_db),
+):
+    indicators_payload: List[Dict[str, Any]] = []
+    if indicators:
+        try:
+            parsed = json.loads(indicators)
+            if isinstance(parsed, list):
+                indicators_payload = parsed
+            else:
+                raise HTTPException(status_code=400, detail="indicators must be a JSON list")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="indicators query param is not valid JSON")
+    return await _compute_indicators_impl(
+        symbol=symbol, timeframe=timeframe, market=market, days=days,
+        limit=limit, include_candles=include_candles,
+        indicators_config=indicators_payload, candles_payload=None, db=db,
+    )
+
+
+async def _compute_indicators_impl(
+    symbol: str,
+    timeframe: str,
+    market: str,
+    days: int,
+    limit: int,
+    include_candles: bool,
+    indicators_config: List[Any],
+    candles_payload: Optional[List[Dict[str, Any]]],
+    db: AsyncSession,
+) -> Dict[str, Any]:
+    """التنفيذ المشترك لـ POST/GET /compute — أعمدة ind_* داخل صفوف الشموع.
+
+    ✅ الجولة 13 (بند 3-أ): لا تجاهل صامت إطلاقاً لأي صيغة إدخال:
+    - الصيغة النصية مدعومة رسمياً: ["zigzag_fib"] أو "zigzag_fib" → كائن بلا params.
+    - الكائن العرفي {"name": "...", "params": {...}} كما هو.
+    - أي عنصر آخر (dict بلا name/id/label، أرقام، null...) → 422 برسالة عربية واضحة.
+    """
+    import math as _math
+    import time as _time
+
+    t0 = _time.perf_counter()
+    configs: List[Dict[str, Any]] = []
+    _raw_list = indicators_config
+    if isinstance(_raw_list, str):
+        _raw_list = [_raw_list]
+    for cfg in _raw_list or []:
+        if isinstance(cfg, str):
+            _name = cfg.strip()
+            if not _name:
+                raise HTTPException(status_code=422, detail=(
+                    'صيغة المؤشرات غير صالحة — العنصر النصي فارغ. '
+                    'استخدم [{"name": "...", "params": {...}}] أو ["اسم المؤشر"]'
+                ))
+            # ✅ الجولة 13: الصيغة النصية → كائن بلا params (بدل التجاهل الصامت)
+            configs.append({"name": _name})
+        elif isinstance(cfg, dict):
+            _name = str(cfg.get("name") or cfg.get("id") or cfg.get("label") or "").strip()
+            if not _name:
+                raise HTTPException(status_code=422, detail=(
+                    'صيغة المؤشرات غير صالحة — كل عنصر يجب أن يحتوي "name". '
+                    'استخدم [{"name": "...", "params": {...}}]'
+                ))
+            configs.append(cfg)
+        elif cfg is None:
+            raise HTTPException(status_code=422, detail=(
+                'صيغة المؤشرات غير صالحة — وُجد عنصر null. '
+                'استخدم [{"name": "...", "params": {...}}]'
+            ))
+        else:
+            raise HTTPException(status_code=422, detail=(
+                'صيغة المؤشرات غير صالحة — استخدم [{"name": "...", "params": {...}}] '
+                'أو صيغة نصية مبسطة ["اسم المؤشر"]'
+            ))
+
+    try:
+        from app.services.data_service import clean_dataframe  # type: ignore
+    except Exception:  # noqa: BLE001
+        clean_dataframe = lambda d: d  # type: ignore  # noqa: E731
+
+    from app.services.indicators.overlay_columns import (
+        columns_for_configs,
+        normalize_overlay_name,
+    )
+
+    try:
+        if candles_payload:
+            df = pd.DataFrame(candles_payload)
+        else:
+            data_service = DataService(db)
+            df = await data_service.get_historical(
+                symbol=symbol, timeframe=timeframe, market=market, days=days, use_cache=True,
+            )
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail="No data available")
+        df = clean_dataframe(df)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid symbol, market or timeframe: {e}")
+    except Exception:
+        logger.exception("Failed to fetch candles for compute (%s/%s)", symbol, timeframe)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+    n = len(df)
+
+    # --- فصل تكوينات مؤشرات البنية عن الكلاسيكية ---
+    ovl_cfgs: List[Dict[str, Any]] = []
+    classic_cfgs: List[Dict[str, Any]] = []
+    for cfg in configs:
+        if normalize_overlay_name(str(cfg.get("name", ""))) is not None:
+            ovl_cfgs.append(cfg)
+        else:
+            classic_cfgs.append(cfg)
+
+    # --- أعمدة مؤشرات البنية (كل الأعمدة التعاقدية دفعة واحدة) ---
+    ovl_cols: Dict[str, List[Any]] = {}
+    if ovl_cfgs:
+        try:
+            ovl_cols = columns_for_configs(df, ovl_cfgs) or {}
+        except Exception:
+            logger.exception("compute: overlay columns failed")
+            ovl_cols = {}
+
+    # --- المؤشرات الكلاسيكية: عمود واحد ind_<name> لكل مؤشر ---
+    classic_cols: Dict[str, List[Any]] = {}
+    if classic_cfgs:
+        try:
+            from app.services.indicators.calculator import IndicatorCalculator
+
+            def _apply() -> Dict[str, Any]:
+                return IndicatorCalculator().apply_indicators(
+                    dataframe=df, indicators_config=classic_cfgs, use_cache=False,
+                )
+
+            results = await asyncio.to_thread(_apply)
+            for cfg in classic_cfgs:
+                key = cfg.get("id") or cfg.get("label") or cfg.get("name")
+                res = results.get(key)
+                if not isinstance(res, dict):
+                    continue
+                vals = (res.get("values") or {}).get("data")
+                if not isinstance(vals, list):
+                    continue
+                col_name = f"ind_{cfg.get('name')}"
+                if len(vals) < n:
+                    vals = vals + [None] * (n - len(vals))
+                classic_cols[col_name] = vals[:n]
+        except Exception:
+            logger.exception("compute: classic indicators failed")
+
+    # --- بناء الصفوف ---
+    def _safe(v: Any) -> Any:
+        if v is None:
+            return None
+        if isinstance(v, float) and _math.isnan(v):
+            return None
+        if isinstance(v, (bool, str)):
+            return v
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return None if _math.isnan(f) or _math.isinf(f) else f
+
+    times: List[Any] = list(range(n))
+    if "time" in df.columns:
+        times = [x for x in df["time"].tolist()]
+    elif isinstance(df.index, pd.DatetimeIndex):
+        times = [int(ts.timestamp() * 1000) for ts in df.index]
+
+    merged_cols: Dict[str, List[Any]] = {}
+    merged_cols.update(ovl_cols)
+    merged_cols.update(classic_cols)
+
+    rows: List[Dict[str, Any]] = []
+    for i in range(n):
+        row: Dict[str, Any] = {}
+        if include_candles:
+            row["time"] = times[i] if i < len(times) else None
+            for col in ("open", "high", "low", "close", "volume"):
+                if col in df.columns:
+                    row[col] = _safe(df[col].iloc[i])
+        for col_name, vals in merged_cols.items():
+            row[col_name] = _safe(vals[i]) if i < len(vals) else None
+        rows.append(row)
+
+    if limit and limit > 0 and len(rows) > limit:
+        rows = rows[-limit:]
+
+    columns = list(rows[0].keys()) if rows else (
+        (["time", "open", "high", "low", "close", "volume"] if include_candles else [])
+        + sorted(merged_cols.keys())
+    )
+
+    compute_ms = round((_time.perf_counter() - t0) * 1000.0, 1)
+    return {
+        "symbol": str(symbol).upper(),
+        "timeframe": timeframe,
+        "market": market,
+        "bars": n,
+        "count": len(rows),
+        "columns": columns,
+        "data": rows,
+        "metadata": {
+            "rows": n,
+            "indicators_requested": [str(c.get("name")) for c in configs],
+            "overlay_columns": sorted(ovl_cols.keys()),
+            "classic_columns": sorted(classic_cols.keys()),
+            "compute_ms": compute_ms,
+            "note": "أعمدة مؤشرات البنية التعاقدية ind_zz_* / ind_fib_* / ind_atl_* / ind_zzf_* مدرجة داخل كل صف",
+        },
+    }
 
 
 @router.post(

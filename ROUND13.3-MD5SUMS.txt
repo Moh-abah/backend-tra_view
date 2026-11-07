@@ -1,0 +1,6 @@
+29a9ee28fd7bb3e801b037e876ce0e2f  app/providers/binance_provider.py
+8c670feee8e7b408ac71936cfa5e94d7  app/backtest/engine1.py
+ea37d88c23ac7c87f5ba585264afda60  TEST-TIMEFRAME-UNIT.py
+7b7f3747eab5616d6e7b0c32b954d2bc  VERIFY-TIMEFRAME.sh
+f3874dd11ff844839dd3cd88cde14405  EQUIV-TIMEFRAME.py
+ae4c3fcc25c055e7e523a2e73a373c36  TEST-TIMEFRAME-UNIT-EVIDENCE.txt

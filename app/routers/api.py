@@ -48,11 +48,15 @@ async def _check_redis() -> Dict[str, Any]:
 
 
 async def _system_status_payload() -> Dict[str, Any]:
-    """Build the status payload from real probes; degrades, never raises."""
+    """Build the status payload from real probes; degrades, never raises.
+
+    ✅ الجولة 12: أُزيل Redis من فحص الصحة — كان يُسقط الحالة إلى degraded
+    بينما هو تبعية اختيارية فقط (كاش DataService + Celery، والنظام يعمل بدونه
+    عبر الكاش القرصي) — لذلك لم يعد مؤثراً على الحالة ولا يظهر ضمن الخدمات.
+    """
     try:
         services = {
             "database": await _check_database(),
-            "redis": await _check_redis(),
         }
         overall = "ok" if all(s["status"] == "up" for s in services.values()) else "degraded"
         return {
@@ -66,7 +70,6 @@ async def _system_status_payload() -> Dict[str, Any]:
             "status": "degraded",
             "services": {
                 "database": {"status": "down", "detail": "Check crashed"},
-                "redis": {"status": "down", "detail": "Check crashed"},
             },
             "timestamp": datetime.utcnow().isoformat(),
         }
@@ -102,7 +105,7 @@ async def get_available_symbols(
 
 @router.get("/status")
 async def system_status():
-    """Real system status: probes the database and Redis, degrades if any is down."""
+    """Real system status: probes the database (Redis اختياري — أُزيل من الحالة في الجولة 12)."""
     return await _system_status_payload()
 
 

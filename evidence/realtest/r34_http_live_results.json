@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "round": 34,
+    "spec": "ROUND34-zigzag-core-unified",
+    "local_server": "http://127.0.0.1:8000 (uvicorn app.main:app — نفس تبعيات الإنتاج)",
+    "executed_at": "2026-11-05",
+    "note": "الأدلة الحية للجولة 34 — كل الأرقام مقاسة من تشغيل فعلي على كود ج34"
+  },
+  "health": {
+    "endpoint": "/api/v1/overlays/health",
+    "round": 34,
+    "round_note_prefix": "ROUND34: توحيد المحرك (أمر صاحب القرار — محرك زقزاق واحد ومحرك فيبو واحد للثلاث استراتيجيات)"
+  },
+  "compute_trend_fractal": {
+    "symbol": "BTCUSDT", "timeframe": "1m", "days": 1,
+    "spec": "ROUND34-zigzag-core-unified",
+    "lines_total": 170, "zero_t1_count": 0, "ms": 530
+  },
+  "backtest_week": {
+    "config": "BTCUSDT 5m · أسبوع 2026-10-24 07:45 → 2026-10-31 07:40 (نافذة مطابقة لظروف بلاغ صاحب القرار) · قالب ZLF-E2E luxalgo/100",
+    "bars": 2016,
+    "chart_data_overlays": "zzfib_e2e,trend_fractal",
+    "zero_time_coords": "0 من 902 (كانت كلها صفرية قبل الإصلاح)",
+    "ranges": {"count": 18, "with_ref": 18},
+    "section_signals": {"total": 54, "liquidity": 27, "entry_mirrors": 27,
+                        "columns_match_section": "27/27 = 100%"},
+    "causality_next_open": "12/12",
+    "types_in_response": ["zzfib_e2e", "trend_fractal"]
+  },
+  "backtest_main_8d": {
+    "config": "BTCUSDT 5m · days=8",
+    "ranges": {"count": 16, "with_ref": 16},
+    "section_signals_total": 58,
+    "note": "قبل إصلاح الحجم كانت ranges بلا مرجع والإشارات صفراً"
+  }
+}

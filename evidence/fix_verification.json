@@ -1,0 +1,33 @@
+{
+  "round": 34,
+  "spec": "ROUND34-zigzag-core-unified",
+  "root_causes_fixed": [
+    {"id": "R1", "title": "أزمنة رسم الباك تست صفرية",
+     "cause": "محوّل الزمن _ts القديم في overlays_zlf_e2e.py وoverlays_zlf_e2e_trendy.py وtrend_fractals.py يعيد 0 على صيغة ISO (float() يرمي ValueError) — الإصدار المصحح في overlays.py من ج30 لم يكن مشتركاً",
+     "fix": "النواة الموحدة zigzag_core.py — نسخة ج30 تصبح المصدر الوحيد",
+     "proof": "A/B نفس-البيانات: 2696 إحداثية زمنية 0→صحيح · صفر فروق قيم · 0/902 أصفار حياً بعد الإصلاح"},
+    {"id": "R2", "title": "الحجم لا يمرر لقسم الرسم في الباك تست",
+     "cause": "backtest.py يبني ovl_candles بلا volume — المرجع R (أكبر حمراء حجماً) يبقى None والإشارات صفر",
+     "fix": "تمرير volume — وراثة عقد ج28 من الحي",
+     "proof": "16/16 نطاقاً بمرجع · 58 إشارة قسم (كانت 0) · 27/27 مطابقة مع الأعمدة"},
+    {"id": "R3", "title": "4 نسخ مكررة للمحرك",
+     "cause": "_zigzag_tv_engine والمساعدات منسوخة نصياً في 3 ملفات — باب انحراف دائم بين الحي والباك تست",
+     "fix": "zigzag_core.py — أغلفة بنفس التوقيع في الملفات الأربعة",
+     "proof": "A/B: تطابق حرفي كامل + 40/40 رسمي"}
+  ],
+  "verification_matrix": {
+    "ab_same_candles": {"bars": 2304, "value_diffs": 0, "len_diffs": 0, "type_diffs": 0, "times_fixed": 2696,
+                        "layers": {"zzfib_tv": 0, "zzfib_e2e": 307, "zzfib_e2e_trendy": 1348, "trend_fractal": 1041, "fib": 0}},
+    "verify_suite": {"checks": 40, "passed": 40, "golden": "evidence/golden_round34.json",
+                     "note": "اللقطات على كود ج34 — الفرق الوحيد عن لقطة ما قبل ج32 هو الوسم التوثيقي (هاش مثبت)"},
+    "causality_next_open": {"passed": 12, "total": 12},
+    "binance_independent_check": [
+      {"signal": "S1 @ 2026-10-25T14:50:00Z", "match": true, "columns_match": true,
+       "ref": "vol=29.17121 high=80470.34 @ 13:00", "conditions": "green∧breakout∧vol_dom∧launch_ok∧dominance"},
+      {"signal": "S2 @ 2026-10-29T14:10:00Z", "match": true, "columns_match": true,
+       "ref": "vol=102.57487 high=80141.71 @ 13:35", "conditions": "green∧breakout∧(حجم أقل)∧launch_ok∧dominance"}
+    ],
+    "p25_lower": {"anchors_match_real_lows": "y1=80256.0=low@422 · y2=79952.0=low@358 (بيت-ببايت)",
+                  "verdict": "سلوك وفاء Pine — امتداد أيمن بعد الكسر حتى فراكتال جديد — ليس خللاً"}
+  }
+}

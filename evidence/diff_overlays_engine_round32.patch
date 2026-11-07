@@ -1,0 +1,48 @@
+--- /tmp/pristine32/orig/app/services/indicators/overlays.py	2026-11-04 19:03:34.635646839 +0000
++++ app/services/indicators/overlays.py	2026-11-04 18:54:48.416371639 +0000
+@@ -1604,7 +1604,12 @@
+ # الموزّع الموحد — نقطة الدخل للمسارات والاستراتيجيات
+ # ===========================================================================
+ OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib",
+-                 "zzfib_e2e")  # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد (إضافة تسجيل فقط — لا تغيير على الأربعة الأصليين)
++                 "zzfib_e2e",  # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد (إضافة تسجيل فقط — لا تغيير على الأربعة الأصليين)
++                 # ✅ ROUND32: «الزقزاق البطل e2e الترنديه» — الاستنساخ المعزول ببوابة الترند
++                 # + مؤشر الترند المستقل (فراكتالات Pine Auto Trendline — يرسل إحداثياته
++                 # للباك اند ويحسب محرك الاستراتيجية الإشارة منها) — إضافة تسجيل فقط.
++                 "zzfib_e2e_trendy",
++                 "trend_fractal")
+ 
+ 
+ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+@@ -1641,6 +1646,14 @@
+         "zzfib_e2e": {"length", "reverse", "levels", "extend_right",
+                       "extend_leg_to_live", "mode", "depth", "deviation",
+                       "backstep", "launch_touch_ticks"},
++        # ✅ ROUND32: الترندية — نفس معاملات E2E + قوالب الترند الثلاثة
++        # (الفترات/الإجماع/الأنواع المبوّبة — كلها قالبية بلا أرقام داخل الكود).
++        "zzfib_e2e_trendy": {"length", "reverse", "levels", "extend_right",
++                             "extend_leg_to_live", "mode", "depth", "deviation",
++                             "backstep", "launch_touch_ticks",
++                             "trend_periods", "trend_confirm", "trend_gate"},
++        # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
++        "trend_fractal": {"periods", "confirm_mode"},
+         "zigzag": {"length", "extend_right"},
+         "trendline": {"period", "max_pairs"},
+     }
+@@ -1696,5 +1709,16 @@
+         from app.services.indicators.overlays_zlf_e2e import zigzag_fib_e2e
+         e2e_params = _normalize_overlay_params("zzfib_e2e", params.get("zzfib_e2e") or {})
+         out["overlays"]["zzfib_e2e"] = zigzag_fib_e2e(candles, **e2e_params)
++    if "zzfib_e2e_trendy" in wanted:
++        # ✅ ROUND32: «الزقزاق البطل e2e الترنديه» — استدعاء مؤجل للاستنساخ
++        # المعزول (E2E حرفياً + بوابة الترند القالبية) — بلا أي مساس بالأصل.
++        from app.services.indicators.overlays_zlf_e2e_trendy import zigzag_fib_e2e_trendy
++        trendy_params = _normalize_overlay_params("zzfib_e2e_trendy", params.get("zzfib_e2e_trendy") or {})
++        out["overlays"]["zzfib_e2e_trendy"] = zigzag_fib_e2e_trendy(candles, **trendy_params)
++    if "trend_fractal" in wanted:
++        # ✅ ROUND32: مؤشر الترند المستقل — إحداثيات الخطوط وسلاسلها (Pine حرفياً).
++        from app.services.indicators.trend_fractals import auto_trendlines_fractal
++        trf_params = _normalize_overlay_params("trend_fractal", params.get("trend_fractal") or {})
++        out["overlays"]["trend_fractal"] = auto_trendlines_fractal(candles, **trf_params)
+ 
+     return out

@@ -1,0 +1,6 @@
+# ROUND 13.1 (ZLF) — MD5SUMS — 2026-11-01
+762eefe5f58c4c434c99a907429f27a5  app/services/indicators/overlays.py
+f25603a8fc33f77334f0da3595e2f956  app/services/indicators/overlay_columns.py
+19ee19ab26329babcfadd160c1135ebf  app/services/strategy/presets.py
+991239b5cdecc04e2387816bbd5b6214  VERIFY-ZLF.sh
+03df326d557e804f1ba2898ae609ab19  test_zlf_unit.py

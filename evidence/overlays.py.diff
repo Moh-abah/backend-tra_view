@@ -1,0 +1,37 @@
+--- /tmp/zlf_e2e/latest_project/app/services/indicators/overlays.py	2026-11-03 19:53:03.620688973 +0000
++++ /home/z/zlf-e2e/latest_project/app/services/indicators/overlays.py	2026-11-03 20:01:26.775853316 +0000
+@@ -1577,7 +1577,8 @@
+ # ===========================================================================
+ # الموزّع الموحد — نقطة الدخل للمسارات والاستراتيجيات
+ # ===========================================================================
+-OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib")
++OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib",
++                 "zzfib_e2e")  # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد (إضافة تسجيل فقط — لا تغيير على الأربعة الأصليين)
+ 
+ 
+ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+@@ -1608,6 +1609,12 @@
+                   "extend_leg_to_live", "touch_level", "level_ratios",
+                   "liq_lookback", "liq_signals", "liq_arm_bars", "liq_sfp_signals",
+                   "mode", "depth", "deviation", "backstep"},
++        # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل (نفس معاملات الزقزاق
++        # + launch_touch_ticks؛ لا liq_* — النطاق يعتمد لحظة ظهور الزقزاق
++        # ونافذة الحساب = عمر النطاق، لا نافذة منزلقة بعدد شموع).
++        "zzfib_e2e": {"length", "reverse", "levels", "extend_right",
++                      "extend_leg_to_live", "mode", "depth", "deviation",
++                      "backstep", "launch_touch_ticks"},
+         "zigzag": {"length", "extend_right"},
+         "trendline": {"period", "max_pairs"},
+     }
+@@ -1657,5 +1664,11 @@
+     if "zzfib" in wanted:
+         zzf_params = _normalize_overlay_params("zzfib", params.get("zzfib") or {})
+         out["overlays"]["zzfib"] = zigzag_fib(candles, **zzf_params)
++    if "zzfib_e2e" in wanted:
++        # ✅ ROUND22: ZLF-End-To-End — استدعاء مؤجل للملف المنفصل
++        # (استنساخ مستقل — لا يعتمد على هذا الملف ولا يعدّل عليه).
++        from app.services.indicators.overlays_zlf_e2e import zigzag_fib_e2e
++        e2e_params = _normalize_overlay_params("zzfib_e2e", params.get("zzfib_e2e") or {})
++        out["overlays"]["zzfib_e2e"] = zigzag_fib_e2e(candles, **e2e_params)
+ 
+     return out

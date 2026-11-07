@@ -1,0 +1,112 @@
+{
+ "meta": {
+  "base": "http://127.0.0.1:8001",
+  "note": "محلي على الكود المصحح ج33 — compute + live"
+ },
+ "http": [
+  {
+   "test": "compute_both",
+   "ms": 632.2,
+   "error": null,
+   "trf_spec": "ROUND33-dojiemoji-fidelity",
+   "trf_events": {
+    "p7": {
+     "pivot_highs": 52,
+     "pivot_lows": 49,
+     "upper_lines": 51,
+     "lower_lines": 48,
+     "cross_upper": 68,
+     "cross_lower": 78
+    },
+    "p15": {
+     "pivot_highs": 23,
+     "pivot_lows": 26,
+     "upper_lines": 22,
+     "lower_lines": 25,
+     "cross_upper": 35,
+     "cross_lower": 44
+    },
+    "p25": {
+     "pivot_highs": 18,
+     "pivot_lows": 15,
+     "upper_lines": 17,
+     "lower_lines": 14,
+     "cross_upper": 26,
+     "cross_lower": 52
+    }
+   },
+   "summary": null
+  },
+  {
+   "test": "live_signal",
+   "ms": 1635.8,
+   "error": null,
+   "raw_keys": [
+    "success",
+    "data"
+   ],
+   "state": "invalidated",
+   "signal": null,
+   "engine": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+   "params_applied": {
+    "zz_mode": "luxalgo",
+    "length": 100,
+    "touch_level": 0.618,
+    "trend_periods": [
+     7,
+     15,
+     25
+    ],
+    "trend_confirm": "majority",
+    "trend_gate": [
+     "s1",
+     "s2",
+     "s3"
+    ]
+   },
+   "full": {
+    "symbol": "BTCUSDT",
+    "market": "crypto",
+    "timeframe": "1m",
+    "strategy": "zlf_e2e_trendy",
+    "has_signal": false,
+    "state": "invalidated",
+    "signal": null,
+    "invalidated_by": "Exit Signal: Exit Condition: ZLF-E2E-Trendy · تأكيد قمة — انقلاب النطاق إلى هابطة (نطاق جديد قمة→قاع) · افتراضي مؤقت provisional",
+    "updated_at": 1793872324234,
+    "meta": {
+     "window": {
+      "closed_candles": 2000,
+      "first_open": 1793752320000,
+      "last_closed_open": 1793872260000,
+      "live_candle_open": 1793872320000,
+      "live_candle_open_price": 80375.88
+     },
+     "fill_model": "next_open",
+     "risk": {
+      "stop_loss_percent": 2.0,
+      "take_profit_percent": 99.0
+     },
+     "engine": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+     "params_applied": {
+      "zz_mode": "luxalgo",
+      "length": 100,
+      "touch_level": 0.618,
+      "trend_periods": [
+       7,
+       15,
+       25
+      ],
+      "trend_confirm": "majority",
+      "trend_gate": [
+       "s1",
+       "s2",
+       "s3"
+      ]
+     },
+     "evaluation_ms": 1632.2
+    }
+   }
+  }
+ ]
+}

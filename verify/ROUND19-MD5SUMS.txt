@@ -1,0 +1,13 @@
+f4b02ba69a436ce204d7fcafcaae317b  app/services/indicators/overlays.py
+67d8bae678e97c3f304c8dd1dc7c9513  app/services/indicators/calculator.py
+311f3442ef6c1e3087cf44e4bde6b367  app/services/indicators/overlay_adapters.py
+a9d5f0b15c2eb4c3d1444d3480f49ad0  app/services/indicators/overlay_columns.py
+d82ace9764f173567a8ab0d119883c67  app/services/strategy/presets.py
+16c9529bf9a73222382fec68d2754840  app/routers/overlays.py
+a8ceef31d34358d346a79c4511410eb9  app/routers/backtest.py
+972299481496b34343c52d580926785b  verify/ROUND19-BRIDGE-PROOF.py
+d18375b2020eeefeba4de831d5dc2005  verify/ROUND19-DIAGNOSIS.py
+bc55a61261cefa224b1a909ebb797ada  verify/ROUND19-HTTP-PROOF.py
+9bb52b95496c125357f178b145e4d165  verify/ROUND19-LIVE-PROOF.py
+7d7a50553549a4b15f8fdfd4de7324ac  verify/ROUND19-PROPERTIES-PROOF.py
+85bd6e3e036ee8d6cc8e8caaf7220535  verify/ROUND19-CONTRACT-AR.md

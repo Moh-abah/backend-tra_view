@@ -510,22 +510,48 @@ async def run_strategy_on_data(
 
         decisions = []
         
-     
-        for i in range(len(dataframe)):
+
+        # ✅ الجولة 12.1 (إصلاح جذري A9): النافذة المتنامية كانت تفسد المؤشرات.
+        # كان النداء السابق: لكل شمعة run(dataframe.iloc[:i+1]) — وprepare_indicators
+        # تخزّن أول نافذة (50 شمعة) في full_data ثم كل نافذة أطول تُختصر إليها
+        # (return self.full_data.iloc[:len(data)]) فتُحسب القرارات كلها على بيانات
+        # قديمة مقتطعة → مؤشرات البنية (zz_pivot_low...) خاطئة → صفر إشارة دائماً.
+        # الصحيح: تحضير المؤشرات **مرة واحدة على التاريخ كاملاً** ثم تقييم كل شمعة
+        # على المصفوفة الكاملة (نفس ما يفعله محرك الباك-تست بالضبط).
+        full_calculated = await strategy_engine._prepare_indicators(dataframe)
+        strategy_engine.full_data = full_calculated
+        strategy_engine.current_data_frame = full_calculated
+
+        for i in range(len(full_calculated)):
             # مراعاة الحد الأدنى للبيانات لحساب المؤشرات
-            if i < 50: continue 
+            if i < 50:
+                continue
 
 
-            current_context = dataframe.iloc[:i+1]
-            
             try:
-                # طلب القرار من المحرك
-                decision = await strategy_engine.run(current_context, in_position=True)  # معاينة: قيّم الخروج والدخول معاً
+                # تقييم القرار عند الشمعة i على البيانات الكاملة (نفس منطق run()
+                # الداخلي: الخروج أولاً إن وُجد مركز ثم الاتجاه/الدخول)
+                idx = i
+                exit_reason = strategy_engine._check_exit_conditions(full_calculated, idx)
+                if exit_reason:
+                    decision = Decision(
+                        timestamp=full_calculated.index[idx],
+                        action=DecisionAction.HOLD,
+                        confidence=1.0,
+                        reason=f"Exit Condition: {exit_reason}",
+                        metadata={"trigger": "exit_rule"},
+                    )
+                else:
+                    decision = strategy_engine._determine_trend(full_calculated, idx)
+
                 ts = decision.timestamp
                 if isinstance(ts, int):
                     ts = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
                 elif not isinstance(ts, datetime):
-                    ts = datetime.now(timezone.utc)
+                    try:
+                        ts = full_calculated.index[idx].to_pydatetime()
+                    except Exception:  # noqa: BLE001
+                        ts = datetime.now(timezone.utc)
 
                 decisions.append({
                     "timestamp": ts.isoformat(),
@@ -539,7 +565,7 @@ async def run_strategy_on_data(
                 logger.warning(f"فشل في اتخاذ قرار في الشمعة {i}: {inner_e}")
                 # إضافة قرار افتراضي لحفظ تسلسل الوقت
                 decisions.append({
-                    "timestamp": dataframe.index[i].isoformat(),
+                    "timestamp": full_calculated.index[i].isoformat(),
                     "action": "HOLD",
                     "confidence": 0.0,
                     "reason": "Error",
@@ -548,7 +574,10 @@ async def run_strategy_on_data(
 
         # 4. تجهيز الرد
         # سنقوم بفلترة النتائج لإرجاع فقط الإشارات المهمة (BUY/SELL) لتسهيل القراءة
-        active_decisions = [d for d in decisions if d['action'] in ['BUY', 'SELL']]
+        # ✅ الجولة 12.1 (إصلاح A10): DecisionAction.value = 'buy'/'sell' (صغيرة)
+        # — كانت الفلترة تقارن مع 'BUY'/'SELL' (كبيرة) فكان active_decisions_count
+        # صفراً حتى مع وجود إشارات فعلاً. نطابق الطرفين باحترام الحالة.
+        active_decisions = [d for d in decisions if str(d['action']).upper() in ('BUY', 'SELL')]
 
         logger.info(f"[{request_id}] اكتمل التنفيذ، تم توليد {len(decisions)} قرار، منها {len(active_decisions)} نشط")
         
@@ -617,6 +646,23 @@ async def validate_strategy_config_api(
             "message": "Validation failed",
             "errors": str(e)
         }
+
+@router.get("/presets")
+async def get_official_strategy_presets_v1():
+    """✅ الجولة 12: القوالب الرسمية (مرادف /api/v1/strategies/presets).
+
+    استراتيجية البطل ZigZag HL v2 — ZERO FEE بحمولة كاملة جاهزة لـ
+    POST /api/v1/backtest/run مع الملاحظات التعاقدية.
+    """
+    try:
+        from app.services.strategy.presets import get_presets
+
+        presets = get_presets()
+        return {"success": True, "count": len(presets), "presets": presets}
+    except Exception:
+        logger.exception("Failed to build strategy presets")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.post("/save")
 async def save_strategy_api(

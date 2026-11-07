@@ -1,0 +1,9 @@
+status: COMPLETED | trades: 34 | pnl%: 17.05734231007462
+decision_reason distribution: {'S1': 14, 'S2': 13, 'S3': 7}
+fees_applied: 0.0 | fill_model: next_open
+math_audit: max_abs_error = 0.0 | consistent = True
+
+نماذج decision_reason:
+  S1 → S1 · الحالة الأولى: اختراق قمة الحمراء بحجم أكبر (Breakout + Higher Volume)
+  S2 → S2 · الحالة الثانية: اختراق قمة الحمراء بحجم أقل (Breakout + Lower Volume) — «ويبرغم عندها لفل حجم سيولتها»
+  S3 → S3 · الحالة الثالثة: رفض بلا اختراق بحجم أكبر (No Break + Higher Volume)

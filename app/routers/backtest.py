@@ -36,6 +36,43 @@ from app.tasks.backtest_tasks import run_backtest_task
 router = APIRouter(tags=["backtest"])
 logger = logging.getLogger(__name__)
 
+
+# ===========================================================================
+# ✅ ROUND30 — جعل الفيبو يصل افتراضياً في بيانات رسم الباك تست
+# ---------------------------------------------------------------------------
+# الجذور المثبتة لعدم رسم الفيبو في شارت الباك تست (كلها من طرف الباكند):
+# 1) طبقات الفيبو (zzfib/fib/zzfib_e2e) لا تُحسب إلا إذا مرر العميل overlays=...
+#    — وغيابها يعني استجابة بلا قسم overlays إطلاقاً.
+# 2) تقرير الجولة 22 وجّه الواجهة لمسار خاطئ (/visual — غير موجود، 404 مثبت)
+#    والمسار الصحيح /{id}/chart-data — فبقي الطلب بلا طبقات.
+# 3) محول الزمن _ts في overlays.py كان يفشل على سلسلة ISO
+#    ("2026-10-21T16:30:00Z") فيعود 0 — فتصبح كل أزمنة الطبقة (t1/t2/t_from/t_to)
+#    صفرية حتى لو حُسبت الطبقات — لا يمكن رسمها على محور الزمن.
+# هنا نحل (1): الافتراضي يحسب الطبقات البنيوية الثلاث ما لم يمرر العميل قيمة
+# صريحة أو يعطلها بـ overlays=none، وبسقف شموع آمن يمنع تضخم الاستجابة.
+# (2) صُحح في FRONTEND-BRIEF-FIB-BACKTEST-AR.md و(3) في overlays.py نفسه.
+# ===========================================================================
+_OVERLAYS_DEFAULT = "zzfib,fib,zzfib_e2e"
+_OVERLAYS_DEFAULT_MAX_BARS = 50000
+_OVERLAYS_OFF_TOKENS = ("none", "off", "false", "0")
+
+
+def _resolve_overlays_request(overlays: Any, raw_len: int) -> Optional[str]:
+    """يعيد سلسلة الأنواع الفعالة لطبقات overlays أو None لتعطيلها.
+
+    - str صالحة → تُحترم حرفياً (نفس عقد الجولة 10)؛ "none/off/false/0" → None.
+    - غياب (None أو FieldInfo من الاستدعاء المباشر — جولة 12.1) → الافتراضي
+      _OVERLAYS_DEFAULT إذا raw_len ≤ _OVERLAYS_DEFAULT_MAX_BARS وإلا None
+      (حماية من تضخم الاستجابة على حمولات السنوات؛ تُمرر صراحة وقتها).
+    """
+    if isinstance(overlays, str):
+        s = overlays.strip()
+        if s:
+            return None if s.lower() in _OVERLAYS_OFF_TOKENS else s
+    if raw_len and raw_len <= _OVERLAYS_DEFAULT_MAX_BARS:
+        return _OVERLAYS_DEFAULT
+    return None
+
 # ---------------------------------------------------------------------------
 # In-process fallback registry (when Celery/Redis broker is unavailable).
 #
@@ -46,6 +83,16 @@ logger = logging.getLogger(__name__)
 # with the exact same response contract ({task_id, state, backtest_id, ...}).
 # ---------------------------------------------------------------------------
 _inprocess_tasks: Dict[str, Dict[str, Any]] = {}
+
+# ✅ الجولة 14.1: مراجع قوية للمهام الداخلية — asyncio.create_task بلا مرجع
+# قوي قد يُجمعها GC في منتصف التشغيل (حاشية asyncio الرسمية).
+_inprocess_task_refs: set = set()
+
+# ✅ الجولة 14.1: سقف زمني لمسار التشغيل الداخلي (كان بلا مهلة إطلاقاً —
+# حمولة مرضية مثل 1m لأعوام كانت تعمل بلا سقف على حلقة الـAPI).
+# مطابق لسقف Celery task_time_limit=3700. قابل للتجاوز بمتغير البيئة.
+import os as _os
+_INPROCESS_TIMEOUT_SECONDS: int = int(_os.getenv("BACKTEST_INPROCESS_TIMEOUT", "3700"))
 
 # ===========================================================================
 # ✅ الجولة 9: كاش باكند لنتائج الباك-تست (بيانات تاريخية ثابتة لا تتغير أبداً)
@@ -113,17 +160,56 @@ def _inprocess_status_payload(task_id: str) -> Dict[str, Any]:
 
 
 async def _run_backtest_inprocess(task_id: str, config_dict: dict) -> None:
-    """Execute the same celery task body inside the API process."""
-    from app.tasks.backtest_tasks import _execute_backtest
+    """Execute the same celery task body inside the API process.
 
-    _inprocess_tasks[task_id] = {"state": "PROGRESS", "status": "Starting Backtest Engine..."}
+    ✅ الجولة 14.1 — إصلاح تجميد الخادم:
+    - المحرك متزامن ثقيل (CPU-bound pandas) — تنفيذه مباشرة على حلقة الأحداث
+      كان يجمّد كل الـAPI والـWebSocket طيلة المحاكاة. الآن يعمل داخل خيط
+      عامل بحلقة أحداث خاصة (asyncio.run في to_thread) فتبقى الحلقة الرئيسية
+      حرة تخدم الطلبات.
+    - جلسة قاعدة بيانات معزولة (NullPool) لأن اتصالات المسبح المشترك مرتبطة
+      بحلقة الـAPI ولا يصح استخدامها من حلقة الخيط.
+    - مهلة قصوى (_INPROCESS_TIMEOUT_SECONDS) — المهلة ترفع FAILURE للـ/status
+      (خيط المحرك لا يمكن إجهاضه قسرياً لكن نتيجته تُهمل ويعمل في الخلفية حتى ينتهي).
+    - ✅ HOTFIX 2026-11-03 (تعليق «معالجة» الأبدي): الاستيرادات نُقلت داخل كتلة
+      try — كانت قبلها، فأي ImportError (مثل غياب build_isolated_session_maker
+      من session.py في حاوية غير مُحدَّثة بالكامل) يتحطم به بصمت قبل تسجيل
+      FAILURE وتبقى المهمة PROGRESS للأبد. الآن: أي فشل استيراد/تشغيل يرفع
+      FAILURE مع error_detail يظهر في /status فوراً.
+    """
+    if task_id not in _inprocess_tasks:  # مسجَّلة مسبقاً في /run — حماية للاستدعاء المباشر
+        _inprocess_tasks[task_id] = {"state": "PROGRESS", "status": "Starting Backtest Engine..."}
     try:
-        backtest_id = await _execute_backtest(config_dict, None)
+        from app.tasks.backtest_tasks import _execute_backtest
+        from app.database.session import build_isolated_session_maker
+
+        def _run_isolated() -> str:
+            async def _inner() -> str:
+                session_maker, iso_engine = build_isolated_session_maker()
+                try:
+                    return await _execute_backtest(config_dict, None, session_maker=session_maker)
+                finally:
+                    try:
+                        await iso_engine.dispose()
+                    except Exception:  # noqa: BLE001
+                        pass
+            return asyncio.run(_inner())
+
+        backtest_id = await asyncio.wait_for(
+            asyncio.to_thread(_run_isolated),
+            timeout=_INPROCESS_TIMEOUT_SECONDS,
+        )
         _inprocess_tasks[task_id] = {
             "state": "SUCCESS",
             "backtest_id": backtest_id,
         }
         logger.info(f"✅ [in-process] Backtest {backtest_id} completed (task {task_id})")
+    except asyncio.TimeoutError:
+        _inprocess_tasks[task_id] = {
+            "state": "FAILURE",
+            "error": f"Backtest exceeded in-process timeout of {_INPROCESS_TIMEOUT_SECONDS}s",
+        }
+        logger.error(f"⏰ [in-process] Backtest task {task_id} timed out after {_INPROCESS_TIMEOUT_SECONDS}s")
     except Exception as exc:  # noqa: BLE001
         _inprocess_tasks[task_id] = {
             "state": "FAILURE",
@@ -193,13 +279,18 @@ async def run_backtest(config: BacktestConfig = Body(...)):
     """
     # ✅ فحص سريع لتوفر الـ broker قبل النشر — كان الطلب يعلّق لِدقائق
     # بإعادة محاولة kombu الافتراضية عندما يكون Redis/Celery غير متاح.
+    # ✅ 14.1: الفحص شبكة متزامنة — يُنفّذ في خيط عامل حتى لا يثبّت حلقة
+    # الأحداث ~2 ثانية مع كل طلب عند سقوط Redis.
     from app.celery_app import is_broker_available
-    if not is_broker_available(timeout=2.0):
+    broker_available = await asyncio.to_thread(is_broker_available, 2.0)
+    if not broker_available:
         # ✅ مسار احتياطي داخل العملية — لا 503 بعد اليوم
         task_id = uuid.uuid4().hex
         config_dict = config.model_dump(mode="json")
         _inprocess_tasks[task_id] = {"state": "PROGRESS", "status": "Starting Backtest Engine..."}
-        asyncio.create_task(_run_backtest_inprocess(task_id, config_dict))
+        _task = asyncio.create_task(_run_backtest_inprocess(task_id, config_dict))
+        _inprocess_task_refs.add(_task)  # ✅ 14.1: مرجع قوي يمنع GC في منتصف التشغيل
+        _task.add_done_callback(_inprocess_task_refs.discard)
         logger.warning(
             "Celery broker unavailable → running backtest in-process (task %s, strategy '%s')",
             task_id, config.name,
@@ -342,6 +433,80 @@ async def list_backtests(
 # 4. تفاصيل باك-تست محدد
 # ==========================================
 
+def _add_chart_data_by_symbol(chart_data: Dict[str, Any], backtest) -> None:
+    """
+    ✅ الجولة 12 (بند 5-ب.3): تعارض الرموز في الباك-تست متعدد الرموز.
+
+    كانت شموع كل الرموز تُدمج في visual_candles واحدة بينما metadata.symbol
+    يعرض الرمز الأول فقط — فيعرض الشارت ملصق رمز مع بيانات رمز آخر.
+
+    المعالجة (الحلّان معاً كما في الطلب):
+    1) كل شمعة/نقطة موسومة بحقل symbol (من المحرك — الجديد).
+    2) chart_data_by_symbol = {symbol: {visual_candles, trade_points}} —
+       بيانات كل رمز على حدة.
+    3) metadata.symbols = كل رموز التشغيل، metadata.display_symbol = الرمز
+       الافتراضي المعروض (الرمز الأول في config.symbols)، وmetadata.symbols_in_candles
+       = الرموز الموجودة فعلياً موسومة داخل الشموع.
+
+    ملاحظة: السجلات القديمة (قبل الجولة 12) بلا وسم symbol → chart_data_by_symbol
+    تُترك فارغة {} ويب(metadata.symbol) كما هو.
+    """
+    try:
+        if not isinstance(chart_data, dict):
+            return
+        candles = chart_data.get("visual_candles")
+        tps = chart_data.get("trade_points")
+        if not isinstance(candles, list) or not candles:
+            return
+
+        by_symbol: Dict[str, List[Dict[str, Any]]] = {}
+        for c in candles:
+            if not isinstance(c, dict):
+                continue
+            sym = c.get("symbol")
+            if sym:
+                by_symbol.setdefault(str(sym), []).append(c)
+
+        if not by_symbol:
+            return  # سجل قديم بلا وسم
+
+        tp_by_symbol: Dict[str, List[Dict[str, Any]]] = {}
+        if isinstance(tps, list):
+            for p in tps:
+                if isinstance(p, dict) and p.get("symbol"):
+                    tp_by_symbol.setdefault(str(p["symbol"]), []).append(p)
+
+        chart_data["chart_data_by_symbol"] = {
+            sym: {
+                "visual_candles": c_list,
+                "trade_points": tp_by_symbol.get(sym, []),
+                "candles_count": len(c_list),
+            }
+            for sym, c_list in by_symbol.items()
+        }
+
+        metadata = chart_data.get("metadata")
+        if not isinstance(metadata, dict):
+            # ✅ المستند من قاعدة البيانات (wait=true / get) قد لا يحتوي metadata —
+            # نُنشئه هنا حتى لا يعود بند الرموز فارغاً في أي مسار عرض.
+            metadata = {
+                "symbol": getattr(backtest, "symbol", None),
+                "timeframe": getattr(backtest, "timeframe", None),
+            }
+            chart_data["metadata"] = metadata
+        metadata["symbols_in_candles"] = sorted(by_symbol.keys())
+        if not metadata.get("symbols"):
+            metadata["symbols"] = metadata["symbols_in_candles"]
+        metadata.setdefault("display_symbol", metadata.get("symbol"))
+        metadata.setdefault(
+            "default_display_note",
+            "الرمز الافتراضي المعروض = display_symbol (الرمز الأول في symbols)؛ "
+            "بيانات كل رمز على حدة في chart_data_by_symbol، وكل شمعة موسومة بحقل symbol.",
+        )
+    except Exception:  # noqa: BLE001 — لا نعطل العرض أبداً بسبب هذا
+        logger.exception("chart_data_by_symbol build failed")
+
+
 @router.get("/get/{backtest_id}")
 async def get_backtest_details(
     backtest_id: str,
@@ -368,9 +533,15 @@ async def get_backtest_details(
                 indicators_data = formatted_candle.pop("indicators", {}) or {}
                 flat_indicators = flatten_dict(indicators_data) if isinstance(indicators_data, dict) else {}
                 for key, value in flat_indicators.items():
-                    formatted_candle[f"ind_{key}"] = value
+                    # ✅ الجولة 12: لا بادئة مزدوجة — أعمدة البنية ind_zz_*/ind_zzf_* تأتي
+                    # مسبوقة أصلاً من المحرك فتُمرَّر كما هي
+                    _k = str(key)
+                    formatted_candle[_k if _k.startswith("ind_") else f"ind_{_k}"] = value
                 processed_candles.append(formatted_candle)
             chart_data["visual_candles"] = processed_candles
+
+        # ✅ الجولة 12 (بند 5-ب.3): تقسيم بيانات الشارت لكل رمز + توثيق الرموز
+        _add_chart_data_by_symbol(chart_data, backtest)
 
         payload = {
             "success": True,
@@ -469,7 +640,9 @@ async def get_chart_data(
                 indicators_data = formatted_candle.pop("indicators", {}) or {}
                 flat = flatten_dict(indicators_data) if isinstance(indicators_data, dict) else {}
                 for ind_name, ind_value in flat.items():
-                    formatted_candle[f"ind_{ind_name}"] = ind_value
+                    # ✅ الجولة 12: لا بادئة مزدوجة (ind_ + ind_zz_* كانت تعطي ind_ind_zz_*)
+                    _k = str(ind_name)
+                    formatted_candle[_k if _k.startswith("ind_") else f"ind_{_k}"] = ind_value
                 flat_candles.append(formatted_candle)
 
             # نقاط التداول (مع index داخل الشموع)
@@ -520,6 +693,11 @@ async def get_chart_data(
                 "created_at": backtest.created_at.isoformat() if backtest.created_at else None,
             }
 
+            # ✅ الجولة 12 (بند 5-ب.3): توثيق الرموز — display_symbol هو الافتراضي
+            # المعروض (الرمز الأول)، وsymbols كل رموز التشغيل.
+            metadata["display_symbol"] = metadata["symbol"]
+            metadata["symbols"] = full_config.get("symbols") or ([metadata["symbol"]] if metadata["symbol"] else [])
+
             # أسماء المؤشرات المتاحة (من أول شمعة كاملة)
             available_indicators: List[str] = []
             for candle in raw_candles:
@@ -536,6 +714,26 @@ async def get_chart_data(
                 "metadata": metadata,
                 "available_indicators": available_indicators,
             }
+            # ✅ الجولة 12 (بند 5-ب.3): chart_data_by_symbol للشموع المسطّحة أيضاً
+            try:
+                _by_sym: Dict[str, List[Dict[str, Any]]] = {}
+                for _c in flat_candles:
+                    if isinstance(_c, dict) and _c.get("symbol"):
+                        _by_sym.setdefault(str(_c["symbol"]), []).append(_c)
+                if _by_sym:
+                    _tps_sym: Dict[str, List[Dict[str, Any]]] = {}
+                    if isinstance(trade_points, list):
+                        for _p in trade_points:
+                            if isinstance(_p, dict) and _p.get("symbol"):
+                                _tps_sym.setdefault(str(_p["symbol"]), []).append(_p)
+                    base["chart_data_by_symbol"] = {
+                        _s: {"visual_candles": _cl, "trade_points": _tps_sym.get(_s, []),
+                             "candles_count": len(_cl)}
+                        for _s, _cl in _by_sym.items()
+                    }
+                    metadata["symbols_in_candles"] = sorted(_by_sym.keys())
+            except Exception:  # noqa: BLE001
+                logger.exception("chart-data: chart_data_by_symbol build failed")
             _bt_cache_put(cache_key, base)
 
         # ---- تجهيز الاستجابة من الأساس (تقطيع/نسخ خفيف فقط) ----
@@ -566,8 +764,12 @@ async def get_chart_data(
         # ✅ الجولة 10: مؤشرات البنية — تُحسب مرة واحدة على كامل الشموع (لا النافذة)
         # وتُخزن بكاش مستقل بمعاملاتها — الطلبات المتتالية خلالات فورية.
         overlays_payload: Optional[Dict[str, Any]] = None
-        if overlays and str(overlays).strip():
-            wanted_ovl = [t.strip().lower() for t in str(overlays).split(",") if t.strip()]
+        # ✅ ROUND30: الفيبو يصل افتراضياً — عند غياب overlays نحسب الطبقات البنيوية
+        # (zzfib,fib,zzfib_e2e) ما دام عدد الشموع ضمن السقف الآمن، وoverlays=none
+        # يعطلها صراحة. (جولة 12.1: FieldInfo من الاستدعاء المباشر يُعامَل كغياب.)
+        ovl_effective = _resolve_overlays_request(overlays, int(raw_len or 0))
+        if ovl_effective:
+            wanted_ovl = [t.strip().lower() for t in str(ovl_effective).split(",") if t.strip()]
             if not wanted_ovl or "all" in wanted_ovl or "*" in wanted_ovl:
                 wanted_ovl = list(_OVL_TYPES)
             unknown = [t for t in wanted_ovl if t not in _OVL_TYPES]
@@ -577,15 +779,41 @@ async def get_chart_data(
                 "zigzag": {"length": zz_length},
                 "fib": {"depth": fib_depth, "dev_threshold": fib_dev, "retracement": fib_ret},
                 "trendline": {"period": tl_period, "max_pairs": tl_pairs},
+                # ✅ ROUND19: رسم zzfib في الباك-تست بوضع زقزاق TV الكلاسيكي —
+                # نفس معاملات البريسِت الحي (ZLF) حتى يطابق الرسم الإشارات المولّدة
+                # بنفس الوضع (اتساق بصري كامل بين الحي والباك-تست وTV).
+                "zzfib": {"mode": "tradingview", "depth": 12,
+                          "deviation": 20, "backstep": 3},
+                # ✅ ROUND22: رسم المحرك المنفصل ZLF-End-To-End بوضع شارت المنصة
+                # (luxalgo length=100) — نفس معاملات قالب zlf_e2e الحي حتى يطابق
+                # الرسم الإشارات المولّدة بنفس الوضع (اتساق بصري كامل).
+                "zzfib_e2e": {"mode": "luxalgo", "length": 100},
+                # ✅ ROUND32: رسم «الترندية» (طلب صريح overlays=zzfib_e2e_trendy) —
+                # نفس معاملات قالب zlf_e2e_trendy الحي: الفترات قالبية [7,15,25]
+                # (غيّرها/أضف رابعاً 30 من القالب) + بوابة majority على s1/s2/s3.
+                "zzfib_e2e_trendy": {"mode": "luxalgo", "length": 100,
+                                     "trend_periods": [7, 15, 25],
+                                     "trend_confirm": "majority",
+                                     "trend_gate": ["s1", "s2", "s3"]},
+                # ✅ ROUND32: رسم مؤشر الترند المستقل (طلب صريح overlays=trend_fractal)
+                "trend_fractal": {"periods": [7, 15, 25]},
             }
             ovl_key_src = json.dumps([wanted_ovl, ovl_params, base["raw_len"]], sort_keys=True, default=str)
             ovl_key = f"{backtest_id}|ovl|{hashlib.md5(ovl_key_src.encode()).hexdigest()}"
             overlays_payload = _bt_cache_get(ovl_key)
             ovl_cached = overlays_payload is not None
             if overlays_payload is None:
+                # ✅ ROUND34 — الحجم يجب أن يمر مع الشموع في مسار رسم overlays
+                # للباك تست (نفس إصلاح ROUND28 للشارت الحي): بدون الحجم لا
+                # يُبنى المرجع R في zzfib_e2e/zzfib_e2e_trendy فتظهر النطاقات
+                # بلا مراجع وبلا إشارات في حمولة الرسم — بينما الاستراتيجية
+                # نفسها حسبت إشاراتها بالحجم الكامل. (الأزمنة أُصلحت جذرياً
+                # في ROUND34 عبر المحرك الموحد: timestamp كسلسلة ISO يُحلَّل
+                # فعلياً الآن — كانت كل أزمنة الرسم صفراً.)
                 ovl_candles = [
                     {"time": c.get("timestamp"), "open": c.get("open"), "high": c.get("high"),
-                     "low": c.get("low"), "close": c.get("close")}
+                     "low": c.get("low"), "close": c.get("close"),
+                     "volume": c.get("volume")}
                     for c in flat_candles if isinstance(c, dict)
                 ]
                 ovl_result = _compute_overlays(ovl_candles, types=wanted_ovl, params=ovl_params)
@@ -599,6 +827,12 @@ async def get_chart_data(
                 _bt_cache_put(ovl_key, overlays_payload)
             overlays_payload = dict(overlays_payload)
             overlays_payload["cache"] = "hit" if ovl_cached else "built"
+            # ✅ ROUND30: شفافية المصدر — طلب صريح من العميل أم افتراضي الجولة 30؟
+            overlays_payload["source"] = (
+                "requested" if (isinstance(overlays, str) and overlays.strip()
+                                and overlays.strip().lower() not in _OVERLAYS_OFF_TOKENS)
+                else "default"
+            )
 
         return {
             "backtest_id": metadata["backtest_id"],
@@ -607,6 +841,9 @@ async def get_chart_data(
             "drawdown_curve": base["drawdown_curve"],
             "visual_candles": formatted_candles,
             "trade_points": trade_points,
+            # ✅ الجولة 12 (بند 5-ب.3): بيانات كل رمز على حدة (إن وُجد وسم)
+            **({"chart_data_by_symbol": base["chart_data_by_symbol"]}
+               if base.get("chart_data_by_symbol") else {}),
             **({"overlays": overlays_payload} if overlays_payload is not None else {}),
             "summary": {
                 "total_candles": raw_len,

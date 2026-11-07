@@ -1,0 +1,14 @@
+616e4ffa649f76661d3d0dec9d0d5ac4  app/backtest/schemas.py
+543d3e0ae93f6011bd2f9d4d81569086  app/backtest/engine1.py
+dfd462c24fb62a1224bbcbddb714b510  app/backtest/metrics.py
+711c8693c8a491019c2b6aa24fd41ce1  app/services/strategy/schemas.py
+9988d8b1ef00613e46bbc3d2a6c1c47a  app/services/strategy/full_strategy.py
+c89b0cba779c2d1c08d2be3f150a4934  app/services/strategy/presets.py
+9c0e1133c9aca4c292ef2c98c0219857  app/services/strategy/strategys/rsi_strategy.py
+7707bdead76a5821c1a94d0a4f23d381  app/services/strategy/strategys/mean_reversion_strategy.py
+e6cabb3406b6dc91ed0f69a083480865  app/services/strategy/strategys/macd_strategy.py
+a8b692c69eb040bfae4c7e86499a9813  app/services/strategy/strategys/test_strategy.py
+02d4dea45dc0231522f9dadb6e533014  app/services/strategy/strategys/trend_strategy.py
+2d8ec193f452c2ad25c5e751fbb1d33c  app/routers/indicators.py
+e45759b96ca696a777e7d617e5fab951  app/routers/overlays.py
+5141662e29c686c3488a2a9da9107aac  VERIFY-R13.sh

@@ -1,0 +1,5 @@
+9e0a3b1b7cb385b0b4f028e804123604  app/database/session.py
+b44d40bf98d69d64056d62daf58c0a83  app/routers/backtest.py
+f9bee9172f8f5c338890697120c4d160  app/tasks/backtest_tasks.py
+0b7718fff86299d3d2c4882ebf789714  verify/HOTFIX-INPROCESS-PROOF.py
+6d61c21201707d13edf6c9c0b05d274e  HOTFIX-README-INPROCESS-AR.txt

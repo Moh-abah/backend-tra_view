@@ -1,0 +1,196 @@
+--- /tmp/pristine32/orig/app/services/live_strategy_service.py	2026-11-04 19:03:34.636646839 +0000
++++ app/services/live_strategy_service.py	2026-11-04 19:02:11.021603628 +0000
+@@ -96,14 +96,14 @@
+ import threading
+ import time as _time
+ from datetime import datetime, timedelta, timezone
+-from typing import Any, Dict, Optional, Tuple
++from typing import Any, Dict, List, Optional, Tuple
+ 
+ import pandas as pd
+ 
+ from app.backtest.engine1 import BacktestEngine
+ from app.backtest.schemas import BacktestConfig
+ from app.services.data_service import DataService
+-from app.services.strategy.presets import ZLF_TRIPLE_SIGNAL, ZLF_E2E_TRIPLE_SIGNAL
++from app.services.strategy.presets import ZLF_TRIPLE_SIGNAL, ZLF_E2E_TRIPLE_SIGNAL, ZLF_E2E_TRENDY_TRIPLE_SIGNAL
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -125,12 +125,20 @@
+     "zigzag_fib_e2e": "zlf_e2e",
+     "zlf_e2e": "zlf_e2e",
+     "zlf_end_to_end": "zlf_e2e",
++    # ✅ ROUND32: «الزقزاق البطل e2e الترنديه» — الاستنساخ المعزول ببوابة الترند
++    "zigzag_fib_e2e_trendy": "zlf_e2e_trendy",
++    "zlf_e2e_trendy": "zlf_e2e_trendy",
++    "zlf_e2e_trendy_triple_signal": "zlf_e2e_trendy",
++    "zlf_e2e_trendy_triple_signal_zero_fee": "zlf_e2e_trendy",
++    "zlf_end_to_end_trendy": "zlf_e2e_trendy",
+ }
+ 
+ # هوية المحركين (تُعلن في meta.engine في كل جواب)
+ _ENGINE_META = {
+     "zlf": "ZLF (zigzag_fib — المحرك الحالي كما هو)",
+     "zlf_e2e": "ZLF-End-To-End",
++    # ✅ ROUND32
++    "zlf_e2e_trendy": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+ }
+ 
+ WINDOW_CANDLES = 2000          # شموع مغلقة للتقييم
+@@ -254,6 +262,105 @@
+     return normalize_zlf_overrides({k: raw[k] for k in raw if k in ZLF_PARAM_OVERRIDABLE})
+ 
+ 
++# ✅ ROUND32 — مفاتيح قوالب الترند المبيّحة للتجاوز في نقطة الحية (الترندية فقط).
++# الفترات قالبية: نص مفصول بفواصل («7,15,25») أو قائمة أرقام — إضافة ترند رابع
++# 30 = تمرير «7,15,25,30» من الواجهة بلا أي كود.
++TRENDY_TREND_KEYS = ("trend_periods", "trend_confirm", "trend_gate")
++
++
++def _parse_int_list(raw: Any, lo: int, hi: int, key: str) -> List[int]:
++    """تطبيق قائمة أعداد صحيحة من قائمة/نص مفصول بفواصل — رفض صريح خارج المدى."""
++    if isinstance(raw, str):
++        parts = [x for x in raw.replace(";", ",").split(",") if str(x).strip()]
++    elif isinstance(raw, (list, tuple)):
++        parts = list(raw)
++    else:
++        parts = [raw]
++    out: List[int] = []
++    for x in parts:
++        if isinstance(x, bool):
++            raise LiveStrategyError(f"param {key!r} must contain integers, got boolean {x!r}")
++        try:
++            v = int(float(x))
++        except (TypeError, ValueError):
++            raise LiveStrategyError(f"param {key!r} must contain integers, got {x!r}")
++        if not (lo <= v <= hi):
++            raise LiveStrategyError(f"param {key!r} value {v} out of range [{lo}, {hi}]")
++        out.append(v)
++    if not out:
++        raise LiveStrategyError(f"param {key!r} must contain at least one value")
++    if len(out) > 12:
++        raise LiveStrategyError(f"param {key!r} accepts at most 12 trends, got {len(out)}")
++    return out
++
++
++def _normalize_trendy_overrides(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
++    """✅ ROUND32 — تحقق التجاوزات لمحرك ZLF-End-To-End-Trendy (منفصل).
++
++    المبيّح: معاملات الزقزاق نفسها المبيّحة لـ E2E فقط
++    (zz_mode/zz_depth/zz_deviation/zz_backstep/length) + قوالب الترند الثلاثة:
++      trend_periods:  «7,15,25» أو قائمة — أعداد 2..500 (حتى 12 ترنداً)
++      trend_confirm:  majority|all|any أو رقم صريح 1..500
++      trend_gate:     s1/s2/s3 (بأي صيغة) أو none للتعطيل
++    معاملات liq_* غير منطبقة على الترندية (كما في E2E — النطاق يعتمد لحظة ظهور
++    الزقزاق ونافذة الحساب = عمر النطاق) — تُرفض برسالة واضحة (لا تطبيق صامت).
++    """
++    if not raw:
++        return {}
++    trendy_zlf_keys = ("zz_mode", "zz_depth", "zz_deviation", "zz_backstep", "length")
++    allowed = set(trendy_zlf_keys) | set(TRENDY_TREND_KEYS)
++    unknown = sorted(k for k in raw if k not in allowed)
++    if unknown:
++        non_appl = [k for k in unknown if k in ZLF_PARAM_OVERRIDABLE]
++        hint = (" — معاملات السيولة liq_* غير منطبقة على الترندية (النطاق يعتمد لحظة ظهور الزقزاق)" if non_appl else "")
++        raise LiveStrategyError(
++            f"Unsupported ZLF-End-To-End-Trendy param(s): {unknown}{hint} — "
++            f"overridable: {sorted(allowed)}"
++        )
++    clean = normalize_zlf_overrides({k: raw[k] for k in raw if k in trendy_zlf_keys})
++    if "trend_periods" in raw and raw["trend_periods"] is not None:
++        clean["trend_periods"] = _parse_int_list(raw["trend_periods"], 2, 500, "trend_periods")
++    if "trend_confirm" in raw and raw["trend_confirm"] is not None:
++        v = raw["trend_confirm"]
++        if isinstance(v, str) and v.strip().lower() in ("majority", "all", "any"):
++            clean["trend_confirm"] = v.strip().lower()
++        else:
++            try:
++                iv = int(float(v))
++            except (TypeError, ValueError):
++                raise LiveStrategyError(
++                    f"param 'trend_confirm' must be majority|all|any or an integer, got {v!r}"
++                )
++            if not (1 <= iv <= 500):
++                raise LiveStrategyError(f"param 'trend_confirm'={iv} out of range [1, 500]")
++            clean["trend_confirm"] = iv
++    if "trend_gate" in raw and raw["trend_gate"] is not None:
++        v = raw["trend_gate"]
++        if isinstance(v, str):
++            s = v.strip().lower()
++            if s in ("none", "off", "false", "0", ""):
++                clean["trend_gate"] = "none"
++            else:
++                parts = [x.strip().lower() for x in v.replace(";", ",").split(",") if x.strip()]
++                bad = [x for x in parts if x not in ("s1", "s2", "s3", "1", "2", "3")]
++                if bad:
++                    raise LiveStrategyError(
++                        f"param 'trend_gate' accepts s1/s2/s3 (or none), got {bad}"
++                    )
++                clean["trend_gate"] = parts
++        elif isinstance(v, (list, tuple)):
++            parts = [str(x).strip().lower() for x in v]
++            bad = [x for x in parts if x not in ("s1", "s2", "s3", "1", "2", "3")]
++            if bad:
++                raise LiveStrategyError(
++                    f"param 'trend_gate' accepts s1/s2/s3 (or none), got {bad}"
++                )
++            clean["trend_gate"] = parts or "none"
++        else:
++            raise LiveStrategyError(f"param 'trend_gate' must be a list or comma string, got {v!r}")
++    return clean
++
++
+ def _build_strategy_config(
+     param_overrides: Optional[Dict[str, Any]] = None,
+     engine: str = "zlf",
+@@ -271,8 +378,15 @@
+     يعيد (config, applied): applied = المعاملات المطبّقة فعلاً (للشفافية في meta).
+     """
+     # ✅ ROUND22: اختيار قالب المحرك — الافتراضي zlf (المحرك الحالي حرفياً)؛
+-    # zlf_e2e = قالب ZLF-End-To-End المنفصل (zigzag_fib_e2e) بلا أي مساس بالأصل.
+-    template = ZLF_E2E_TRIPLE_SIGNAL if engine == "zlf_e2e" else ZLF_TRIPLE_SIGNAL
++    # zlf_e2e = قالب ZLF-End-To-End المنفصل (zigzag_fib_e2e) بلا أي مساس بالأصل؛
++    # ✅ ROUND32: zlf_e2e_trendy = قالب «الترندية» المعزول (zigzag_fib_e2e_trendy
++    # + قوالب الترند القالبية [7,15,25] — الأرقام في القالب لا في الكود).
++    if engine == "zlf_e2e_trendy":
++        template = ZLF_E2E_TRENDY_TRIPLE_SIGNAL
++    elif engine == "zlf_e2e":
++        template = ZLF_E2E_TRIPLE_SIGNAL
++    else:
++        template = ZLF_TRIPLE_SIGNAL
+     cfg = copy.deepcopy(template["strategy_config"])
+     applied: Dict[str, Any] = {}
+     inds = cfg.get("indicators") or []
+@@ -289,6 +403,12 @@
+                 native = ZLF_PARAM_ALIAS_TO_NATIVE.get(key, key)
+                 params[native] = val
+                 applied[key] = val
++        # ✅ ROUND32: لقطة قوالب الترند الفعلية + تطبيق تجاوزاتها — شفافية كاملة
++        # (meta.params_applied تعلن دائماً الفترات/الإجماع/الأنواع المبوّبة المستخدمة)
++        if engine == "zlf_e2e_trendy":
++            for tk in TRENDY_TREND_KEYS:
++                if tk in params:
++                    applied[tk] = params[tk]
+     return cfg, applied
+ 
+ 
+@@ -712,12 +832,16 @@
+         raise LiveStrategyError(
+             f"Unsupported strategy: {strategy!r} — supported: 'zigzag_fib' "
+             "(ZLF — المحرك الحالي) و 'zigzag_fib_e2e' "
+-            "(ZLF-End-To-End — المحرك المنفصل الجديد — ROUND22)"
++            "(ZLF-End-To-End — المحرك المنفصل — ROUND22) و 'zigzag_fib_e2e_trendy' "
++            "(ZLF-End-To-End-Trendy — الزقزاق البطل e2e الترنديه — ROUND32)"
+         )
+     strategy_key = _STRATEGY_ALIASES[key_strategy]
+     # ✅ ROUND21: تحقق التجاوزات قبل أي شيء (خطأ عقد → 400) + توقيعها في مفتاح الكاش
+     # ✅ ROUND22: تحقق حسب المحرك — للمحرك المنفصل معاملاته الخاصة فقط
+-    if strategy_key == "zlf_e2e":
++    # ✅ ROUND32: للترندية معاملاتها الخاصة (الزقزاق + قوالب الترند الثلاثة)
++    if strategy_key == "zlf_e2e_trendy":
++        applied = _normalize_trendy_overrides(param_overrides)
++    elif strategy_key == "zlf_e2e":
+         applied = _normalize_e2e_overrides(param_overrides)
+     else:
+         applied = normalize_zlf_overrides(param_overrides)

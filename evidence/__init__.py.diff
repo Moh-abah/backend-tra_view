@@ -1,0 +1,10 @@
+--- /tmp/zlf_e2e/latest_project/app/services/indicators/__init__.py	2026-11-03 19:53:03.621688979 +0000
++++ /home/z/zlf-e2e/latest_project/app/services/indicators/__init__.py	2026-11-03 20:02:53.096383459 +0000
+@@ -13,6 +13,7 @@
+ #  القصيرة zigzag / fib / trendline) — كي تظهر في /indicators/available
+ # وتمرّ فحص validate وتُستنتج type=support_resistance تلقائياً.
+ from . import overlay_adapters as _overlay_adapters  # noqa: F401
++from . import overlays_zlf_e2e as _overlays_zlf_e2e  # noqa: F401  # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل (تسجيل ذاتي — إضافة فقط)
+ from .pine_transpiler import PineScriptTranspiler
+ 
+ 

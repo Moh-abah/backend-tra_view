@@ -1,0 +1,114 @@
+--- /tmp/pristine32/orig/app/routers/overlays.py	2026-11-04 19:03:34.637646840 +0000
++++ app/routers/overlays.py	2026-11-04 19:03:25.585642041 +0000
+@@ -110,9 +110,10 @@
+ 
+ def _parse_types(types: Optional[str]) -> List[str]:
+     """'zigzag,fib,trendline' → قائمة نظيفة. فارغ/الكل → الثلاثة."""
+-    if not types or not types.strip() or types.strip().lower() in ("all", "*"):
++    # ✅ ROUND29 — لف دفاعي str() (نفس نسخة الاستعادة المرجعية)
++    if not types or not str(types).strip() or str(types).strip().lower() in ("all", "*"):
+         return list(OVERLAY_TYPES)
+-    wanted = [t.strip().lower() for t in types.split(",") if t.strip()]
++    wanted = [t.strip().lower() for t in str(types).split(",") if t.strip()]
+     unknown = [t for t in wanted if t not in OVERLAY_TYPES]
+     if unknown:
+         raise HTTPException(
+@@ -135,6 +136,10 @@
+     zz_depth: int = 12,
+     zz_deviation: float = 20.0,
+     zz_backstep: int = 3,
++    # ✅ ROUND31 — نافذة مرجع السيولة R: كانت تسقط على افتراض الخدمة (20)
++    # بينما محرك البث الحي والبريسِت يعملان 240 منذ j21-v2 — فكان مرجع R
++    # في طبقة الرسم مختلفاً عن مرجع محرك القرار (تشخيص ROUND31 الجذر 2).
++    zz_liq_lookback: int = 240,
+ ) -> Dict[str, Dict[str, Any]]:
+     params: Dict[str, Dict[str, Any]] = {
+         "zigzag": {"length": zz_length, "extend": zz_extend},
+@@ -143,8 +148,10 @@
+         # ✅ ROUND19: رسم zzfib على الشارت الحي بوضع زقزاق TV الكلاسيكي —
+         # نفس معاملات البريسِت الحي (ZLF) حتى يطابق الرسم المرسوم الإشارات
+         # والأطراف المرسومة على TradingView (طلب صاحب القرار).
++        # ✅ ROUND31: إضافة liq_lookback=240 (البطل j21-v2) لاتساق مرجع R.
+         "zzfib": {"mode": zz_mode, "depth": zz_depth,
+-                  "deviation": zz_deviation, "backstep": zz_backstep},
++                  "deviation": zz_deviation, "backstep": zz_backstep,
++                  "liq_lookback": max(1, int(zz_liq_lookback))},
+     }
+     if fib_levels:
+         raw = [x.strip() for x in str(fib_levels).split(",") if x.strip()]
+@@ -156,6 +163,25 @@
+     return params
+ 
+ 
++def _apply_zzfib_defaults(params: Optional[Dict[str, Dict[str, Any]]]) -> Dict[str, Dict[str, Any]]:
++    """✅ ROUND31 — حقن افتراضيات البطل لـ zzfib في المفاتيح الغائبة فقط.
++
++    تُطبّق على مسارات POST (حمولات الواجهة) حتى لا تسقط أي نداء zzfib على
++    افتراضات الخدمة (luxalgo + liq_lookback=20) المختلفة عن محرك البث الحي
++    (tradingview + liq_lookback=240). المفاتيح الصريحة من العميل تفوز دائماً.
++    zzfib_e2e خارج هذا كلياً (luxalgo مواصفته التعاقدية).
++    """
++    p = dict(params or {})
++    zf = dict(p.get("zzfib") or {})
++    zf.setdefault("mode", "tradingview")
++    zf.setdefault("depth", 12)
++    zf.setdefault("deviation", 20.0)
++    zf.setdefault("backstep", 3)
++    zf.setdefault("liq_lookback", 240)
++    p["zzfib"] = zf
++    return p
++
++
+ def _validate_symbol(symbol: str, timeframe: str) -> None:
+     # نفس تحقق الجولة 9 في strategies1 — رسائل عربية واضحة بدل 500 صامت
+     if not symbol or not str(symbol).strip() or str(symbol).strip().lower() == "undefined":
+@@ -206,13 +232,19 @@
+     zz_depth: int = Query(12, ge=2, le=500),
+     zz_deviation: float = Query(20.0, ge=0.0, le=1000.0),
+     zz_backstep: int = Query(3, ge=1, le=100),
++    # ✅ ROUND31 — نافذة مرجع السيولة R (الافتراضي = قالب البطل j21-v2 = 240)
++    zz_liq_lookback: int = Query(240, ge=1, le=5000),
+     db: AsyncSession = Depends(get_db),
+ ):
+     """حساب مؤشرات البنية على شموع السوق الحقيقية — للشارت الحي."""
+     _validate_symbol(symbol, timeframe)
+     wanted_types = _parse_types(types)
+     params = _build_params(zz_length, zz_extend, fib_depth, fib_dev, fib_ret, fib_levels,
+-                           tl_period, tl_pairs, zz_mode, zz_depth, zz_deviation, zz_backstep)
++                           tl_period, tl_pairs, zz_mode, zz_depth, zz_deviation, zz_backstep,
++                           zz_liq_lookback)
++    # ✅ ROUND31 — تحصين إضافي: إن طلب العميل params=[] عبر صيغة أخرى فلا سقوط
++    # على افتراضات الخدمة (idempotent — المفاتيح الموجودة لا تُمس)
++    params = _apply_zzfib_defaults(params)
+ 
+     normalized_market = _MARKET_MAP.get(market.lower(), market)
+     cache_key_src = json.dumps(
+@@ -331,6 +363,8 @@
+             else:
+                 wanted_types_alt = list(OVERLAY_TYPES)
+             params_alt = body.get("params") if isinstance(body.get("params"), dict) else {}
++            # ✅ ROUND31 — افتراضيات البطل لـ zzfib في صيغة الواجهة أيضاً
++            params_alt = _apply_zzfib_defaults(params_alt)
+ 
+             _validate_symbol(str(symbol), str(timeframe))
+             normalized_market_alt = _MARKET_MAP.get(str(market).lower(), str(market))
+@@ -404,6 +438,8 @@
+         wanted_types = list(OVERLAY_TYPES)
+ 
+     params_in = body.get("params") if isinstance(body.get("params"), dict) else {}
++    # ✅ ROUND31 — افتراضيات البطل لـ zzfib في مسار الشموع المباشر أيضاً
++    params_in = _apply_zzfib_defaults(params_in)
+ 
+     t0 = time.perf_counter()
+     result = compute_overlays(candles, types=wanted_types, params=params_in)
+@@ -428,8 +464,8 @@
+     return {
+         "status": "ok",
+         "router": "overlays",
+-        "round": 28,
+-        "round_note": "ROUND28 volume pass-through (get + post provider path) — كامل ميزات الجولات 10/12/13/19",
++        "round": 32,
++        "round_note": "ROUND32: «الزقزاق البطل e2e الترنديه» — نوعان جديدان zzfib_e2e_trendy (E2E حرفياً + بوابة ترند قالبية 7/15/25) وtrend_fractal (مؤشر الترند المستقل — Pine Auto Trendline بإحداثياته) — السابق: ROUND31 اتساق الاستراتيجية القديمة عبر الطبقات (tradingview + liq_lookback=240) — ROUND29 استعادة كامل ج10/12/13/19 + إصلاح ج28 (تمرير الحجم GET+POST)",
+         "types": list(OVERLAY_TYPES),
+         "cache": {"max_entries": _OVL_CACHE_MAX, "ttl_seconds": _OVL_TTL_SECONDS, "entries": len(_ovl_cache)},
+     }

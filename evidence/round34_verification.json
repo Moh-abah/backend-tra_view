@@ -1,0 +1,102 @@
+[
+ {
+  "name": "[APPBUSDT_5m_week] zzfib mode=tradingview — تطابق كامل (بايت-ببايت)",
+  "pass": true,
+  "detail": "old=d323ef169eae new=d323ef169eae"
+ },
+ {
+  "name": "[APPBUSDT_5m_week] zzfib mode=luxalgo — تطابق كامل (بايت-ببايت)",
+  "pass": true,
+  "detail": "old=1be4e8b7f2b8 new=1be4e8b7f2b8"
+ },
+ {
+  "name": "[APPBUSDT_5m_week] zzfib_e2e luxalgo — تطابق كامل (بدون الإضافات الجديدة)",
+  "pass": true,
+  "detail": "old=dcf4ae89dbdd new=dcf4ae89dbdd"
+ },
+ {
+  "name": "[APPBUSDT_5m_week] zzfib_e2e tradingview — تطابق كامل",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[APPBUSDT_5m_week] zzfib_e2e_trendy luxalgo — تطابق كامل",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[APPBUSDT_5m_week] zigzag_channels — تطابق كامل",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[APPBUSDT_5m_week] إصلاح ISO — e2e على شموع ISO == e2e على DataFrame",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[APPBUSDT_5m_week] إثبات العلة القديمة — القديم مع ISO كان يرجع أزمنة=0",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[APPBUSDT_5m_week] إصلاح ISO — الترندية على ISO == DataFrame",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[APPBUSDT_5m_week] إضافة ROUND34 — كل نطاق يحمل levels بحدود ولادة/نهاية صحيحة",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] zzfib mode=tradingview — تطابق كامل (بايت-ببايت)",
+  "pass": true,
+  "detail": "old=d34b5d761f12 new=d34b5d761f12"
+ },
+ {
+  "name": "[BTC_golden_1m] zzfib mode=luxalgo — تطابق كامل (بايت-ببايت)",
+  "pass": true,
+  "detail": "old=4127c4a4ab75 new=4127c4a4ab75"
+ },
+ {
+  "name": "[BTC_golden_1m] zzfib_e2e luxalgo — تطابق كامل (بدون الإضافات الجديدة)",
+  "pass": true,
+  "detail": "old=b3ca9cacfc0c new=b3ca9cacfc0c"
+ },
+ {
+  "name": "[BTC_golden_1m] zzfib_e2e tradingview — تطابق كامل",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] zzfib_e2e_trendy luxalgo — تطابق كامل",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] zigzag_channels — تطابق كامل",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] إصلاح ISO — e2e على شموع ISO == e2e على DataFrame",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] إثبات العلة القديمة — القديم مع ISO كان يرجع أزمنة=0",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] إصلاح ISO — الترندية على ISO == DataFrame",
+  "pass": true,
+  "detail": ""
+ },
+ {
+  "name": "[BTC_golden_1m] إضافة ROUND34 — كل نطاق يحمل levels بحدود ولادة/نهاية صحيحة",
+  "pass": true,
+  "detail": ""
+ }
+]

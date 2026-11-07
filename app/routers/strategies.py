@@ -439,5 +439,27 @@ async def get_strategy_example(example_name: str):
         
     except ImportError as e:
         raise HTTPException(status_code=500, detail=f"Could not load example: {str(e)}")
+
+
+@router.get(
+    "/presets",
+    summary="✅ الجولة 12: القوالب الرسمية — استراتيجية البطل ZigZag HL v2 (ZERO FEE)",
+)
+async def get_official_strategy_presets():
+    """القوالب الرسمية المعتمدة — كل قالب حمولة كاملة جاهزة لـ POST /api/v1/backtest/run.
+
+    يتضمن استراتيجية البطل المُثبَّتة بحيا من الواجهة (BTCUSDT · 1h · دخول قاع
+    زيجزاق مؤكد أعلى من سابقه · خروج عند تأكيد قمة · SL 2% · عمولة 0) مع
+    الملاحظات التعاقدية (position_size_percent عشري ≤ 1.0، شكل and الصحيح،
+    fill_model: next_open | signal_close).
+    """
+    try:
+        from app.services.strategy.presets import get_presets
+
+        presets = get_presets()
+        return {"success": True, "count": len(presets), "presets": presets}
+    except Exception:
+        logger.exception("Failed to build strategy presets")
+        raise HTTPException(status_code=500, detail="Internal server error")
     
 

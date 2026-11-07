@@ -345,19 +345,25 @@ class DataService:
         market: str,
         start_date: datetime,
         end_date: datetime,
-        use_cache: bool = True
+        use_cache: bool = True,
+        tz_offset_minutes: int = 0,
     ) -> pd.DataFrame:
         """
         الحصول على أحدث بيانات تاريخية (الاسم الصحيح للدالة)
 
         Canonical, correctly-spelled method. The legacy misspelled name
         `get_historicallastvirsion` remains as a deprecated alias below.
+
+        ✅ الجولة 14.0: tz_offset_minutes — إزاحة محاذاة حدود الشموع
+        (+180 = التوقيت السعودي) تُمرّر للمزود وتدخل مفتاح الكاش لمنع
+        أي تلوث بين متغيرات التوقيت لنفس النافذة.
         """
         # Bugfix: the old cache key called start_date.isoformat() unguarded
         # (AttributeError when a caller passes None) — make it tolerant.
         start_iso = start_date.isoformat() if isinstance(start_date, datetime) else str(start_date)
         end_iso = end_date.isoformat() if isinstance(end_date, datetime) else str(end_date)
-        cache_key = f"historical:{market}:{symbol}:{timeframe}:{start_iso}:{end_iso}"
+        # ✅ 14.0: التوقيت جزء من هوية البيانات — مفتاح شامل يمنع أي تلوث
+        cache_key = f"historical:{market}:{symbol}:{timeframe}:tz{int(tz_offset_minutes or 0)}:{start_iso}:{end_iso}"
 
         
         if use_cache:
@@ -426,7 +432,8 @@ class DataService:
                 symbol=symbol,
                 timeframe=timeframe,
                 start_date = start_date.astimezone(timezone.utc),
-                end_date = end_date.astimezone(timezone.utc)
+                end_date = end_date.astimezone(timezone.utc),
+                tz_offset_minutes=int(tz_offset_minutes or 0),
 
             )
 
@@ -466,7 +473,8 @@ class DataService:
         market: str,
         start_date: datetime,
         end_date: datetime,
-        use_cache: bool = True
+        use_cache: bool = True,
+        tz_offset_minutes: int = 0,
     ) -> pd.DataFrame:
         """
         DEPRECATED (misspelled historical name) — kept only so existing callers
@@ -484,6 +492,7 @@ class DataService:
             start_date=start_date,
             end_date=end_date,
             use_cache=use_cache,
+            tz_offset_minutes=int(tz_offset_minutes or 0),
         )
 
     async def get_data_with_indicators(

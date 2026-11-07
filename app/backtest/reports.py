@@ -76,7 +76,10 @@ class ReportGenerator:
             },
             "market": result.config.market,
             "symbols": result.config.symbols,
-            "timeframe": result.config.timeframe
+            "timeframe": result.config.timeframe,
+            # ✅ الجولة 14.0 — صدى توقيت محاذاة الشموع
+            "timezone": str(getattr(result.config, "timezone", "UTC") or "UTC"),
+            "tz_offset_minutes": int(getattr(result.config, "tz_offset_minutes", 0) or 0),
         }
     
     def _generate_summary(self, result: BacktestResult) -> Dict[str, Any]:

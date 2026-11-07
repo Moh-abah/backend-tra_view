@@ -1,6 +1,6 @@
 # app\services\strategy\schemas.py
 from typing import Dict, List, Any, Optional, Union, Literal
-from pydantic import BaseModel, Field, field_validator, validator
+from pydantic import BaseModel, Field, field_validator, validator, model_validator
 from enum import Enum
 from datetime import datetime
 from app.services.indicators.base import IndicatorConfig, IndicatorType
@@ -57,9 +57,39 @@ class CompositeCondition(BaseModel):
     ✅ إصلاح: كان النوع Literal["and","or"] فقط بينما كل الاستراتيجيات المدمجة
     والمقيّم (conditions.py) يستخدمون "logical_and"/"logical_or" — فتفشل
     كل استراتيجيات النظام المدمجة في التحقق! نقبل الصيغتين ونوحّدها داخلياً.
+
+    ✅ الجولة 12: نقبل أيضاً الشكل {"type":"composite","logic":"and|or"}
+    (نعيد تعيينه للشكل الصحيح مع تحذير)، وأي شكل آخر غير معروف يُرفض برسالة
+    عربية واضحة بدل 0 صفقات صامتة في المحرك.
     """
     type: Literal["and", "or", "logical_and", "logical_or"]
     conditions: List[Union['CompositeCondition', Condition]]
+
+    @model_validator(mode='before')
+    @classmethod
+    def accept_composite_shape(cls, data: Any) -> Any:
+        """الجولة 12: شكل composite/logic → يُوحَّد؛ أي شكل آخر → خطأ واضح."""
+        if isinstance(data, dict):
+            t = str(data.get("type", "") or "").strip().lower()
+            if t == "composite":
+                logic = str(data.get("logic", "") or "").strip().lower()
+                if logic in ("and", "logical_and", "or", "logical_or"):
+                    d = dict(data)
+                    d["type"] = "and" if logic in ("and", "logical_and") else "or"
+                    import logging as _logging
+                    _logging.getLogger(__name__).warning(
+                        "شكل شرط مركّب قديم {type:'composite', logic:'%s'} — تم توحيده تلقائياً إلى {'type':'%s'}. "
+                        "استخدم الشكل الصحيح: {\"type\": \"and\"|\"or\", \"conditions\":[...]}",
+                        logic, d["type"],
+                    )
+                    return d
+                raise ValueError(
+                    "شكل شرط مركّب غير معروف: type='composite' بدون logic صالح "
+                    f"(logic='{logic}') — الصيغة الصحيحة: "
+                    '{"type": "and" | "or", "conditions": [...]} — وليس '
+                    '{"type": "composite", "logic": "..."}'
+                )
+        return data
 
     @validator('conditions')
     def validate_conditions(cls, v):
@@ -131,7 +161,15 @@ class StrategyConfig(BaseModel):
     allowed_timeframes: List[str] = ["1h", "4h", "1d"]
     position_side: PositionSide = PositionSide.LONG
     initial_capital: float = 10000.0
-    commission_rate: float = Field(0.001, ge=0.0, le=0.05)  # 0.1%
+    # ✅ الجولة 13 — إبادة العمولة (سياسة Zero-Fee):
+    # الحقل deprecated للتوافق الخلفي فقط — غيابه أو 0 يُقبل بصمت،
+    # وأي قيمة > 0 تُرفض بـ 422 برسالة عربية صريحة (بدون أي تطبيق صامت).
+    commission_rate: float = Field(
+        0.0, ge=0.0,
+        deprecated=True,
+        description="DEPRECATED (سياسة Zero-Fee): النظام يعمل بلا عمولات نهائياً. أي قيمة > 0 تُرفض بـ 422 — احذف الحقل من الحمولة.",
+        json_schema_extra={"deprecated": True},
+    )
     
     # المؤشرات المستخدمة
     indicators: List[IndicatorConfig] = Field(default_factory=list)
@@ -157,6 +195,18 @@ class StrategyConfig(BaseModel):
     #         raise ValueError("Duplicate indicator names found")
     #     return v
     
+    @model_validator(mode="after")
+    def zero_fee_policy(self):
+        """✅ الجولة 13 — سياسة Zero-Fee الإبادية (نفس عقد BacktestConfig):
+        أي commission_rate > 0 يُرفض بـ 422 برسالة عربية صريحة.
+        """
+        if self.commission_rate is not None and float(self.commission_rate) > 0.0:
+            raise ValueError(
+                "النظام يعمل بلا عمولات ولا انزلاق نهائياً (سياسة Zero-Fee). "
+                "حقل commission_rate لم يعد مقبولاً بقيمة > 0 — احذفه من الحمولة."
+            )
+        return self
+
     @validator('indicators')
     def validate_indicators(cls, v):
         """التحقق من عدم وجود تعارض (IDs must be unique, Names only need uniqueness if ID is missing)."""

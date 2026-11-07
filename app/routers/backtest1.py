@@ -2,8 +2,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+import asyncio
 import logging
 import math
+import time
+import uuid
 from app.backtest.engine1 import BacktestEngine
 from app.backtest.reports import ReportGenerator
 from app.backtest.schemas import BacktestConfig, BacktestResult
@@ -25,6 +28,10 @@ _backtest_engine = None
 _report_generator = ReportGenerator()
 _backtest_storage = {}  # {backtest_id: BacktestResult}
 _engine_cache = None
+
+# ✅ الجولة 12 (هوت-فكس): سجل المهام داخل العملية — يُستخدم عند سقوط
+# Celery/Redis حتى لا يفشل backtest1/run بخطأ Error 111 (broker down).
+_inprocess_tasks: Dict[str, Dict[str, Any]] = {}
 
 async def get_backtest_from_db(backtest_id: str) -> Optional[BacktestResult]:
     """استرجاع نتيجة الباك-تست من التخزين المؤقت"""
@@ -60,35 +67,395 @@ def log_invalid_numbers(data, path="root"):
 @router.post("/run")
 async def run_backtest(
     config: BacktestConfig = Body(...),
+    wait: bool = Query(False, description="true = انتظر انتهاء التشغيل وأعد النتيجة الكاملة (summary + chart_data) في نفس الرد"),
+    wait_timeout: int = Query(280, ge=5, le=900, description="أقصى انتظار بالثواني عند wait=true"),
     # نتجاهل generate_report و save_to_file لأنها ستتم معالجتها داخل الـ worker أو لاحقاً
     db = Depends(get_db)
 ):
     """
-    يرسل طلب الباك-تست إلى Celery Worker ويعود فوراً بـ task_id
+    يرسل طلب الباك-تست إلى Celery Worker ويعود فوراً بـ task_id.
+
+    ✅ الجولة 42 — التوحيد الكامل: عند وجود كتلة `exit_strategy` في الحمولة
+    يُنفَّذ التشغيل بمحرك الخروج الج41 (التريلينق الحرفي، جني الربح، DCA،
+    كسر الفيبو) من داخل هذا المسار نفسه — لا مسار موازٍ إطلاقاً:
+
+        POST /backtest1/run  (exit_strategy: {...})
+          → GET /backtest1/status/{task_id}     (نفس العقد)
+          → GET /backtest1/get/{backtest_id}    (نفس العقد + إثراءات ج42)
+
+    وغياب الكتلة = نفس سلوك المحرك الرئيسي بت-بت (لا يتغير شيء لأي
+    مستخدم حالي).
+
+    ✅ الجولة 12 (هوت-فكس): عندما يكون الـ broker (Redis) متوقفاً كان هذا
+    المسار يفشل كلياً بخطأ "Error 111 connecting to localhost:6379" —
+    الآن نتحقق من توفر الـ broker أولاً وعند عدم توفره تُنفَّذ نفس المهمة
+    داخل عملية الـ API (نفس محرك app.routers.backtest._run_backtest_inprocess
+    ونفس الحفظ في BacktestRun) ويعيد /backtest1/status نفس العقد تماماً —
+    فلا يبقى أي مسار تشغيل معتمداً على Redis حيّاً.
     """
     try:
-        logger.info(f"📤 Dispatching Backtest task to Celery: {config.name}")
-        
-        # إرسال المهمة للـ Worker
-        task = run_backtest_task.delay(config.dict())
-        
-        return {
-            "success": True,
-            "message": "Backtest started successfully. Processing in background.",
-            "task_id": task.id,
-            "status": "PROCESSING"
-        }
+        from app.celery_app import is_broker_available
+
+        dispatch: Dict[str, Any]
+
+        # ✅ الجولة 42 — المنفذ الموحد: محرك الخروج ج41 داخل backtest1/run
+        # نفسها. التنفيذ داخل العملية مباشرة (المحرك خفيف وسريع) بنفس
+        # دورة الحياة ونفس التخزين في BacktestRun — الفرونت يرى نفس
+        # /status و /get بلا أي فرق شكلي.
+        if config.exit_strategy is not None:
+            task_id = uuid.uuid4().hex
+            config_dict = config.model_dump(mode="json")
+            _inprocess_tasks[task_id] = {
+                "state": "PROGRESS",
+                "status": "Unified Exit Engine: fetching candles...",
+            }
+            asyncio.create_task(_run_unified_exit_task(task_id, config_dict))
+            dispatch = {
+                "success": True,
+                "message": "Unified backtest (exit-strategy engine) started. Processing in background.",
+                "task_id": task_id,
+                "status": "PROCESSING",
+                "mode": "unified-exit",
+            }
+            logger.info(
+                "🔁 [R42] backtest1/run unified-exit dispatch (task %s, symbol %s)",
+                task_id, config.symbols[0] if config.symbols else "?",
+            )
+            if wait:
+                return await _wait_for_result(db, dispatch, wait_timeout)
+            return dispatch
+
+        if not is_broker_available(timeout=2.0):
+            # ✅ مسار احتياطي داخل العملية — بلا Redis/Celery
+            from app.routers.backtest import _run_backtest_inprocess
+
+            task_id = uuid.uuid4().hex
+            config_dict = config.model_dump(mode="json")
+            _inprocess_tasks[task_id] = {"state": "PROGRESS", "status": "Starting Backtest Engine..."}
+            asyncio.create_task(_track_inprocess(task_id, config_dict))
+            logger.warning(
+                "Celery broker unavailable → backtest1/run in-process (task %s, strategy '%s')",
+                task_id, config.name,
+            )
+            dispatch = {
+                "success": True,
+                "message": "Backtest started in-process (broker unavailable). Processing in background.",
+                "task_id": task_id,
+                "status": "PROCESSING",
+                "mode": "inprocess",
+            }
+        else:
+            logger.info(f"📤 Dispatching Backtest task to Celery: {config.name}")
+
+            # إرسال المهمة للـ Worker
+            # ✅ model_dump(mode="json") يحول datetime إلى ISO strings —
+            # dict() كان يفشل مع Celery JSON serializer (EncodeError)
+            task = run_backtest_task.delay(config.model_dump(mode="json"))
+
+            dispatch = {
+                "success": True,
+                "message": "Backtest started successfully. Processing in background.",
+                "task_id": task.id,
+                "status": "PROCESSING",
+                "mode": "celery",
+            }
+
+        # ✅ الجولة 12: wait=true — انتظر النتيجة وأعدها في نفس الرد
+        # (يُسهّل اختبارات القبول الحرفية: chart_data.visual_candles[0].close
+        # متاحة مباشرة من استجابة POST واحدة).
+        if wait:
+            return await _wait_for_result(db, dispatch, wait_timeout)
+        return dispatch
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to dispatch task: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # ✅ محاولة أخيرة داخل العملية قبل الفشل — الزر يعمل بأي حال
+        try:
+            from app.routers.backtest import _run_backtest_inprocess
+
+            task_id = uuid.uuid4().hex
+            config_dict = config.model_dump(mode="json")
+            _inprocess_tasks[task_id] = {"state": "PROGRESS", "status": "Starting Backtest Engine..."}
+            asyncio.create_task(_track_inprocess(task_id, config_dict))
+            logger.warning("Celery dispatch failed (%s) → backtest1/run in-process (task %s)", e, task_id)
+            return {
+                "success": True,
+                "message": "Backtest started in-process (broker dispatch failed). Processing in background.",
+                "task_id": task_id,
+                "status": "PROCESSING",
+                "mode": "inprocess",
+            }
+        except Exception:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _track_inprocess(task_id: str, config_dict: dict) -> None:
+    """غلاف ينسخ حالة المهمة داخل العملية إلى سجل backtest1 المحلي."""
+    from app.routers.backtest import _run_backtest_inprocess, _inprocess_tasks as _bt_inprocess
+
+    await _run_backtest_inprocess(task_id, config_dict)
+    # انسخ الحالة النهائية إلى سجلنا المحلي (نفس المرجع يكفي عملياً لكن
+    # النسخ يضمن استقلالية السجل عن أي إعادة تحميل للوحدة)
+    state = _bt_inprocess.get(task_id)
+    if state is not None:
+        _inprocess_tasks[task_id] = dict(state)
+
+
+def _resolve_unified_days(config: BacktestConfig) -> int:
+    """نافذة الجلب بالأيام للمنفذ الموحد: days إن أُرسلت وإلا من فرق
+    التواريخ (start_date → end_date) — نفس نافذة المحرك الرئيسي."""
+    if config.days:
+        d = int(config.days)
+    else:
+        try:
+            delta = (config.end_date - config.start_date).total_seconds()
+            d = int(delta // 86400)
+        except (TypeError, AttributeError):
+            d = 30
+    return max(1, min(365, d or 30))
+
+
+async def _run_unified_exit_task(task_id: str, config_dict: dict) -> None:
+    """✅ الجولة 42 — المنفذ الموحد: محرك الخروج ج41 من داخل backtest1/run.
+
+    نفس دورة الحياة (PROGRESS → SUCCESS/FAILURE) ونفس التخزين (BacktestRun)
+    ونفس عقد /status و /get — بلا أي مسار موازٍ للفرونت:
+
+      1) جلب الشموع من نفس المزوّد (DataService — stateless)
+      2) استراتيجية البطل (zzfib*) → إشارات الدخول + أرضيات الفيبو
+      3) محرك الخروج ج41 (التريلينق الحرفي / TP / DCA / كسر الفيبو)
+      4) بناء (summary + chart_data) بنفس عقد المحرك الرئيسي
+      5) الحفظ في نفس جدول BacktestRun → /get و /chart-data يعملان فوراً
+
+    الحساب الثقيل داخل خيط عامل (نفس درس الجولة 14.1 — لا تجميد للحلقة)
+    والجلسة معزولة (NullPool خاص بحلقة الخيط).
+    """
+    import time as _time
+
+    t0 = _time.perf_counter()
+    try:
+        config = BacktestConfig(**config_dict)
+        block = config.exit_strategy
+
+        symbol = (config.symbols[0] if config.symbols else "").strip().upper()
+        timeframe = str(config.timeframe or "1d")
+        market = str(config.market or "crypto").strip().lower()
+
+        # 1) حلّ الاستراتيجية: block.strategy ← strategy_config.name ← zzfib
+        sc_name = ""
+        if config.strategy_config and isinstance(config.strategy_config, dict):
+            sc_name = str(config.strategy_config.get("name") or "").strip().lower()
+        strategy = str(block.strategy or sc_name or "zzfib").strip().lower()
+
+        # 2) إعدادات الخروج — المنظّمة من المخطط إن توفرت (لا إعادة حساب)،
+        #    وإلا تطبيع نهائي هنا (تحقق مزدوج رخيص مقابل أمان مطلق).
+        from app.services.unified_backtest import validate_exit_block
+
+        normalized = getattr(block, "_normalized_block", None)
+        if normalized is None:
+            normalized, v_errors = validate_exit_block(
+                block.strategy, block.strategy_params, block.config,
+            )
+            if v_errors:
+                raise ValueError("؛ ".join(v_errors))
+        exit_cfg = dict(normalized["config"])
+        strategy_params = dict(normalized.get("strategy_params") or {})
+
+        # 3) جلب الشموع (stateless — نفس مزوّد راوتر محرك الخروج)
+        _inprocess_tasks[task_id] = {
+            "state": "PROGRESS",
+            "status": f"Unified Exit Engine: fetching {symbol} {timeframe} candles...",
+        }
+        from app.services.data_service import DataService
+
+        data_service = DataService(None)
+        days = _resolve_unified_days(config)
+        dataframe = await data_service.get_historical(
+            symbol=symbol, timeframe=timeframe, market=market, days=days,
+        )
+        if dataframe is None or getattr(dataframe, "empty", True):
+            raise ValueError(
+                f"لا توجد شموع للرمز {symbol} على فريم {timeframe} ({days} يوماً)"
+            )
+
+        # 4) التنفيذ الحسابي داخل خيط عامل (لا تجميد لحلقة الـAPI)
+        _inprocess_tasks[task_id] = {
+            "state": "PROGRESS",
+            "status": "Unified Exit Engine: running simulation...",
+        }
+        from app.routers.exit_strategy import _df_to_candles
+        from app.services.unified_backtest import run_unified_exit_backtest
+
+        candles = _df_to_candles(dataframe)
+        result = await asyncio.to_thread(
+            run_unified_exit_backtest,
+            candles, strategy, strategy_params, exit_cfg,
+            {
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "market": market,
+                "initial_capital": float(config.initial_capital),
+                "timezone": str(config.timezone),
+                "tz_offset_minutes": int(config.tz_offset_minutes or 0),
+                "name": config.name,
+            },
+        )
+
+        # 5) الحفظ في BacktestRun — نفس جدول التخزين، جلسة معزولة
+        _inprocess_tasks[task_id] = {
+            "state": "PROGRESS",
+            "status": "Unified Exit Engine: saving result...",
+        }
+        from app.database.session import build_isolated_session_maker
+        from app.models.backtest_run import BacktestRun as _BacktestRun
+        from app.tasks.backtest_tasks import clean_for_db
+
+        backtest_id = uuid.uuid4().hex
+        clean_summary = clean_for_db(result["summary"])
+        clean_chart = clean_for_db(result["chart_data"])
+        clean_full_config = clean_for_db(config.model_dump(mode="json"))
+
+        def _save_isolated() -> None:
+            async def _inner() -> None:
+                session_maker, iso_engine = build_isolated_session_maker()
+                try:
+                    async with session_maker() as db:
+                        db.add(_BacktestRun(
+                            id=backtest_id,
+                            name=config.name,
+                            summary=clean_summary,
+                            chart_data=clean_chart,
+                            full_config=clean_full_config,
+                            total_pnl_percent=float(clean_summary.get("total_pnl_percent") or 0.0),
+                            win_rate=float(clean_summary.get("win_rate") or 0.0),
+                            total_trades=int(clean_summary.get("total_trades") or 0),
+                            timeframe=timeframe,
+                            symbol=symbol,
+                        ))
+                        await db.commit()
+                finally:
+                    try:
+                        await iso_engine.dispose()
+                    except Exception:  # noqa: BLE001
+                        pass
+
+            import asyncio as _asyncio
+
+            _asyncio.run(_inner())
+
+        await asyncio.to_thread(_save_isolated)
+
+        _inprocess_tasks[task_id] = {"state": "SUCCESS", "backtest_id": backtest_id}
+        logger.info(
+            "✅ [R42] unified-exit backtest %s completed (task %s, %.0f ms, strategy=%s)",
+            backtest_id, task_id, (_time.perf_counter() - t0) * 1000, strategy,
+        )
+    except Exception as exc:  # noqa: BLE001
+        _inprocess_tasks[task_id] = {
+            "state": "FAILURE",
+            "error": str(exc)[:400] or exc.__class__.__name__,
+        }
+        logger.exception("❌ [R42] unified-exit task %s failed: %s", task_id, exc)
+
+
+async def _wait_for_result(db: AsyncSession, dispatch: Dict[str, Any], wait_timeout: int) -> Dict[str, Any]:
+    """
+    ✅ الجولة 12: عند wait=true — يستطلع حالة المهمة حتى النجاح/الفشل/انتهاء
+    المهلة ثم يجلب المستند الكامل (summary + chart_data) من BacktestRun ويُعيده
+    في نفس استجابة POST — فأوامر القبول الحرفية تقرأ chart_data مباشرة.
+    """
+    task_id = dispatch.get("task_id")
+    if not task_id:
+        return dispatch
+
+    deadline = time.time() + max(5, int(wait_timeout))
+    state = None
+    status_resp: Dict[str, Any] = {}
+    while time.time() < deadline:
+        status_resp = await get_task_status(task_id)
+        state = status_resp.get("state")
+        if state in ("SUCCESS", "FAILURE"):
+            break
+        await asyncio.sleep(1.0)
+
+    if state != "SUCCESS":
+        out = dict(dispatch)
+        out["status"] = "WAIT_TIMEOUT" if state not in ("FAILURE",) else "FAILURE"
+        if state == "FAILURE":
+            out["error"] = status_resp.get("error") or status_resp.get("error_detail") or "Backtest failed"
+        elif state != "SUCCESS":
+            out["message"] = f"Still processing after {wait_timeout}s — استخدم /backtest1/status/{task_id} لاحقاً"
+        return out
+
+    backtest_id = status_resp.get("backtest_id") or (status_resp.get("result") or {}).get("backtest_id")
+    if not backtest_id:
+        return {**dispatch, "status": "COMPLETED"}
+
+    # ✅ نُعيد المستند المُثرى (metadata + ind_* مسطّحة + chart_data_by_symbol)
+    # بنفس منطق GET /backtest/get/{id} حرفياً — استدعاء مباشر لنفس الدالة.
+    try:
+        from app.routers.backtest import get_backtest_details
+        doc = await get_backtest_details(backtest_id, db)
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "COMPLETED",
+            "mode": dispatch.get("mode"),
+            "backtest_id": backtest_id,
+            "name": doc.get("name"),
+            "summary": doc.get("summary"),
+            "chart_data": doc.get("chart_data"),
+            "config": doc.get("config"),
+        }
+    except Exception:
+        logger.exception("wait=true: failed to fetch enriched document")
+        result = await db.execute(select(BacktestRun).where(BacktestRun.id == backtest_id))
+        bt = result.scalar_one_or_none()
+        if bt is None:
+            return {**dispatch, "status": "COMPLETED", "backtest_id": backtest_id}
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "COMPLETED",
+            "mode": dispatch.get("mode"),
+            "backtest_id": bt.id,
+            "summary": bt.summary,
+            "chart_data": bt.chart_data,
+            "config": bt.full_config,
+        }
 
 # ==========================================
 # 2. نقطة لفحص حالة المهمة
 # ==========================================
 @router.get("/status/{task_id}")
 async def get_task_status(task_id: str):
-    
+    """
+    حالة المهمة — يدعم المهام داخل العملية (وضع inprocess) و Celery معاً.
 
+    ✅ الجولة 12 (هوت-فكس): كان يعتمد Celery فقط، فكانت مهام inprocess
+    تبدو PENDING للأبد. الآن: السجل المحلي أولاً ثم Celery.
+    """
+    # 1) المهام داخل العملية (وضع بلا Redis) — لها الأولوية
+    local = _inprocess_tasks.get(task_id)
+    if local is not None:
+        response = {"task_id": task_id, "state": local.get("state", "PENDING"), "mode": "inprocess"}
+        state = local.get("state")
+        if state == "PROGRESS":
+            response["message"] = local.get("status", "Processing...")
+        elif state == "SUCCESS":
+            response["message"] = "Backtest completed successfully."
+            response["backtest_id"] = local.get("backtest_id")
+            response["result"] = {"status": "SUCCESS", "backtest_id": local.get("backtest_id")}
+        elif state == "FAILURE":
+            response["message"] = "Task failed."
+            response["error"] = local.get("error", "Backtest execution failed.")
+            response["error_detail"] = local.get("error", "")
+        else:
+            response["message"] = "Task is waiting to be processed."
+        return response
+
+    # 2) مهام Celery (الوضع الطبيعي)
     task_result = AsyncResult(task_id, app=celery_app)
     response = {
         "task_id": task_id,
@@ -325,212 +692,40 @@ def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dic
 async def get_chart_data(
     backtest_id: str,
     db: AsyncSession = Depends(get_db),
-    start_index: int = Query(None), 
+    start_index: int = Query(None),
     limit: int = Query(None),
     include_indicators: Optional[List[str]] = Query(None)
 ):
     """
-    جلب كامل بيانات الرسم البياني (Full Dump) - النسخة النهائية المحسنة
+    جلب كامل بيانات الرسم البياني (Full Dump).
+
+    ✅ الجولة 12.1 (إصلاح جذري): كانت هذه النقطة تقرأ backtest.visual_candles
+    — وهو حقل غير موجود في ORM BacktestRun (البيانات الفعلية في عمود
+    chart_data JSON) — فكانت تُعيد 404 "No chart data available" **دائماً**
+    حتى مع وجود بيانات. الآن تُفوَّض مباشرة إلى التنفيذ الصحيح والكامل في
+    app.routers.backtest.get_chart_data (نفس مصدر الحقيقة: عمود chart_data
+    + كاش + include_indicators=true + chart_data_by_symbol + overlays) —
+    بلا أي ازدواجية منطق يمكن أن يتفكك مستقبلاً.
     """
-    # 1. استرجاع الباك-تست
-    # backtest = await get_backtest_from_db(backtest_id)
+    from app.routers.backtest import get_chart_data as _correct_chart_data
 
-
-    query = select(BacktestRun).where(BacktestRun.id == backtest_id)
-    result = await db.execute(query)
-    backtest = result.scalar_one_or_none()
-
-    if not backtest:
-        raise HTTPException(status_code=404, detail="Backtest not found or expired")
-    
-    # 2. التحقق من وجود البيانات
-    if not hasattr(backtest, 'visual_candles') or not backtest.visual_candles:
-        raise HTTPException(status_code=404, detail="No chart data available")
-    
-    # 3. جلب البيانات
-    all_candles = backtest.visual_candles
-    all_trade_points = backtest.trade_points if hasattr(backtest, 'trade_points') else []
-    
-    # 4. تجهيز الشموع (Candle Processing)
-    formatted_candles = []
-    
-    for candle in all_candles:
-        # بناء جسم الشمعة (Basic Fields)
-        formatted_candle = {
-            "timestamp": candle.timestamp.isoformat() if hasattr(candle.timestamp, 'isoformat') else str(candle.timestamp),
-            "open": candle.open,
-            "high": candle.high,
-            "low": candle.low,
-            "close": candle.close,
-            "volume": candle.volume,
-            
-            # بيانات الاستراتيجية
-            "strategy_decision": candle.strategy_decision,
-            "position_state": candle.position_state,
-            "triggered_rules": getattr(candle, 'triggered_rules', []),
-            "confidence": getattr(candle, 'confidence', None),
-            
-            # بيانات الصفقة
-            "trade_action": getattr(candle, 'trade_action', None),
-            "trade_id": getattr(candle, 'trade_id', None),
-            "trade_price": getattr(candle, 'trade_price', None),
-            "trade_size": getattr(candle, 'trade_size', None),
-            
-            # البيانات المالية
-            "account_balance": getattr(candle, 'account_balance', None),
-            "cumulative_pnl": getattr(candle, 'cumulative_pnl', None),
-            "position_size": getattr(candle, 'position_size', None),
-            "entry_price": getattr(candle, 'entry_price', None),
-            "stop_loss": getattr(candle, 'stop_loss', None),
-            "take_profit": getattr(candle, 'take_profit', None),
-            "risk_reward_ratio": getattr(candle, 'risk_reward_ratio', None),
-            "current_pnl": getattr(candle, 'current_pnl', None),
-            "unrealized_pnl": getattr(candle, 'unrealized_pnl', None),
-            "pnl": getattr(candle, 'pnl', None),
-            "pnl_percentage": getattr(candle, 'pnl_percentage', None),
-            
-            # بيانات إضافية
-            "market_condition": getattr(candle, 'market_condition', None),
-            "signal_strength": getattr(candle, 'signal_strength', None),
-            "price_change_percent": getattr(candle, 'price_change_percent', None),
-            "volatility": getattr(candle, 'volatility', None),
-            "leverage_used": getattr(candle, 'leverage_used', None),
-            "margin_used": getattr(candle, 'margin_used', None),
-            "free_margin": getattr(candle, 'free_margin', None),
-            "return_on_investment": getattr(candle, 'return_on_investment', None),
-
-
-
-            "volume_bar": getattr(candle, 'volume_bar', None),
-            "climax_point": getattr(candle, 'climax_point', None)
-        }
-        
-        # ✅ 5. معالجة المؤشرات (Indicators Handling Logic)
-        if hasattr(candle, 'indicators') and candle.indicators:
-            # نستخدم دالة flatten_dict لتفكيك أي بيانات متداخلة (مثل BB)
-            flat_indicators = flatten_dict(candle.indicators)
-            
-            for ind_name, ind_value in flat_indicators.items():
-                # التحقق من الفلترة
-                if include_indicators is None or ind_name in include_indicators:
-                    # ✅ التعامل مع أنواع البيانات المختلفة
-                    if isinstance(ind_value, (float, int)):
-                        formatted_candle[f"ind_{ind_name}"] = float(ind_value)
-                    elif ind_value is None:
-                        formatted_candle[f"ind_{ind_name}"] = None # سيظهر كـ null في JSON
-                    else:
-                        # إذا كانت قيمة نصية أو غير عددية (نادر في المؤشرات لكن احتياط)
-                        formatted_candle[f"ind_{ind_name}"] = ind_value
-        
-        formatted_candles.append(formatted_candle)
-    
-    # 6. معالجة علامات التداول (Trade Markers)
-    trade_markers = []
-    if all_trade_points:
-        for trade_point in all_trade_points:
-            # تحديد الفهرس
-            point_time = trade_point.get("timestamp")
-            point_index = None
-            if point_time:
-                # بحث بسيط لتحديد مكان النقطة في الشارت
-                for idx, candle in enumerate(all_candles):
-                    if str(candle.timestamp) == str(point_time):
-                        point_index = idx
-                        break
-            
-            marker_data = {
-                "timestamp": point_time.isoformat() if hasattr(point_time, 'isoformat') else str(point_time),
-                "price": trade_point.get("price"),
-                "type": trade_point.get("type"),
-                "trade_id": trade_point.get("trade_id"),
-                "position_type": trade_point.get("position_type"),
-                "position_size": trade_point.get("position_size"),
-                "exit_reason": trade_point.get("exit_reason"),
-                "pnl": trade_point.get("pnl"),
-                "pnl_percentage": trade_point.get("pnl_percentage"),
-                "entry_price": trade_point.get("entry_price"),
-                "exit_price": trade_point.get("exit_price"),
-                "stop_loss": trade_point.get("stop_loss"),
-                "take_profit": trade_point.get("take_profit"),
-                "holding_period": trade_point.get("holding_period"),
-                "risk_reward_ratio": trade_point.get("risk_reward_ratio"),
-                "commission": trade_point.get("commission"),
-                "account_balance_before": trade_point.get("account_balance_before"),
-                "account_balance_after": trade_point.get("account_balance_after"),
-                "cumulative_pnl": trade_point.get("cumulative_pnl"),
-                "index": point_index,
-                "decision_reason": trade_point.get("decision_reason"),
-                "confidence": trade_point.get("confidence")
-            }
-            
-            # إضافة صورة المؤشرات
-            if "indicators_snapshot" in trade_point:
-                marker_data["indicators_snapshot"] = trade_point["indicators_snapshot"]
-                
-            trade_markers.append(marker_data)
-    
-    # 7. جمع أسماء المؤشرات المتاحة (باستخدام آخر شمعة كمرجع)
-    available_indicators = []
-    if formatted_candles:
-        available_indicators = [key.replace("ind_", "") for key in formatted_candles[0].keys() if key.startswith("ind_")]
-
-    # 8. بناء الاستجابة النهائية
-    response = {
-        "backtest_id": backtest_id,
-        "metadata": {
-            "name": backtest.config.name if hasattr(backtest, 'config') else "Backtest",
-            "symbol": backtest.config.symbols[0] if hasattr(backtest, 'config') and backtest.config.symbols else "Unknown",
-            "timeframe": backtest.config.timeframe,
-            "initial_capital": backtest.initial_capital,
-            "final_capital": backtest.final_capital,
-            "total_pnl": backtest.total_pnl,
-            "total_pnl_percent": backtest.total_pnl_percent,
-            "total_trades": backtest.total_trades,
-            "win_rate": backtest.win_rate,
-            "start_date": formatted_candles[0]['timestamp'] if formatted_candles else None,
-            "end_date": formatted_candles[-1]['timestamp'] if formatted_candles else None
-        },
-        "chart_data": {
-            "candles": formatted_candles,
-            "trade_markers": trade_markers,
-            "available_indicators": available_indicators,
-            "total_candles": len(all_candles),
-            "total_trades": len(trade_markers)
-        },
-        "summary": {
-            "total_candles": len(all_candles),
-            "total_trades": backtest.total_trades,
-            "win_rate": backtest.win_rate,
-            "total_pnl": backtest.total_pnl,
-            "total_pnl_percent": backtest.total_pnl_percent,
-            "max_drawdown_percent": backtest.max_drawdown_percent,
-            "sharpe_ratio": backtest.sharpe_ratio,
-            "sortino_ratio": backtest.sortino_ratio,
-            "calmar_ratio": backtest.calmar_ratio,
-            "profit_factor": backtest.profit_factor,
-            "annual_return_percent": backtest.annual_return_percent,
-            "visible_range": f"0-{len(all_candles)}",
-            "has_more_data": False
-        }
-    }
-    
-    # إضافة البيانات الإضافية
-    if hasattr(backtest, 'equity_curve'):
-        response["equity_curve"] = backtest.equity_curve
-    if hasattr(backtest, 'drawdown_curve'):
-        response["drawdown_curve"] = backtest.drawdown_curve
-    
-
-    normalizer = MetricsNormalizer()
-    safe_response = normalizer.normalize(response)  # تمرير dict فقط
-    return safe_response    
-
-
-
-
-
-
-
+    # ✅ ملاحظة: استدعاء مباشر (ليس عبر FastAPI) — لذلك نمرّر كل معاملات
+    # الدالة الداخلية صراحة (الافتراضيات Query(None) تبقى FieldInfo عند
+    # الاستدعاء المباشر فلا تُقرأ تلقائياً كـ None).
+    return await _correct_chart_data(
+        backtest_id=backtest_id,
+        db=db,
+        start_index=start_index,
+        limit=limit,
+        include_indicators=include_indicators,
+        overlays=None,
+        zz_length=100,
+        fib_depth=10,
+        fib_dev=5.0,
+        fib_ret=0.618,
+        tl_period=10,
+        tl_pairs=1,
+    )
 
 
 @router.get("/list")
@@ -639,8 +834,11 @@ async def get_backtest_details(
                 flat_indicators = flatten_dict(indicators_data)
                 
                 # 3. دمج المؤشرات المسطحة في الشمعة وإضافة البادئة ind_
+                # ✅ الجولة 12.1 (إصلاح 0-أ): لا بادئة مزدوجة — ind_ind_zz_pivot كان
+                # يظهر من هذه النقطة تحديداً (أعمدة العقد تأتي مسبقة ind_ من المحرك).
                 for key, value in flat_indicators.items():
-                    formatted_candle[f"ind_{key}"] = value
+                    _k = str(key)
+                    formatted_candle[_k if _k.startswith("ind_") else f"ind_{_k}"] = value
                 
                 processed_candles.append(formatted_candle)
             

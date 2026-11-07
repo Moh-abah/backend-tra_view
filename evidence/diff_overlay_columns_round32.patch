@@ -1,0 +1,194 @@
+--- /tmp/pristine32/orig/app/services/indicators/overlay_columns.py	2026-11-04 19:03:34.636646839 +0000
++++ app/services/indicators/overlay_columns.py	2026-11-04 18:55:21.099386569 +0000
+@@ -114,9 +114,15 @@
+     # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد (أسماء جديدة تماماً)
+     "zigzag_fib_e2e": "zzfib_e2e",
+     "zzfib_e2e": "zzfib_e2e",
++    # ✅ ROUND32: «الزقزاق البطل e2e الترنديه» — الاستنساخ المعزول + مؤشر الترند المستقل
++    "zigzag_fib_e2e_trendy": "zzfib_e2e_trendy",
++    "zzfib_e2e_trendy": "zzfib_e2e_trendy",
++    "trend_fractal": "trend_fractal",
++    "fractal_trendlines": "trend_fractal",
+ }
+ 
+-KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e")
++KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
++                       "zzfib_e2e_trendy", "trend_fractal")  # ✅ ROUND32: الترندية + مؤشر الترند
+ 
+ # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
+ CONTRACT_COLUMNS: Dict[str, List[str]] = {
+@@ -155,6 +161,38 @@
+         "ind_zzfe_signal_s3", "ind_zzfe_signal_any", "ind_zzfe_entry",
+         "ind_zzfe_entry_s1", "ind_zzfe_entry_s2", "ind_zzfe_entry_s3",
+     ],
++    # ✅ ROUND32 (ZLF-End-To-End-Trendy) — عقد «الترندية» — كل الأسماء جديدة كلياً
++    # (zzfet_* → ind_zzfet_*): E2E حرفياً + ثلاثية البوابة الشفافة (الخام/المبوّب/
++    # الممنوع) + حالة الترند والمجاميع. مرايا الفترات (ind_zzfet_tr_p{n}_*) ديناميكية
++    # حسب قالب الفترات — المذكور هنا للفترات الافتراضية [7,15,25].
++    "zzfib_e2e_trendy": [
++        "ind_zzfet_dir", "ind_zzfet_p1", "ind_zzfet_p2", "ind_zzfet_i1", "ind_zzfet_i2",
++        "ind_zzfet_anchor", "ind_zzfet_range_index",
++        "ind_zzfet_liq_state", "ind_zzfet_liq_ref_high", "ind_zzfet_liq_ref_vol",
++        "ind_zzfet_liq_vol_ok", "ind_zzfet_signal_s1", "ind_zzfet_signal_s2",
++        "ind_zzfet_signal_s3", "ind_zzfet_signal_any",
++        "ind_zzfet_entry", "ind_zzfet_entry_raw",
++        "ind_zzfet_entry_s1", "ind_zzfet_entry_s2", "ind_zzfet_entry_s3",
++        "ind_zzfet_entry_raw_s1", "ind_zzfet_entry_raw_s2", "ind_zzfet_entry_raw_s3",
++        "ind_zzfet_entry_blocked_s1", "ind_zzfet_entry_blocked_s2", "ind_zzfet_entry_blocked_s3",
++        "ind_zzfet_trend_ok", "ind_zzfet_trend_bias",
++        "ind_zzfet_trend_votes_bull", "ind_zzfet_trend_votes_bear",
++        "ind_zzfet_tr_p7_upper", "ind_zzfet_tr_p7_lower", "ind_zzfet_tr_p7_bias",
++        "ind_zzfet_tr_p15_upper", "ind_zzfet_tr_p15_lower", "ind_zzfet_tr_p15_bias",
++        "ind_zzfet_tr_p25_upper", "ind_zzfet_tr_p25_lower", "ind_zzfet_tr_p25_bias",
++    ],
++    # ✅ ROUND32 — عقد مؤشر الترند المستقل: قيم الخطوط والانحياز والتقاطعات لكل فترة
++    # (ديناميكية حسب القالب — المذكور للفترات الافتراضية) + المجاميع والبوابة.
++    "trend_fractal": [
++        "ind_trf_p7_upper", "ind_trf_p7_lower", "ind_trf_p7_bias",
++        "ind_trf_p7_cross_upper", "ind_trf_p7_cross_lower",
++        "ind_trf_p15_upper", "ind_trf_p15_lower", "ind_trf_p15_bias",
++        "ind_trf_p15_cross_upper", "ind_trf_p15_cross_lower",
++        "ind_trf_p25_upper", "ind_trf_p25_lower", "ind_trf_p25_bias",
++        "ind_trf_p25_cross_upper", "ind_trf_p25_cross_lower",
++        "ind_trf_bull_votes", "ind_trf_bear_votes", "ind_trf_bias",
++        "ind_trf_trend_ok", "ind_trf_threshold",
++    ],
+ }
+ 
+ 
+@@ -281,6 +319,29 @@
+         bs_ = _num(("backstep",), int)
+         if bs_ is not None:
+             out["backstep"] = max(1, bs_)
++        # ✅ ROUND31 — افتراضيات البطل للمفاتيح الغائبة (اتساق الطبقات الثلاث).
++        #
++        # العللة المثبتة (تشخيص ROUND31): مسار chart-data بالاسم فقط
++        # ({"name": "zigzag_fib"} بلا params) كان يُسقط المسار على قيم الخدمة
++        # الافتراضية (mode="luxalgo" + liq_lookback=20) بينما محرك البث الحي
++        # والبريسِت يعملان منذ ج19/j21-v2 بـ (tradingview + liq_lookback=240)
++        # — فتُبنى إشارات الشارت لكل شمعة على زقزاق ومرجع R مختلفَين كلياً عن
++        # زقزاق محرك القرار (إثبات: انقلابات dir عند 04:48/13:26/13:55/16:57
++        # على luxalgo مقابل 21:44/02:58/04:50 فقط على tradingview — نفس البيانات
++        # BTCUSDT 1m) — فيرى المستخدم إشارات على الشارت لا يصدقها البث الحي
++        # والعكس. القاعدة الآن: كل مفتاح غائب يأخذ قيمة قالب البطل، والمفاتيح
++        # الصريحة تفوز دائماً كما كانت (صفر تغيير للمحمولات المصرّح بها).
++        # E2E (zzfib_e2e) خارج هذا — وضع luxalgo هو مواصفته التعاقدية.
++        if "mode" not in out:
++            out["mode"] = "tradingview"
++        if "depth" not in out:
++            out["depth"] = 12
++        if "deviation" not in out:
++            out["deviation"] = 20.0
++        if "backstep" not in out:
++            out["backstep"] = 3
++        if "liq_lookback" not in out:
++            out["liq_lookback"] = 240
+     elif base == "zzfib_e2e":
+         # ✅ ROUND22 (ZLF-End-To-End) — المحرك المنفصل: نفس معاملات الزقزاق
+         # (+ launch_touch_ticks). لا liq_* — النطاق يعتمد لحظة ظهور الزقزاق
+@@ -313,6 +374,53 @@
+         tt_ = _num(("launch_touch_ticks",))
+         if tt_ is not None:
+             out["launch_touch_ticks"] = float(tt_)
++    elif base == "zzfib_e2e_trendy":
++        # ✅ ROUND32 — الترندية: نفس معاملات E2E حرفياً + القوالب الترندية الثلاثة
++        # (trend_periods قائمة بأي طول — إضافة ترند رابع 30 = تعديل القالب بلا كود).
++        length = _num(("length",), int)
++        if length is not None:
++            out["length"] = max(2, length)
++        if "reverse" in p:
++            out["reverse"] = bool(p["reverse"])
++        lv = p.get("levels", p.get("level_ratios"))
++        if isinstance(lv, (list, tuple)) and lv:
++            try:
++                out["levels"] = [float(x) for x in lv]
++            except (TypeError, ValueError):
++                pass
++        for k in ("extend_right", "extend_leg_to_live"):
++            if k in p:
++                out[k] = bool(p[k])
++        if "mode" in p:
++            out["mode"] = str(p["mode"]).strip().lower()
++        d_ = _num(("depth",), int)
++        if d_ is not None:
++            out["depth"] = max(2, d_)
++        dv_ = _num(("deviation",))
++        if dv_ is not None:
++            out["deviation"] = float(dv_)
++        bs_ = _num(("backstep",), int)
++        if bs_ is not None:
++            out["backstep"] = max(1, bs_)
++        tt_ = _num(("launch_touch_ticks",))
++        if tt_ is not None:
++            out["launch_touch_ticks"] = float(tt_)
++        # القوالب الترندية — تُمرَّر كما هي (المحرك يطبّع القوائم/النصوص)
++        tp = p.get("trend_periods", p.get("periods"))
++        if tp is not None:
++            out["trend_periods"] = tp
++        if "trend_confirm" in p:
++            out["trend_confirm"] = p["trend_confirm"]
++        tg = p.get("trend_gate", p.get("gate"))
++        if tg is not None:
++            out["trend_gate"] = tg
++    elif base == "trend_fractal":
++        # ✅ ROUND32 — مؤشر الترند المستقل: فترات قالبية بأي طول + صيغة الإجماع.
++        tp = p.get("periods", p.get("trend_periods"))
++        if tp is not None:
++            out["periods"] = tp
++        if "confirm_mode" in p:
++            out["confirm_mode"] = p["confirm_mode"]
+     else:  # trendline
+         period = _num(("period", "n", "fractal_period"), int)
+         if period is not None:
+@@ -536,6 +644,37 @@
+     return out
+ 
+ 
++def _zzfet_columns(zzfet: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """✅ ROUND32: نتيجة zigzag_fib_e2e_trendy → أعمدة ind_zzfet_* (zzfet_X → ind_zzfet_X).
++
++    «الزقزاق البطل e2e الترنديه» — عقد تمايز ثالث: صفر تداخل مع zzf_*/zzfe_*/trf_*.
++    مرايا الفترات zzfet_tr_p{n}_* تمر تلقائياً بنفس القاعدة العامة (أي طول قالب).
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = zzfet.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("zzfet_"):
++            continue
++        out["ind_" + k] = list(vals or [])
++    return out
++
++
++def _trf_columns(trf: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """✅ ROUND32: نتيجة auto_trendlines_fractal → أعمدة ind_trf_* (trf_X → ind_trf_X).
++
++    مؤشر الترند المستقل: قيم الخطوط/الانحياز/التقاطعات لكل فترة (قالبية) + المجاميع.
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = trf.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("trf_"):
++            continue
++        out["ind_" + k] = list(vals or [])
++    return out
++
++
+ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+     """نتيجة compute_overlays → أعمدة ind_* التعاقدية (فقط للأنواع المحسوبة)."""
+     out: Dict[str, List[Optional[float]]] = {}
+@@ -561,6 +700,13 @@
+     zzfe = ovl.get("zzfib_e2e")
+     if isinstance(zzfe, dict) and zzfe.get("series"):
+         out.update(_zzfe_columns(zzfe))
++    # ✅ ROUND32 — أعمدة الترندية zzfet_* → ind_zzfet_* + مؤشر الترند trf_* → ind_trf_*
++    zzfet = ovl.get("zzfib_e2e_trendy")
++    if isinstance(zzfet, dict) and zzfet.get("series"):
++        out.update(_zzfet_columns(zzfet))
++    trf = ovl.get("trend_fractal")
++    if isinstance(trf, dict) and trf.get("series"):
++        out.update(_trf_columns(trf))
+     return out
+ 
+ 

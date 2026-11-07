@@ -13,6 +13,7 @@ from .calculator import IndicatorCalculator
 #  القصيرة zigzag / fib / trendline) — كي تظهر في /indicators/available
 # وتمرّ فحص validate وتُستنتج type=support_resistance تلقائياً.
 from . import overlay_adapters as _overlay_adapters  # noqa: F401
+from . import overlays_zlf_e2e as _overlays_zlf_e2e  # noqa: F401  # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل (تسجيل ذاتي — إضافة فقط)
 from .pine_transpiler import PineScriptTranspiler
 
 

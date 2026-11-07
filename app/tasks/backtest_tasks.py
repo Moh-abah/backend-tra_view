@@ -83,9 +83,15 @@ def run_backtest_task(self, config_dict: dict):
         loop.close()
 
 
-async def _execute_backtest(config_dict: dict, task_ref=None):
-    """تنفيذ الباك-تست كاملاً وحفظ النتيجة في BacktestRun"""
-    async with async_session_maker() as db:
+async def _execute_backtest(config_dict: dict, task_ref=None, session_maker=None):
+    """تنفيذ الباك-تست كاملاً وحفظ النتيجة في BacktestRun
+
+    ✅ الجولة 14.1: session_maker اختياري — مسار التشغيل الداخلي (بلا Celery)
+    يمرّر مصنع جلسات معزول (محرك NullPool خاص بحلقة الخيط) لأن اتصالات
+    المسبح المشترك مرتبطة بحلقة الـAPI. الافتراضي = المصنع المشترك كما هو.
+    """
+    _session_maker = session_maker or async_session_maker
+    async with _session_maker() as db:
         try:
             # 1. تجهيز البيئة (config JSON-آمن → pydantic يحلل التواريخ ISO)
             config = BacktestConfig(**config_dict)
@@ -105,6 +111,9 @@ async def _execute_backtest(config_dict: dict, task_ref=None):
             response_summary = {
                 "name": config.name,
                 "timeframe": config.timeframe,
+                # ✅ الجولة 14.0 — صدى التوقيت لتحقق الواجهة من المحاذاة المطبّقة
+                "timezone": str(getattr(config, "timezone", "UTC") or "UTC"),
+                "tz_offset_minutes": int(getattr(config, "tz_offset_minutes", 0) or 0),
                 "initial_capital": result.initial_capital,
                 "final_capital": result.final_capital,
                 "total_pnl": result.total_pnl,
@@ -121,7 +130,13 @@ async def _execute_backtest(config_dict: dict, task_ref=None):
                 "expectancy": result.expectancy,
                 "annual_return_percent": result.annual_return_percent,
                 "execution_time_seconds": result.execution_time_seconds,
-                "architecture_mode": "Strategy-Decision-Driven"
+                "architecture_mode": "Strategy-Decision-Driven",
+                # ✅ الجولة 12: الشفافية الحسابية الكاملة
+                "fees_applied": float(getattr(result, "fees_applied", 0.0) or 0.0),
+                "fill_model": str(getattr(result, "fill_model", "next_open") or "next_open"),
+                "math_audit": getattr(result, "math_audit", {}) or {},
+                # ✅ الجولة 14.1: ما طبّقه المحرك فعلاً من إعدادات المخاطر — شفافية تعاقدية
+                "effective_config": getattr(result, "effective_config", None) or {},
             }
 
             advanced_metrics = {

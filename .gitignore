@@ -94,3 +94,43 @@ celerybeat.pid
 # --- Large data files ---
 *.parquet
 data/history/
+
+
+
+# ===== Root-level test artifacts =====
+/test_response*.json
+/test_strategy_config*.json
+/chart_data*.json
+/chart_output.json
+/last_closed_candles.json
+/eth_historical_candles.json
+/EQUIV-*.json
+/ZLF-E2E-*.json
+
+
+
+
+
+# ===== Backups & duplicates =====
+*.bak
+*.orig
+*.backup
+* copy.*
+*_copy.py
+rollback/
+new-files/
+
+
+
+
+
+# ===== Large / generated data =====
+versions/
+*.zip
+data/history/*.parquet
+*.parquet
+chart_storage/
+
+# ===== Runtime streams =====
+*_stream.txt
+chart_ws_test_results.json

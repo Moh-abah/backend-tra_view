@@ -1,0 +1,13 @@
+--- /tmp/zlf_e2e/latest_project/app/routers/backtest.py	2026-11-03 19:53:03.615688942 +0000
++++ /home/z/zlf-e2e/latest_project/app/routers/backtest.py	2026-11-03 20:04:12.941884531 +0000
+@@ -745,6 +745,10 @@
+                 # بنفس الوضع (اتساق بصري كامل بين الحي والباك-تست وTV).
+                 "zzfib": {"mode": "tradingview", "depth": 12,
+                           "deviation": 20, "backstep": 3},
++                # ✅ ROUND22: رسم المحرك المنفصل ZLF-End-To-End بوضع شارت المنصة
++                # (luxalgo length=100) — نفس معاملات قالب zlf_e2e الحي حتى يطابق
++                # الرسم الإشارات المولّدة بنفس الوضع (اتساق بصري كامل).
++                "zzfib_e2e": {"mode": "luxalgo", "length": 100},
+             }
+             ovl_key_src = json.dumps([wanted_ovl, ovl_params, base["raw_len"]], sort_keys=True, default=str)
+             ovl_key = f"{backtest_id}|ovl|{hashlib.md5(ovl_key_src.encode()).hexdigest()}"

@@ -1,0 +1,35 @@
+{
+ "results": [
+  {
+   "label": "RUNE 1m",
+   "signals": 83,
+   "audit_mismatches": 0,
+   "anchor_bars": 57,
+   "anchor_column_match": true,
+   "anchor_times_match": true,
+   "range_index_ok": true,
+   "launch_ok": true
+  },
+  {
+   "label": "RUNEUSDT 5m",
+   "signals": 12,
+   "audit_mismatches": 0,
+   "anchor_bars": 9,
+   "anchor_column_match": true,
+   "anchor_times_match": true,
+   "range_index_ok": true,
+   "launch_ok": true
+  },
+  {
+   "label": "BTCUSDT 1m",
+   "signals": 35,
+   "audit_mismatches": 0,
+   "anchor_bars": 20,
+   "anchor_column_match": true,
+   "anchor_times_match": true,
+   "range_index_ok": true,
+   "launch_ok": true
+  }
+ ],
+ "verdict": "ALL_IN_RANGE_OK"
+}

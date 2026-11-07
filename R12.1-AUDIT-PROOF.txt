@@ -1,0 +1,112 @@
+======================================================================
+[0-أ] 冠军 200 天 backtest1/run → 16列契约 + 交易 + math_audit
+======================================================================
+status: COMPLETED | backtest_id: 4bc9e4bf-f97c-4d64-92da-04044645799b
+trades: 10 | pnl%: -1.8561 | fees_applied: 0.0 | fill_model: next_open
+ind_ cols (7): ['ind_zigzag_channels', 'ind_zz_pivot', 'ind_zz_pivot_high', 'ind_zz_pivot_low', 'ind_zz_prev_pivot_high', 'ind_zz_prev_pivot_low', 'ind_zz_state']
+double-prefix: [] | unique keysets: 1
+math_audit: checked=10 max_err=0.0 consistent=True
+formula: pnl == (exit_price - entry_price) * units * (long?+1:-1) - commission - slippage
+GET /backtest1/get: ind cols: 7 | double-prefix: []
+GET /backtest1/{id}/chart-data: rows: 4800 | ind cols: 7 | double-prefix: []
+  metadata.symbol: BTCUSDT | display_symbol: BTCUSDT
+
+======================================================================
+[1] zigzag_fib 注册 / compute 列 / validate 寻址
+======================================================================
+available zigzag_fib: ['zigzag_fib']
+available 'zzf' filter: ['zzfib']
+display_name: ['ZigZag Fib Retracement (ZigZag-anchored)']
+16-col contract (3 indicators): 16 PASS
+['ind_atl_cross_lower', 'ind_atl_cross_upper', 'ind_atl_lower', 'ind_atl_signal', 'ind_atl_upper', 'ind_fib_dir', 'ind_fib_end', 'ind_fib_signal', 'ind_fib_start', 'ind_fib_target', 'ind_zz_pivot', 'ind_zz_pivot_high', 'ind_zz_pivot_low', 'ind_zz_prev_pivot_high', 'ind_zz_prev_pivot_low', 'ind_zz_state']
+zzf columns (13): ['ind_zzf_dir', 'ind_zzf_i1', 'ind_zzf_i2', 'ind_zzf_level_0', 'ind_zzf_level_0236', 'ind_zzf_level_0382', 'ind_zzf_level_05', 'ind_zzf_level_0618', 'ind_zzf_level_0786', 'ind_zzf_level_1', 'ind_zzf_p1', 'ind_zzf_p2', 'ind_zzf_touch']
+validate zzfib_touch: {'valid': True, 'msg': 'Strategy configuration is valid'}
+
+======================================================================
+[5-ب.1] overlays fib/zzfib out_of_range + [验收 zzfib 键]
+======================================================================
+fib out_of_range: [] | levels: [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
+zzfib keys: ['current', 'legs', 'name', 'notes', 'out_of_range', 'params', 'series', 'signals']
+zzfib out_of_range: []
+zzfib current keys: ['dir', 'i1', 'i2', 'leg', 'levels', 'live_extension', 'p1', 'p2', 'target']
+
+======================================================================
+[2/3] 零佣金 + math_audit + 透明列（冠军 signal_close 对照）
+======================================================================
+signal_close: trades: 10 | pnl%: -1.0276 | fees: 0.0
+math_audit: {'checked': 10, 'max_err': 0.0, 'consistent': True, 'formula': 'pnl == (exit_price - entry_price) * units * (long?+1:-1) - commission - slippage'}
+exit transparent cols missing: NONE - all 8 present
+hand-check trade0: pnl=16.332050740009887 vs formula=16.332050740009887 | diff=0.0000000000
+
+======================================================================
+[4] composite 拒绝 + [5-ب.3] 多symbol
+======================================================================
+composite bad shape → status: FAILURE | clear error: True
+symbols: ['BTCUSDT', 'DOGEUSDT'] | metadata.symbol: BTCUSDT | display_symbol: BTCUSDT
+chart_data_by_symbol: ['BTCUSDT', 'DOGEUSDT'] {'BTCUSDT': 240, 'DOGEUSDT': 240}
+
+======================================================================
+[strategies1/run] 冠军信号（A9/A10 修复后）
+======================================================================
+active decisions: 2 | sample: [('buy', 'Higher Low Structure'), ('buy', 'Higher Low Structure')]
+
+======================================================================
+SUMMARY
+======================================================================
+{
+ "0a_run": {
+  "bt_id": "4bc9e4bf-f97c-4d64-92da-04044645799b",
+  "trades": 10,
+  "ind_cols": 7,
+  "dbl": 0,
+  "keysets": 1,
+  "consistent": true
+ },
+ "0a_get": {
+  "ind_cols": 7,
+  "dbl": 0
+ },
+ "0a_chartdata": {
+  "rows": 4800,
+  "ind_cols": 7,
+  "dbl": 0
+ },
+ "1_reg": {
+  "zigzag_fib": true,
+  "display": [
+   "ZigZag Fib Retracement (ZigZag-anchored)"
+  ]
+ },
+ "1_16col": 16,
+ "1_zzf": 13,
+ "1_validate": true,
+ "5b1_fib_oor": [],
+ "5b1_zzf_oor": [],
+ "5b1_zzf_keys": [
+  "current",
+  "legs",
+  "name",
+  "notes",
+  "out_of_range",
+  "params",
+  "series",
+  "signals"
+ ],
+ "2_3_signal_close": {
+  "trades": 10,
+  "consistent": true,
+  "missing_cols": []
+ },
+ "4_composite": "rejected",
+ "5b3_multi": {
+  "symbols": [
+   "BTCUSDT",
+   "DOGEUSDT"
+  ],
+  "by_symbol": [
+   "BTCUSDT",
+   "DOGEUSDT"
+  ]
+ },
+ "s1run": 2
+}

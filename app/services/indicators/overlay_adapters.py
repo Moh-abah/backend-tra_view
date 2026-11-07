@@ -25,6 +25,7 @@ __all__ = [
     "ZigZagChannelsIndicator",
     "AutoFibRetracementIndicator",
     "AutoTrendlineIndicator",
+    "ZigZagFibIndicator",
     "register_overlay_indicators",
 ]
 
@@ -75,6 +76,49 @@ class _OverlayIndicatorBase(BaseIndicator):
             for k in ("reverse", "extend_left", "extend_right"):
                 if k in p:
                     out[k] = bool(p[k])
+        elif self.BASE == "zzfib":
+            # الجولة 12: فيبو الزيجزاق المدمج
+            v = _num(("length",), int)
+            if v is not None:
+                out["length"] = max(2, v)
+            if "reverse" in p:
+                out["reverse"] = bool(p["reverse"])
+            lv = p.get("levels", p.get("level_ratios"))
+            if isinstance(lv, (list, tuple)) and lv:
+                try:
+                    out["levels"] = [float(x) for x in lv]
+                except (TypeError, ValueError):
+                    pass
+            for k in ("extend_right", "extend_leg_to_live"):
+                if k in p:
+                    out[k] = bool(p[k])
+            v = _num(("touch_level", "touch", "target"))
+            if v is not None:
+                out["touch_level"] = v
+            # ✅ ROUND19: وضع زقزاق TradingView + معاملاته — كانت تُسقَط هنا
+            # بصمت (نفس فجوة calculator.py — أُصلحت في الجسور الثلاثة معاً).
+            if "mode" in p:
+                out["mode"] = str(p["mode"]).strip().lower()
+            v = _num(("depth",), int)
+            if v is not None:
+                out["depth"] = max(2, v)
+            v = _num(("deviation",))
+            if v is not None:
+                out["deviation"] = v
+            v = _num(("backstep",), int)
+            if v is not None:
+                out["backstep"] = max(1, v)
+            # ✅ معاملات السيولة (13.1/13.2) — توحيد نفس دلالة الجسور الأخرى.
+            v = _num(("liq_lookback", "liquidity_lookback"), int)
+            if v is not None:
+                out["liq_lookback"] = max(1, v)
+            v = _num(("liq_arm_bars", "liquidity_arm_bars"), int)
+            if v is not None:
+                out["liq_arm_bars"] = max(1, v)
+            if "liq_signals" in p or "liquidity_signals" in p:
+                out["liq_signals"] = bool(p.get("liq_signals", p.get("liquidity_signals")))
+            if "liq_sfp_signals" in p or "sfp_signals" in p:
+                out["liq_sfp_signals"] = bool(p.get("liq_sfp_signals", p.get("sfp_signals")))
         else:
             v = _num(("period", "n", "fractal_period"), int)
             if v is not None:
@@ -149,6 +193,29 @@ class AutoTrendlineIndicator(_OverlayIndicatorBase):
         return {"period": 10, "max_pairs": 1, "extend": "right"}
 
 
+@IndicatorRegistry.register(
+    "zigzag_fib",
+    display_name="ZigZag Fib Retracement (ZigZag-anchored)",
+    description="فيبو تصحيحي مركّب على الساق الأخيرة للزيجزاق (آخر قمة + آخر قاع)، يتحدث مع كل قمة/قاع مؤكد. "
+                "العمود الأساسي: ind_zzf_touch (+1 أول لمس للمستوى 0.618 في ساق صاعدة / -1 في الهابطة). "
+                "الأعمدة: ind_zzf_dir/p1/p2/i1/i2/level_<L>/touch. الجولة 12.",
+    category=IndicatorType.SUPPORT_RESISTANCE,
+)
+class ZigZagFibIndicator(_OverlayIndicatorBase):
+    BASE = "zzfib"
+    PRIMARY_COLUMN = "ind_zzf_touch"
+
+    @classmethod
+    def get_default_params(cls):
+        return {
+            "length": 100,
+            "reverse": False,
+            "levels": [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0],
+            "extend_right": True,
+            "extend_leg_to_live": True,
+        }
+
+
 # أسماء قصيرة مرادفة (zigzag / fib / trendline) — نفس الفئات بالضبط
 def register_overlay_indicators() -> None:
     """يسجّل المرادفات القصيرة على نفس الفئات (استدعاء واحد عند الإقلاع)."""
@@ -156,6 +223,7 @@ def register_overlay_indicators() -> None:
         ("zigzag", "zigzag_channels"),
         ("fib", "auto_fib_retracement"),
         ("trendline", "auto_trendline"),
+        ("zzfib", "zigzag_fib"),
     ):
         info = IndicatorRegistry._indicators.get(full)
         if info is None:

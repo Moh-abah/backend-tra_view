@@ -1,0 +1,101 @@
+--- /tmp/zlf_e2e/latest_project/app/services/indicators/calculator.py	2026-11-03 19:53:03.619688967 +0000
++++ /home/z/zlf-e2e/latest_project/app/services/indicators/calculator.py	2026-11-03 20:02:48.483354659 +0000
+@@ -78,6 +78,8 @@
+         "trendline": "trendline", "auto_trendline": "trendline",
+         # الجولة 12: فيبو الزيجزاق المدمج
+         "zigzag_fib": "zzfib", "zzfib": "zzfib",
++        # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد
++        "zigzag_fib_e2e": "zzfib_e2e", "zzfib_e2e": "zzfib_e2e",
+     }
+     # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
+     _OVERLAY_PRIMARY = {
+@@ -85,6 +87,8 @@
+         "fib": "ind_fib_signal",
+         "trendline": "ind_atl_signal",
+         "zzfib": "ind_zzf_touch",
++        # ✅ ROUND22: الأساسي للمحرك المنفصل = عمود الدخول الجامع
++        "zzfib_e2e": "ind_zzfe_entry",
+     }
+     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
+     _OVERLAY_SUB_COLUMNS = {
+@@ -111,6 +115,19 @@
+         "zzfib_i1": "ind_zzf_i1", "zzf_i1": "ind_zzf_i1",
+         "zzfib_i2": "ind_zzf_i2", "zzf_i2": "ind_zzf_i2",
+         "zzfib_touch": "ind_zzf_touch", "zzf_touch": "ind_zzf_touch", "touch": "ind_zzf_touch",
++        # ✅ ROUND22 (ZLF-End-To-End) — أعمدة المحرك المنفصل (أسماء جديدة كلياً)
++        "zzfe_dir": "ind_zzfe_dir", "zzfib_e2e_dir": "ind_zzfe_dir",
++        "zzfe_p1": "ind_zzfe_p1", "zzfe_p2": "ind_zzfe_p2",
++        "zzfe_i1": "ind_zzfe_i1", "zzfe_i2": "ind_zzfe_i2",
++        "zzfe_liq_state": "ind_zzfe_liq_state", "zzfe_state": "ind_zzfe_liq_state",
++        "zzfe_liq_ref_high": "ind_zzfe_liq_ref_high", "zzfe_ref_high": "ind_zzfe_liq_ref_high",
++        "zzfe_liq_ref_vol": "ind_zzfe_liq_ref_vol", "zzfe_ref_vol": "ind_zzfe_liq_ref_vol",
++        "zzfe_liq_vol_ok": "ind_zzfe_liq_vol_ok", "zzfe_vol_ok": "ind_zzfe_liq_vol_ok",
++        "zzfe_signal_s1": "ind_zzfe_signal_s1", "zzfe_signal_s2": "ind_zzfe_signal_s2",
++        "zzfe_signal_s3": "ind_zzfe_signal_s3", "zzfe_signal_any": "ind_zzfe_signal_any",
++        "zzfe_entry": "ind_zzfe_entry", "entry": "ind_zzfe_entry",
++        "zzfe_entry_s1": "ind_zzfe_entry_s1", "zzfe_entry_s2": "ind_zzfe_entry_s2",
++        "zzfe_entry_s3": "ind_zzfe_entry_s3",
+     }
+ 
+     def _calculate_overlay_indicator(self, dataframe, config):
+@@ -234,6 +251,47 @@
+                     kw['liq_signals'] = bool(params['liq_signals'])
+                 if 'liq_sfp_signals' in params:
+                     kw['liq_sfp_signals'] = bool(params['liq_sfp_signals'])
++            elif base == 'zzfib_e2e':
++                # ✅ ROUND22 (ZLF-End-To-End) — المحرك المنفصل: نفس معاملات الزقزاق
++                # (+ launch_touch_ticks). لا liq_* — النطاق يعتمد لحظة ظهور الزقزاق
++                # ونافذة الحساب = عمر النطاق (لا عدد شموع في التعريف).
++                kw = {}
++                if 'length' in params:
++                    kw['length'] = max(2, int(float(params['length'])))
++                if 'reverse' in params:
++                    kw['reverse'] = bool(params['reverse'])
++                lv = params.get('levels', params.get('level_ratios'))
++                if isinstance(lv, (list, tuple)) and lv:
++                    kw['levels'] = [float(x) for x in lv]
++                for k in ('extend_right', 'extend_leg_to_live'):
++                    if k in params:
++                        kw[k] = bool(params[k])
++                if 'mode' in params:
++                    kw['mode'] = str(params['mode']).strip().lower()
++                _v = params.get('depth')
++                if _v is not None:
++                    try:
++                        kw['depth'] = max(2, int(float(_v)))
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('deviation')
++                if _v is not None:
++                    try:
++                        kw['deviation'] = float(_v)
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('backstep')
++                if _v is not None:
++                    try:
++                        kw['backstep'] = max(1, int(float(_v)))
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('launch_touch_ticks')
++                if _v is not None:
++                    try:
++                        kw['launch_touch_ticks'] = float(_v)
++                    except (TypeError, ValueError):
++                        pass
+             else:  # trendline
+                 kw = {}
+                 for k in ('period', 'n', 'fractal_period'):
+@@ -260,6 +318,12 @@
+                         col = 'ind_zzf_level_' + sub_l[len('zzfib_level_'):]
+                     elif sub_l.startswith('zzf_level_'):
+                         col = 'ind_zzf_level_' + sub_l[len('zzf_level_'):]
++                # ✅ ROUND22: مستويات المحرك المنفصل zzfe_level_<L> → ind_zzfe_level_<L>
++                if base == 'zzfib_e2e':
++                    if sub_l.startswith('zzfe_level_'):
++                        col = 'ind_zzfe_level_' + sub_l[len('zzfe_level_'):]
++                    elif sub_l.startswith('zzfib_e2e_level_'):
++                        col = 'ind_zzfe_level_' + sub_l[len('zzfib_e2e_level_'):]
+                 if col is None:
+                     col = self._OVERLAY_SUB_COLUMNS.get(sub_l)
+                 if col and col != 'primary':

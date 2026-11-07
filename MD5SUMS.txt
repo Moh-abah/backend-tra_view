@@ -1,0 +1,8 @@
+0131fc48c59dd802e41bd7c7eddf2363  app/services/exit_engine.py
+0d44ac05a0f524bdc4d898d806ab83db  app/services/unified_backtest.py
+2a3e6c41a71f69dd4b54fa0044c4ab09  app/backtest/schemas.py
+5dad5672b0aa5ee5669e3c34b012ef89  app/routers/backtest1.py
+f18ab76414101f2d0212396e93bfb5a5  rollback/app/services/exit_engine.py
+9d5088b006ed78b9145e603aba1c32d7  rollback/app/backtest/schemas.py
+4ef8fdde9af93f0de9edc3e1f54ddcc8  rollback/app/routers/backtest1.py
+747793df5d03e4b70b34c59857d195bd  test_battery_r42.py

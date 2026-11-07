@@ -1,0 +1,108 @@
+--- /tmp/zlf_e2e/latest_project/app/services/indicators/overlay_columns.py	2026-11-03 19:53:03.620688973 +0000
++++ /home/z/zlf-e2e/latest_project/app/services/indicators/overlay_columns.py	2026-11-03 20:02:29.379235963 +0000
+@@ -111,9 +111,12 @@
+     # الجولة 12: فيبو الزيجزاق المدمج
+     "zigzag_fib": "zzfib",
+     "zzfib": "zzfib",
++    # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل الجديد (أسماء جديدة تماماً)
++    "zigzag_fib_e2e": "zzfib_e2e",
++    "zzfib_e2e": "zzfib_e2e",
+ }
+ 
+-KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib")
++KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e")
+ 
+ # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
+ CONTRACT_COLUMNS: Dict[str, List[str]] = {
+@@ -139,6 +142,19 @@
+         "ind_zzf_signal_s3", "ind_zzf_signal_any", "ind_zzf_entry",
+         "ind_zzf_entry_s1", "ind_zzf_entry_s2", "ind_zzf_entry_s3",
+     ],
++    # ✅ ROUND22 (ZLF-End-To-End) — عقد المحرك المنفصل الجديد — كل الأسماء مختلفة
++    # (zzfe_* → ind_zzfe_*). النطاق = لحظة ظهور الزقزاق؛ لا liq_lookback
++    # (نافذة الحساب = عمر النطاق الحي)؛ R = أكبر حمراء في ساق النطاق.
++    "zzfib_e2e": [
++        "ind_zzfe_dir", "ind_zzfe_p1", "ind_zzfe_p2", "ind_zzfe_i1", "ind_zzfe_i2",
++        "ind_zzfe_level_0", "ind_zzfe_level_0236", "ind_zzfe_level_0382",
++        "ind_zzfe_level_05", "ind_zzfe_level_0618", "ind_zzfe_level_0786",
++        "ind_zzfe_level_085415", "ind_zzfe_level_1",
++        "ind_zzfe_liq_state", "ind_zzfe_liq_ref_high", "ind_zzfe_liq_ref_vol",
++        "ind_zzfe_liq_vol_ok", "ind_zzfe_signal_s1", "ind_zzfe_signal_s2",
++        "ind_zzfe_signal_s3", "ind_zzfe_signal_any", "ind_zzfe_entry",
++        "ind_zzfe_entry_s1", "ind_zzfe_entry_s2", "ind_zzfe_entry_s3",
++    ],
+ }
+ 
+ 
+@@ -265,6 +281,38 @@
+         bs_ = _num(("backstep",), int)
+         if bs_ is not None:
+             out["backstep"] = max(1, bs_)
++    elif base == "zzfib_e2e":
++        # ✅ ROUND22 (ZLF-End-To-End) — المحرك المنفصل: نفس معاملات الزقزاق
++        # (+ launch_touch_ticks). لا liq_* — النطاق يعتمد لحظة ظهور الزقزاق
++        # ونافذة الحساب = عمر النطاق (لا عدد شموع في التعريف).
++        length = _num(("length",), int)
++        if length is not None:
++            out["length"] = max(2, length)
++        if "reverse" in p:
++            out["reverse"] = bool(p["reverse"])
++        lv = p.get("levels", p.get("level_ratios"))
++        if isinstance(lv, (list, tuple)) and lv:
++            try:
++                out["levels"] = [float(x) for x in lv]
++            except (TypeError, ValueError):
++                pass
++        for k in ("extend_right", "extend_leg_to_live"):
++            if k in p:
++                out[k] = bool(p[k])
++        if "mode" in p:
++            out["mode"] = str(p["mode"]).strip().lower()
++        d_ = _num(("depth",), int)
++        if d_ is not None:
++            out["depth"] = max(2, d_)
++        dv_ = _num(("deviation",))
++        if dv_ is not None:
++            out["deviation"] = float(dv_)
++        bs_ = _num(("backstep",), int)
++        if bs_ is not None:
++            out["backstep"] = max(1, bs_)
++        tt_ = _num(("launch_touch_ticks",))
++        if tt_ is not None:
++            out["launch_touch_ticks"] = float(tt_)
+     else:  # trendline
+         period = _num(("period", "n", "fractal_period"), int)
+         if period is not None:
+@@ -473,6 +521,21 @@
+     return out
+ 
+ 
++def _zzfe_columns(zzfe: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """✅ ROUND22: نتيجة zigzag_fib_e2e → أعمدة ind_zzfe_* (zzfe_X → ind_zzfe_X).
++
++    ZLF-End-To-End — المحرك المنفصل: كل الأسماء مختلفة عن الأصل (عقد التمايز).
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = zzfe.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("zzfe_"):
++            continue
++        out["ind_" + k] = list(vals or [])
++    return out
++
++
+ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+     """نتيجة compute_overlays → أعمدة ind_* التعاقدية (فقط للأنواع المحسوبة)."""
+     out: Dict[str, List[Optional[float]]] = {}
+@@ -494,6 +557,10 @@
+     zzf = ovl.get("zzfib")
+     if isinstance(zzf, dict) and zzf.get("series"):
+         out.update(_zzfib_columns(zzf))
++    # ✅ ROUND22 (ZLF-End-To-End) — أعمدة المحرك المنفصل zzfe_* → ind_zzfe_*
++    zzfe = ovl.get("zzfib_e2e")
++    if isinstance(zzfe, dict) and zzfe.get("series"):
++        out.update(_zzfe_columns(zzfe))
+     return out
+ 
+ 

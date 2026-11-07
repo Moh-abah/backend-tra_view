@@ -1,0 +1,18 @@
+--- /tmp/pristine32/orig/app/routers/backtest.py	2026-11-04 19:03:34.637646840 +0000
++++ app/routers/backtest.py	2026-11-04 18:56:55.505419049 +0000
+@@ -788,6 +788,15 @@
+                 # (luxalgo length=100) — نفس معاملات قالب zlf_e2e الحي حتى يطابق
+                 # الرسم الإشارات المولّدة بنفس الوضع (اتساق بصري كامل).
+                 "zzfib_e2e": {"mode": "luxalgo", "length": 100},
++                # ✅ ROUND32: رسم «الترندية» (طلب صريح overlays=zzfib_e2e_trendy) —
++                # نفس معاملات قالب zlf_e2e_trendy الحي: الفترات قالبية [7,15,25]
++                # (غيّرها/أضف رابعاً 30 من القالب) + بوابة majority على s1/s2/s3.
++                "zzfib_e2e_trendy": {"mode": "luxalgo", "length": 100,
++                                     "trend_periods": [7, 15, 25],
++                                     "trend_confirm": "majority",
++                                     "trend_gate": ["s1", "s2", "s3"]},
++                # ✅ ROUND32: رسم مؤشر الترند المستقل (طلب صريح overlays=trend_fractal)
++                "trend_fractal": {"periods": [7, 15, 25]},
+             }
+             ovl_key_src = json.dumps([wanted_ovl, ovl_params, base["raw_len"]], sort_keys=True, default=str)
+             ovl_key = f"{backtest_id}|ovl|{hashlib.md5(ovl_key_src.encode()).hexdigest()}"

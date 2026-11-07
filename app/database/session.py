@@ -34,6 +34,7 @@ import ssl
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 
 from app.config import settings
 
@@ -161,4 +162,36 @@ async def init_db():
 async def close_db():
     """Dispose of the engine's connection pool."""
     await engine.dispose()
-    
+
+def build_isolated_session_maker():
+    """✅ الجولة 14.1 — مصنع جلسات معزول لمسار التشغيل الداخلي للباك-تست.
+
+    المسار الاحتياطي (بلا Celery) يشغّل المحرك على event loop مختلف عن حلقة
+    الـAPI داخل خيط عامل — اتصالات المسبح المشترك مرتبطة بحلقة الـAPI ولا
+    يجوز استخدامها من حلقة أخرى. هذا المصنع يبني محركاً جديداً بـ NullPool
+    (اتصال جديد لكل جلسة، لا إعادة استخدام عبر الحلقات) على نفس قاعدة البيانات.
+    يعيد (session_maker, engine) — المستدعي مسؤول عن engine.dispose() عند الانتهاء.
+    """
+    if _IS_SQLITE:
+        iso_engine = create_async_engine(
+            DATABASE_URL,
+            future=True,
+            connect_args={"check_same_thread": False},
+            poolclass=NullPool,
+        )
+    else:
+        clean_url, _pg_connect_args = build_asyncpg_connect_args(DATABASE_URL)
+        iso_engine = create_async_engine(
+            clean_url,
+            future=True,
+            pool_pre_ping=True,
+            connect_args=_pg_connect_args,
+            poolclass=NullPool,
+        )
+    iso_session_maker = async_sessionmaker(
+        iso_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+    return iso_session_maker, iso_engine

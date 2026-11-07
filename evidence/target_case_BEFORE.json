@@ -1,0 +1,31 @@
+{
+ "signal_time": 1793725800000,
+ "t3": "11-03 20:10",
+ "engine_signal": "ZLF-E2E Liquidity S1",
+ "G": {
+  "time": 1793725800000,
+  "open": 0.636,
+  "high": 0.655,
+  "low": 0.634,
+  "close": 0.645,
+  "volume": 251848.3
+ },
+ "ref_high": 0.582,
+ "ref_vol": 72790.3,
+ "ref_time": 1793708580000,
+ "ref_t3": "11-03 15:23",
+ "anchor_time": 1793714880000,
+ "anchor_t3": "11-03 17:08",
+ "range_index": 48,
+ "range_p1": {
+  "kind": "top",
+  "time": 1793708040000,
+  "price": 0.595
+ },
+ "range_p2": {
+  "kind": "bottom",
+  "time": 1793708880000,
+  "price": 0.574
+ },
+ "launch_line": 0.586978
+}

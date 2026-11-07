@@ -25,6 +25,39 @@ logger = logging.getLogger(__name__)
 MAX_WALK_FORWARD_WINDOWS = 20
 MAX_MONTE_CARLO_SIMULATIONS = 500
 
+
+class _NoopStrategyEngine:
+    """
+    ✅ الجولة 12 (هوت-فكس): محرك استراتيجية محايد للحمولات الفارغة.
+
+    عندما ترسل الواجهة strategy_config بلا مؤشرات وقواعد (مثل اختبار قبول
+    WINUSDT في بند 5-ب.2 لفحص دقة الأسعار تحت السنت) كان التهيئة تفشل في
+    StrategyConfig ("At least one entry rule is required") ويفشل التشغيل كله.
+    هذا المحرك يُرجع HOLD دائماً — الشموع تُعالج وتُعاد كاملة بصفقات صفر،
+    وواجهة كل الدوال مطابقة لـ StrategyEngine (full_data / _prepare_indicators
+    / run / current_data_frame) لتبقى بقية المحرك بلا تغيير.
+    """
+
+    def __init__(self) -> None:
+        self.config = None
+        self.current_data_frame = None
+        self.full_data = None
+
+    async def _prepare_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        self.current_data_frame = data
+        return data
+
+    async def run(self, market_context: pd.DataFrame, current_index: int = None,
+                  in_position: bool = False) -> Decision:
+        from datetime import datetime as _dt
+        return Decision(
+            timestamp=_dt.utcnow(),
+            action=DecisionAction.HOLD,
+            confidence=0.0,
+            reason="empty strategy_config → no-signal mode",
+            metadata={},
+        )
+
 class BacktestEngine:
     """محرك الباك-تيست التاريخي (يعمل الآن كمحرك تنفيذي للقرارات)"""
     
@@ -76,7 +109,8 @@ class BacktestEngine:
                         market=config.market, 
                         start_date=config.start_date,
                         end_date=config.end_date,
-                        use_cache=True
+                        use_cache=True,
+                        tz_offset_minutes=int(getattr(config, "tz_offset_minutes", 0) or 0),
                     )
                     
                     if data.empty:
@@ -89,6 +123,13 @@ class BacktestEngine:
                                 f"({data.index[0]} → {data.index[-1]})")
 
                 except Exception as e:
+                    # ✅ الجولة 13.3: أخطاء العقد الصريحة تُنقل كما هي — لا ابتلاع.
+                    # (رفض الفريم غير المدعوم من المزود — «Unsupported timeframe …
+                    # Supported: […]» — كان يُبتلع هنا ويتحول إلى «No data available
+                    # for any symbol» الغامضة؛ الآن يفشل التشغيل برسالته الصريحة
+                    # حتى يعرف الواجهة/المستخدم الفريمات المدعومة فوراً.)
+                    if "Unsupported timeframe" in str(e):
+                        raise
                     logger.warning(f"Error fetching data for {symbol}: {e}")
                  
             if not all_data:
@@ -180,11 +221,27 @@ class BacktestEngine:
 
 
         try:
-            strategy_config_obj = StrategyConfigSchema(**config.strategy_config)
-            strategy_engine = StrategyEngine(strategy_config_obj)
-            full_calculated_data = await strategy_engine._prepare_indicators(data)
-            strategy_engine.full_data = full_calculated_data
-
+            # ✅ الجولة 12 (هوت-فكس): الحمولات الفارغة (indicators=[] وentry_rules=[]
+            # وexit_rules=[]) — مثل اختبار قبول WINUSDT في بند 5-ب.2 — كانت تفشل
+            # في StrategyConfig ("At least one entry rule is required") بعد تحويل
+            # الصمت إلى خطأ صريح. الآن: استراتيجية فارغة = وضع "بدون إشارات"
+            # (محرك محايد يُرجع HOLD دائماً) — الشموع تُعاد كاملة بدقة سنتها
+            # وصفقات صفر، وهي الطريقة الصحيحة لاختبار دقة الأسعار والبيانات.
+            _sc = dict(config.strategy_config or {})
+            _is_empty_strategy = not (
+                _sc.get("indicators") or _sc.get("entry_rules")
+                or _sc.get("exit_rules") or _sc.get("filter_rules")
+            )
+            if _is_empty_strategy:
+                strategy_engine = _NoopStrategyEngine()
+                full_calculated_data = data
+                strategy_engine.full_data = full_calculated_data
+                logger.info(f"[{symbol}] empty strategy_config → no-signal mode (price-only run)")
+            else:
+                strategy_config_obj = StrategyConfigSchema(**config.strategy_config)
+                strategy_engine = StrategyEngine(strategy_config_obj)
+                full_calculated_data = await strategy_engine._prepare_indicators(data)
+                strategy_engine.full_data = full_calculated_data
 
             render_data = {}
             volume_bars_dict = {}
@@ -192,8 +249,14 @@ class BacktestEngine:
 
 
         except Exception as e:
+            # ✅ الجولة 12: لا صمت بعد اليوم — كان أي فشل تهيئة يعيد 0 صفقة بصمت
+            # (مثل شكل composite غير المعروف). الآن الخطأ واضح ويظهر في /status.
             logger.exception(f"CRITICAL ERROR IN STRATEGY INIT: {e}")
-            return trades, equity_curve, visual_candles, trade_points
+            raise ValueError(
+                f"فشل تهيئة الاستراتيجية في محرك الباك-تست: {e} — راجع شكل "
+                '{"type": "and" | "or", "conditions": [...]} وأسماء المؤشرات '
+                "(استخدم POST /api/v1/strategies1/validate للتحقق المسبق)"
+            ) from e
 
 
 
@@ -226,6 +289,9 @@ class BacktestEngine:
         tp_price = 0.0
         cumulative_pnl = 0.0
         account_balance = initial_capital
+
+        # ✅ الجولة 12: نموذج التنفيذ المطبق فعلياً (next_open افتراضياً)
+        fill_model_str = str(getattr(config, "fill_model", "next_open") or "next_open")
 
         # متغيرات النموذج المتقدم (Pending Decision)
         pending_decision = None  # سيحمل القرار من الشمعة السابقة للتنفيذه الآن
@@ -260,8 +326,17 @@ class BacktestEngine:
             exit_price = None
             exit_reason = None
             pnl = 0.0
+            pnl_gross = 0.0
             pnl_percentage = 0.0
             balance_before_exit = account_balance 
+
+            # ✅ الجولة 12: بيانات الصفقة المغلقة محفوظة قبل التصفير — كانت
+            # entry_price/position_size تعود 0.0 في نقاط الخروج (bug قديم)
+            closed_entry_price = 0.0
+            closed_entry_time = None
+            closed_sl = 0.0
+            closed_tp = 0.0
+            closed_size = 0.0
 
             
             volume_bar = volume_bars_dict.get(current_time_sec)
@@ -330,6 +405,7 @@ class BacktestEngine:
                 
                 exiting_trade = True
                 pnl = pnl_close
+                pnl_gross = pnl_close
                 exit_price = execution_price
                 exit_reason = (
                     f"Exit Signal: {executed_decision.reason}"
@@ -340,6 +416,12 @@ class BacktestEngine:
                 # حفظ البيانات قبل المسح
                 closed_trade_id = trade_id
                 closed_position_type = current_state
+                # ✅ الجولة 12: حفظ بيانات الصفقة قبل التصفير (لنقاط الخروج الشفافة)
+                closed_entry_price = entry_price
+                closed_entry_time = entry_time
+                closed_sl = sl_price
+                closed_tp = tp_price
+                closed_size = position_size
                 
                 balance_before_exit = account_balance
                 
@@ -395,7 +477,8 @@ class BacktestEngine:
                         reward = entry_price - tp_price
                     risk_reward_ratio = reward / risk if risk != 0 else 0
                 
-                commission = entry_price * position_size * config.commission_rate
+                # ✅ الجولة 13 — إبادة العمولة: لا يوجد أي حساب عمولة/انزلاق في المحرك
+                # (الكود المحذوف لا يعود) — commission/slippage حقلا استجابة ثابتان 0.0 للتوافق القرائي.
                 trade = Trade(
                     id=trade_id,
                     symbol=symbol,
@@ -407,11 +490,15 @@ class BacktestEngine:
                     position_size=position_size,
                     pnl=None,
                     pnl_percentage=None,
-                    commission=commission,
-                    slippage=0,
+                    commission=0.0,
+                    slippage=0.0,
                     stop_loss=sl_price if config.stop_loss_percent else None,
                     take_profit=tp_price if config.take_profit_percent else None,
                     exit_reason=None,
+                    # ✅ الجولة 12: الشفافية — نموذج التنفيذ الفعلي + الاتجاه
+                    direction='long' if target_state == 'LONG' else 'short',
+                    fill_entry=fill_model_str,
+                    fill_exit=fill_model_str,
                     metadata={
                         'strategy': config.strategy_config.get('name', 'Unknown'),
                         'decision_reason': executed_decision.reason if executed_decision else None,
@@ -458,11 +545,18 @@ class BacktestEngine:
                     pnl_percentage = (pnl / initial_investment) * 100 if initial_investment != 0 else 0
                     
                     exiting_trade = True
+                    pnl_gross = pnl
                     balance_before_exit = account_balance
                     
                     # ✅ حفظ البيانات قبل إعادة التعيين (مهم جداً للمرحلة 4)
                     closed_trade_id = trade_id
                     closed_position_type = current_state
+                    # ✅ الجولة 12: حفظ بيانات الصفقة قبل التصفير (لنقاط الخروج الشفافة)
+                    closed_entry_price = entry_price
+                    closed_entry_time = entry_time
+                    closed_sl = sl_price
+                    closed_tp = tp_price
+                    closed_size = position_size
                     
                     net_pnl_closed = self._close_trade_logic(trades, trade_id, exit_price, current_time, exit_reason, pnl, pnl_percentage, config)
                     
@@ -513,6 +607,141 @@ class BacktestEngine:
             except Exception as inner_e:
                 pending_decision = None
 
+            # ==========================================================
+            # ✅ الجولة 12: نموذج التنفيذ signal_close — تنفيذ فوري عند إغلاق
+            # شمعة الإشارة (لمطابقة محاكاة الواجهة المحلية). next_open يبقى
+            # الافتراضي حرفياً بلا أي تغيير — هذه الكتلة لا تعمل إلا عند
+            # fill_model="signal_close".
+            # ==========================================================
+            if config.fill_model == "signal_close" and pending_decision is not None:
+                decision_sc = pending_decision
+                act_sc = decision_sc.action
+                target_state_sc = 'NEUTRAL'
+                if act_sc == DecisionAction.BUY:
+                    target_state_sc = 'LONG'
+                elif act_sc == DecisionAction.SELL:
+                    target_state_sc = 'SHORT' if config.enable_short_selling else 'NEUTRAL'
+
+                exit_trig_sc = (
+                    current_state != 'NEUTRAL'
+                    and (
+                        target_state_sc != current_state
+                        or (
+                            act_sc == DecisionAction.HOLD
+                            and isinstance(getattr(decision_sc, "metadata", None), dict)
+                            and decision_sc.metadata.get("trigger") == "exit_rule"
+                        )
+                    )
+                )
+
+                fill_price_sc = close_price
+
+                if exit_trig_sc:
+                    execution_price_sc = fill_price_sc
+                    initial_investment_sc = entry_price * position_size
+                    pnl_close_sc = (
+                        (execution_price_sc - entry_price) * position_size
+                        if current_state == 'LONG'
+                        else (entry_price - execution_price_sc) * position_size
+                    )
+                    pnl_percentage_sc = (pnl_close_sc / initial_investment_sc) * 100 if initial_investment_sc != 0 else 0
+
+                    exiting_trade = True
+                    pnl = pnl_close_sc
+                    pnl_gross = pnl_close_sc
+                    exit_price = execution_price_sc
+                    exit_reason = (
+                        f"Exit Signal: {decision_sc.reason}"
+                        if (act_sc == DecisionAction.HOLD or target_state_sc == 'NEUTRAL')
+                        else f"Signal Reversal: {target_state_sc}"
+                    )
+
+                    closed_trade_id = trade_id
+                    closed_position_type = current_state
+                    closed_entry_price = entry_price
+                    closed_entry_time = entry_time
+                    closed_sl = sl_price
+                    closed_tp = tp_price
+                    closed_size = position_size
+                    balance_before_exit = account_balance
+
+                    net_pnl_closed_sc = self._close_trade_logic(
+                        trades, trade_id, execution_price_sc, current_time, exit_reason,
+                        pnl_close_sc, pnl_percentage_sc, config,
+                    )
+                    account_balance += net_pnl_closed_sc
+                    cumulative_pnl += net_pnl_closed_sc
+                    pnl = net_pnl_closed_sc
+                    pnl_percentage = (net_pnl_closed_sc / initial_investment_sc) * 100 if initial_investment_sc != 0 else 0
+                    equity_curve.append(account_balance)
+
+                    current_state = 'NEUTRAL'
+                    trade_id = None
+                    entry_price = 0.0
+                    position_size = 0.0
+                    sl_price = 0.0
+                    tp_price = 0.0
+
+                if target_state_sc != 'NEUTRAL' and current_state == 'NEUTRAL':
+                    entry_price = fill_price_sc
+                    entry_time = current_time
+
+                    risk_amount_sc = account_balance * config.position_size_percent
+                    position_size = risk_amount_sc / entry_price if entry_price else 0.0
+
+                    if config.stop_loss_percent:
+                        sl_offset_sc = entry_price * (config.stop_loss_percent / 100)
+                        sl_price = entry_price - sl_offset_sc if target_state_sc == 'LONG' else entry_price + sl_offset_sc
+
+                    if config.take_profit_percent:
+                        tp_offset_sc = entry_price * (config.take_profit_percent / 100)
+                        tp_price = entry_price + tp_offset_sc if target_state_sc == 'LONG' else entry_price - tp_offset_sc
+
+                    current_state = target_state_sc
+                    trade_id = str(uuid.uuid4())
+                    entering_trade = True
+
+                    risk_reward_ratio_sc = 0.0
+                    if sl_price > 0 and tp_price > 0:
+                        if target_state_sc == 'LONG':
+                            risk_sc = entry_price - sl_price
+                            reward_sc = tp_price - entry_price
+                        else:
+                            risk_sc = sl_price - entry_price
+                            reward_sc = entry_price - tp_price
+                        risk_reward_ratio_sc = reward_sc / risk_sc if risk_sc != 0 else 0
+
+                    # ✅ الجولة 13 — إبادة العمولة: بلا أي حساب عمولة
+                    trade_sc = Trade(
+                        id=trade_id,
+                        symbol=symbol,
+                        entry_time=entry_time,
+                        exit_time=None,
+                        entry_price=entry_price,
+                        exit_price=None,
+                        position_type='long' if target_state_sc == 'LONG' else 'short',
+                        position_size=position_size,
+                        pnl=None,
+                        pnl_percentage=None,
+                        commission=0.0,
+                        slippage=0.0,
+                        stop_loss=sl_price if config.stop_loss_percent else None,
+                        take_profit=tp_price if config.take_profit_percent else None,
+                        exit_reason=None,
+                        direction='long' if target_state_sc == 'LONG' else 'short',
+                        fill_entry=fill_model_str,
+                        fill_exit=fill_model_str,
+                        metadata={
+                            'strategy': config.strategy_config.get('name', 'Unknown') if config.strategy_config else 'Unknown',
+                            'decision_reason': decision_sc.reason,
+                            'confidence': decision_sc.confidence,
+                            'risk_reward_ratio': risk_reward_ratio_sc,
+                        },
+                    )
+                    trades.append(trade_sc)
+
+                pending_decision = None
+
 
 
             # ==========================================================
@@ -546,7 +775,18 @@ class BacktestEngine:
                                 if isinstance(val, pd.Series):
                                     # نحاول جلب أول قيمة غير NaN من السلسلة
                                     val = val.dropna().iloc[0] if not val.dropna().empty else None
-                            
+
+                                # ✅ الجولة 12.1 (إصلاح 0-أ الجذري): أعمدة العقد ind_* تُكتب دائماً —
+                                # كانت pd.notna(val) تُسقط القيم NaN فتتفكك أعمدة العقد
+                                # (ind_zz_*/ind_fib_*/ind_atl_*/ind_zzf_*) من شموع فترة التمهيد
+                                # ويصبح مفتاح كل شمعة مختلفاً عن الأخرى (أعمدة تتلوى وتختفي).
+                                # الآن: قيمة NaN/None في أعمدة العقد → null في JSON (ليست مفقودة)
+                                # فتبقى مجموعة مفاتيح كل شمعة ثابتة وكاملة — العقد المُلزم.
+                                _is_contract_col = str(col).startswith("ind_")
+                                if val is None or (isinstance(val, float) and pd.isna(val)):
+                                    if _is_contract_col:
+                                        indicators[col] = None
+                                    continue
                                 if pd.notna(val):
                                     if isinstance(val, (int, float, np.number)):
                                         indicators[col] = float(val)
@@ -557,6 +797,9 @@ class BacktestEngine:
                                         # إذا كان أي نوع آخر غير رقمي (مثل Dict) نتركه كما هو فقط إذا كان مطلوباً
                                         # لكن الأفضل تجنب المشاكل بإغلاقها هنا
                                         indicators[col] = val
+                                elif _is_contract_col:
+                                    # قيمة غير عددية NaN لأي نوع آخر في عمود عقد → null
+                                    indicators[col] = None
 
 
                 # حسابات الحقول الإضافية
@@ -600,6 +843,8 @@ class BacktestEngine:
                     close=close_price,
                     volume=volume_val,
                     indicators=indicators,
+                    # ✅ الجولة 12 (بند 5-ب.3): وسم كل شمعة برمزها
+                    symbol=symbol,
                     strategy_decision=pending_decision.action.value if pending_decision else None,
                     triggered_rules=getattr(pending_decision, 'triggered_rules', []) if pending_decision else [],
                     confidence=pending_decision.confidence if pending_decision else None,
@@ -646,7 +891,13 @@ class BacktestEngine:
                         "decision_reason": executed_decision.reason if executed_decision else None,
                         "confidence": executed_decision.confidence if executed_decision else None,
                         "account_balance_before": account_balance,
-                        "commission": float(entry_price * position_size * config.commission_rate)
+                        # ✅ الجولة 13 (Zero-Fee): DEPRECATED — ثابت 0.0 دائماً
+                        "commission": 0.0,
+                        # ✅ الجولة 12: الشفافية
+                        "fill_entry": fill_model_str,
+                        "direction": current_state.lower(),
+                        # ✅ الجولة 12 (بند 5-ب.3): رمز النقطة
+                        "symbol": symbol,
                     })
             
                 # تسجيل صفقات الإغلاق (مع استخدام المتغيرات المحفوظة)
@@ -655,14 +906,27 @@ class BacktestEngine:
                     # وإلا استخدام القيم الحالية (لإغلاق نهاية البيانات)
                     record_trade_id = closed_trade_id if closed_trade_id else trade_id
                     record_position_type = closed_position_type if closed_position_type else current_state
-                
+                    # ✅ الجولة 12: بيانات الصفقة المغلقة (كانت تعود 0.0 بعد التصفير)
+                    rec_entry_price = closed_entry_price if closed_trade_id else entry_price
+                    rec_entry_time = closed_entry_time if closed_trade_id else entry_time
+                    rec_sl = closed_sl if closed_trade_id else sl_price
+                    rec_tp = closed_tp if closed_trade_id else tp_price
+                    rec_size = closed_size if closed_trade_id else position_size
+                    rec_direction = str(record_position_type).lower()
+
+                    _delta = float(exit_price) - float(rec_entry_price) if rec_entry_price else 0.0
+                    _delta_pct = (_delta / float(rec_entry_price) * 100.0) if rec_entry_price else 0.0
+                    _sign_dir = 1.0 if rec_direction == 'long' else -1.0
+                    # ✅ الجولة 13 (عقد الدقة — الصيغة الموحدة):
+                    #   price_delta_pct = (exit − entry) / entry × 100 × direction
+                    #   result_pct      = price_delta_pct (نفس القيمة بلا اختلاف)
+                    _delta_pct_signed = _delta_pct * _sign_dir
+
                     visual_candle.trade_action = f"EXIT_{record_position_type.upper()}"
                     visual_candle.trade_id = record_trade_id
                     visual_candle.trade_price = float(exit_price)
                     visual_candle.pnl = float(pnl)
                     visual_candle.pnl_percentage = float(pnl_percentage)
-                
-                    exit_commission = exit_price * position_size * config.commission_rate if exit_price and position_size > 0 else 0.0
                 
                     trade_points.append({
                         "timestamp": current_time,
@@ -673,16 +937,28 @@ class BacktestEngine:
                         "exit_reason": exit_reason,
                         "pnl": float(pnl),
                         "pnl_percentage": float(pnl_percentage),
-                        "entry_price": float(entry_price),
-                        "position_size": float(position_size),
-                        "position_type": record_position_type.lower(),
-                        "holding_period": (current_time - entry_time).total_seconds() / 3600 if entry_time else 0,
+                        "entry_price": float(rec_entry_price),
+                        "position_size": float(rec_size),
+                        "position_type": rec_direction,
+                        "holding_period": (current_time - rec_entry_time).total_seconds() / 3600 if rec_entry_time else 0,
                         "account_balance_before": float(balance_before_exit),
                         "account_balance_after": account_balance,
                         "cumulative_pnl": cumulative_pnl,
-                        "commission": float(exit_commission),
-                        "stop_loss": float(sl_price),
-                        "take_profit": float(tp_price)
+                        # ✅ الجولة 13 (Zero-Fee): DEPRECATED — ثابت 0.0 دائماً
+                        "commission": 0.0,
+                        "stop_loss": float(rec_sl),
+                        "take_profit": float(rec_tp),
+                        # ✅ الجولة 12: الشفافية الحسابية الكاملة
+                        # ✅ الجولة 13 (عقد الدقة): price_delta_pct موقّعة بالاتجاه وresult_pct = نفسها
+                        "price_delta": _delta,
+                        "price_delta_pct": _delta_pct_signed,
+                        "direction": rec_direction,
+                        "result_pct": _delta_pct_signed,
+                        "pnl_gross": float(pnl_gross),
+                        "fill_entry": fill_model_str,
+                        "fill_exit": fill_model_str,
+                        # ✅ الجولة 12 (بند 5-ب.3): رمز النقطة
+                        "symbol": symbol,
                     })
             
                 visual_candles.append(visual_candle)
@@ -698,6 +974,7 @@ class BacktestEngine:
                 pnl = (exit_price - entry_price) * position_size
             else:
                 pnl = (entry_price - exit_price) * position_size
+            pnl_gross = pnl
             
             initial_investment = entry_price * position_size
             pnl_percentage = (pnl / initial_investment) * 100 if initial_investment != 0 else 0
@@ -721,6 +998,11 @@ class BacktestEngine:
                 last_candle.cumulative_pnl = cumulative_pnl
                 
                 # إضافة نقطة خروج للنهاية
+                _delta_eod = float(exit_price) - float(entry_price) if entry_price else 0.0
+                _delta_pct_eod = (_delta_eod / float(entry_price) * 100.0) if entry_price else 0.0
+                _sign_eod = 1.0 if current_state.lower() == 'long' else -1.0
+                # ✅ الجولة 13 (عقد الدقة): price_delta_pct موقّعة بالاتجاه وresult_pct = نفسها
+                _delta_pct_eod_signed = _delta_pct_eod * _sign_eod
                 trade_points.append({
                     "timestamp": data.index[-1],
                     "type": "exit",
@@ -737,9 +1019,21 @@ class BacktestEngine:
                     "account_balance_before": account_balance - pnl,
                     "account_balance_after": account_balance,
                     "cumulative_pnl": cumulative_pnl,
-                    "commission": float(exit_price * position_size * config.commission_rate),
+                    # ✅ الجولة 13 (Zero-Fee): DEPRECATED — ثابت 0.0 دائماً
+                    "commission": 0.0,
                     "stop_loss": float(sl_price),
-                    "take_profit": float(tp_price)
+                    "take_profit": float(tp_price),
+                    # ✅ الجولة 12: الشفافية الحسابية الكاملة
+                    # ✅ الجولة 13 (عقد الدقة): price_delta_pct موقّعة بالاتجاه وresult_pct = نفسها
+                    "price_delta": _delta_eod,
+                    "price_delta_pct": _delta_pct_eod_signed,
+                    "direction": current_state.lower(),
+                    "result_pct": _delta_pct_eod_signed,
+                    "pnl_gross": float(pnl_gross),
+                    "fill_entry": fill_model_str,
+                    "fill_exit": fill_model_str,
+                    # ✅ الجولة 12 (بند 5-ب.3): رمز النقطة
+                    "symbol": symbol,
                 })
 
         return trades, equity_curve, visual_candles, trade_points
@@ -777,12 +1071,11 @@ class BacktestEngine:
                           config: Optional[BacktestConfig] = None) -> float:
         """دالة مساعدة لتحديث بيانات الصفقة عند الإغلاق.
 
-        ✅ إصلاح جوهري: كان يحسب العمولة للسجل فقط بينما يحدّث المحرك الرصيد
-        بالـ pnl الخام (بدون رسوم) — فتُهمل commission/slippage من كل النتائج.
-        الآن يعيد صافي الربح بعد خصم:
-          - عمولة الدخول (config.commission_rate) — كانت مسجلة عند الفتح
-          - عمولة الخروج (config.commission_rate بدل 0.001 hardcoded)
-          - تكلفة الانزلاق (config.slippage_percent) على الطرفين
+        ✅ الجولة 13 — إبادة العمولة (حرفياً):
+        كود تطبيق commission/slippage مُمسوح بالكامل — لا فرع شرطي، لا fallback
+        في التواقيع، لا افتراض مخفي. الحساب صافٍ بالبنية نفسها:
+            pnl == (exit_price − entry_price) × units × (long? +1 : −1)
+        تُعيد دائماً الـ pnl الخام كما هو (لا خصم إطلاقاً).
         """
         net_pnl = pnl
         for trade in trades:
@@ -790,30 +1083,24 @@ class BacktestEngine:
                 trade.exit_time = exit_time
                 trade.exit_price = exit_price
                 trade.exit_reason = reason
+                # ✅ الجولة 13: الربح صافٍ بالبنية — لا خصم أي رسوم إطلاقاً
                 trade.pnl = pnl
                 trade.pnl_percentage = pnl_percentage
-                
-                commission_rate = float(getattr(config, "commission_rate", 0.001) if config else 0.001)
-                # ✅ slippage_percent يُعامل ككسر (0.001 = 0.1%) اتساقاً مع commission_rate
-                slippage_rate = float(getattr(config, "slippage_percent", 0.0) if config else 0.0)
-                
-                # عمولة الخروج (بدل 0.001 الثابتة)
-                commission_exit = exit_price * trade.position_size * commission_rate
-                trade.commission += commission_exit
-                
-                # تكلفة الانزلاق على الطرفين (سوء تنفيذ افتراضي)
-                slippage_cost = (
-                    trade.entry_price * trade.position_size * slippage_rate
-                    + exit_price * trade.position_size * slippage_rate
-                )
-                trade.slippage = slippage_cost
-                
-                # صافي الربح بعد كل التكاليف
-                net_pnl = pnl - trade.commission - slippage_cost
-                trade.pnl = net_pnl
-                
-                if trade.entry_price > 0:
-                    trade.pnl_percentage = (net_pnl / (trade.entry_price * trade.position_size)) * 100
+
+                # ✅ الجولة 13: أعمدة الشفافية الحسابية الكاملة
+                # (الصيغة الموحدة الموثقة — بلا أي تقريب، float64 كاملة)
+                fill_m = str(getattr(config, "fill_model", "next_open") or "next_open") if config else "next_open"
+                _sign_tr = 1.0 if trade.position_type == 'long' else -1.0
+                _delta_tr = float(exit_price) - float(trade.entry_price)
+                trade.price_delta = _delta_tr
+                # ✅ الجولة 13 (الصيغة الموحدة): price_delta_pct موقّعة بالاتجاه
+                trade.price_delta_pct = (_delta_tr / float(trade.entry_price) * 100.0 * _sign_tr) if trade.entry_price else 0.0
+                trade.direction = 'long' if _sign_tr > 0 else 'short'
+                # ✅ الجولة 13: result_pct = price_delta_pct (نفس القيمة بلا اختلاف)
+                trade.result_pct = trade.price_delta_pct
+                trade.pnl_gross = _delta_tr * float(trade.position_size) * _sign_tr
+                trade.fill_entry = fill_m
+                trade.fill_exit = fill_m
                 break
         return net_pnl
 
@@ -864,6 +1151,66 @@ class BacktestEngine:
         final_capital = equity_curve[-1] if equity_curve else config.initial_capital
         total_pnl = final_capital - config.initial_capital
         total_pnl_percent = (total_pnl / config.initial_capital * 100) if config.initial_capital > 0 else 0
+
+        # ✅ الجولة 13 — التدقيق الحسابي الذاتي (math_audit) بعقد الدقة المتناهية:
+        # الصيغة الصافية (بلا أي إشارة إلى commission/slippage — محذوفة من النظام نهائياً):
+        #     pnl == (exit_price - entry_price) * units * (long? +1 : -1)
+        # التسامح المشدّد: 1e-9 (كان 0.01 فضفاضاً لنظام بلا عمولة)
+        _FORMULA_TOLERANCE = 1e-9
+        fees_applied = 0.0
+        sum_pnl = 0.0
+        max_abs_error = 0.0
+        checked = 0
+        audit_violations: List[Dict[str, Any]] = []
+        for tr in trades:
+            try:
+                if tr.exit_time is None or tr.exit_price is None or tr.pnl is None:
+                    continue
+                checked += 1
+                _sign_a = 1.0 if tr.position_type == 'long' else -1.0
+                expected_a = (
+                    (float(tr.exit_price) - float(tr.entry_price)) * float(tr.position_size) * _sign_a
+                )
+                err_a = abs(float(tr.pnl) - expected_a)
+                if err_a > max_abs_error:
+                    max_abs_error = err_a
+                if err_a > _FORMULA_TOLERANCE and len(audit_violations) < 10:
+                    audit_violations.append({
+                        "trade_id": tr.id,
+                        "pnl": float(tr.pnl),
+                        "expected": float(expected_a),
+                        "abs_error": float(err_a),
+                    })
+                # ✅ الجولة 13 (Zero-Fee): يبقى إثبات الشفافية — ثابت 0.0 دائماً
+                fees_applied += float(tr.commission or 0.0)
+                sum_pnl += float(tr.pnl)
+            except Exception:
+                logger.exception("math_audit: فحص صفقة فشل — تجاهل")
+        total_pnl_matches = bool(abs(total_pnl - sum_pnl) <= 0.01)
+        if not total_pnl_matches:
+            logger.warning(
+                "math_audit: total_pnl (%.6f) != مجموع pnl الصفقات (%.6f)",
+                total_pnl, sum_pnl,
+            )
+        math_audit = {
+            "checked_trades": checked,
+            # ✅ الجولة 13: قيمة خام بلا تقريب (عقد الدقة المتناهية)
+            "max_abs_error": float(max_abs_error),
+            "formula_tolerance": _FORMULA_TOLERANCE,
+            "formula": "pnl == (exit_price - entry_price) * units * (long? +1 : -1)",
+            "consistent": bool(max_abs_error <= _FORMULA_TOLERANCE and total_pnl_matches and not audit_violations),
+            "total_pnl": float(total_pnl),
+            "trades_pnl_sum": float(sum_pnl),
+            "total_pnl_matches": total_pnl_matches,
+            "fees_applied": float(fees_applied),
+            "violations": audit_violations,
+            # ✅ الجولة 13 — تقرير الدقة: كل الحسابات float64 كاملة بلا أي تقريب
+            "precision_report": {
+                "formula_tolerance": _FORMULA_TOLERANCE,
+                "float64": True,
+                "rounded_fields": [],
+            },
+        }
         
         # 3. حساب منحنى الانخفاض
         drawdown_curve = self.metrics_calculator._calculate_drawdown_curve(equity_curve)
@@ -976,7 +1323,14 @@ class BacktestEngine:
             # ★ الحقول الاختيارية
             recovery_factor=advanced_metrics.get('recovery_factor'),
             ulcer_index=advanced_metrics.get('ulcer_index'),
-            raw_data=None
+            raw_data=None,
+
+            # ✅ الجولة 12: الشفافية الحسابية الكاملة
+            # (trades=trades كان يُمرَّر أعلاه وصار الآن حقلاً حقيقياً في BacktestResult)
+            # ✅ الجولة 13: قيمة خام بلا تقريب — إثبات Zero-Fee (ثابت 0.0 دائماً)
+            fees_applied=float(fees_applied),
+            fill_model=str(getattr(config, "fill_model", "next_open") or "next_open"),
+            math_audit=math_audit,
         )
 
 
@@ -1377,9 +1731,7 @@ class BacktestEngine:
         current_equity = initial_capital
         
         for trade in sorted_trades:
-            # تحديث عند الدخول (العمولة)
-            entry_cost = trade.commission if trade.commission else 0
-            current_equity -= entry_cost
+            # ✅ الجولة 13 — إبادة العمولة: لا خصم عند الدخول (كود commission ممسوح)
             curve.append(current_equity)
             
             # تحديث عند الخروج
