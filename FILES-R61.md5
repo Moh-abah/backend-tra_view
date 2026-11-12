@@ -1,0 +1,43 @@
+# FILES-R61.md5 — بصمات ملفات جولة 61 (إصلاح فجوة كاش الشموع)
+
+> القاعدة: بعد فك الضغط نفّذ `md5sum -c FILES-R61.md5` من جذر المشروع —
+> كل الأسطر يجب أن تقول OK قبل تشغيل أي شيء.
+
+## الملفات المعدّلة (2)
+
+| الملف | BEFORE (R60) | AFTER (R61) |
+|---|---|---|
+| app/services/candle_cache.py | 59bae32c56c0ed2fc778c6feeba267d5 | d7464f39ed58960b69ba4994ba4238b2 |
+| app/config.py | c9ca745cc373575f04103fb2a4708e1e | dd4c442a8021a561d8ced2cf8db7fde8 |
+
+## بصمات md5 (للتحكم: `md5sum -c`)
+
+```
+d7464f39ed58960b69ba4994ba4238b2  app/services/candle_cache.py
+dd4c442a8021a561d8ced2cf8db7fde8  app/config.py
+b7e40b9ea979b7ba60ca6414534fd986  verify_r61_cache_gap.py
+42b7df7d01b0236ef2982ed54745f07b  verify_r61_acceptance.py
+acdbeb96f075eb9563c8afed616748f2  BACKEND-REPORT-R61-AR.md
+bb93cb9732342b5fc97b6513dbc3c456  INSTALL-R61-AR.md
+5de517e95eb150846ce1aea9f733d2f9  VERIFY-R61-UNIT-EVIDENCE.txt
+a1011b7ca55588b92cdc5a5abf5676ea  VERIFY-R61-ACCEPTANCE-EVIDENCE.txt
+```
+
+## الملفات الجديدة (الأدلة — اختيارية للتركيب، مطلوبة للتوثيق)
+
+- `verify_r61_cache_gap.py` — اختبارات الوحدة (56/56، مزوّد مصطنع، بلا شبكة)
+- `verify_r61_acceptance.py` — اختبارات القبول الحية A/B/C/D (25/25، Binance)
+- `VERIFY-R61-UNIT-EVIDENCE.txt` + `VERIFY-R61-ACCEPTANCE-EVIDENCE.txt` — المخرجات
+
+## ما الذي لم يُمسّ بتاتاً
+
+- `app/backtest/engine1.py` و `app/backtest/schemas.py` — كما هما من R60.
+- `app/tasks/backtest_tasks.py` و `app/routers/backtest1.py` — كما هما
+  (كائن `cache` يصلهما تلقائياً من `as_meta` بحقوله الجديدة مضافةً —
+  الحقول الخمسة القديمة كما هي، توافق رجعي كامل).
+- `app/providers/binance_provider.py` — لم يُمسّ (وسم `fetch_incomplete`
+  كان موجوداً أصلاً — R61 يلتقطه فقط).
+- كل حزم R44–R60 السابقة داخل شجرتك تبقى كما هي.
+- لا هجرة قواعد بيانات، لا حذف كاش، لا متغيرات بيئة إلزامية
+  (`CANDLE_CACHE_GAP_TOLERANCE_MULT=3` و `CANDLE_CACHE_MAX_GAP_FETCHES=6`
+  لهما افتراضي آمن ويعملان بدونهما).

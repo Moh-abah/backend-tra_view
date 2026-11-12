@@ -1,0 +1,26 @@
+{
+  "label": "BEFORE2b_rich",
+  "trades": 211,
+  "first_entry": "2025-09-01 08:01:00+00:00",
+  "last_exit": "2025-09-30 03:34:00+00:00",
+  "window_end": "2025-10-01T00:00:00",
+  "entries_after_end": 0,
+  "exits_after_end": 0,
+  "negative_sizes": 0,
+  "tp_exits_with_loss": 0,
+  "sl_exits_with_profit": 0,
+  "first_position_notional_usd": 300.0,
+  "initial_capital": 300.0,
+  "final_capital": 281.7207,
+  "total_pnl": -18.2793,
+  "total_pnl_percent": -6.0931,
+  "min_equity": 281.7114,
+  "max_drawdown_percent": 8.5497,
+  "exit_reasons": {
+    "Exit Signal: Exit Condition: ZLF-E2E-Trendy · تأكيد قمة — انقلاب النطاق إلى هابطة (نطاق جديد قمة→قاع) · افتراضي مؤقت provisional": 166,
+    "Exit Signal: Exit Condition: ZLF-E2E-Trendy · تأكيد قمة — انقلاب النطاق إلى هابطة (نطاق جديد قمة→قاع) · افتراضي مؤقت provisional (additional position)": 45
+  },
+  "account_blown": false,
+  "exec_seconds": 15.0,
+  "candles_served": 1615680
+}

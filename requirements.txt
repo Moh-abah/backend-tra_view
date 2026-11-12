@@ -97,6 +97,7 @@ multidict==6.7.0
 narwhals==2.13.0
 networkx==3.2.1
 numpy-financial==1.0.0
+orjson>=3.9              # R50: fast JSON parse/dump — shorter GIL holds on 50-200MB backtest docs
 outcome==1.3.0.post0
 packaging==25.0
 pillow==12.0.0

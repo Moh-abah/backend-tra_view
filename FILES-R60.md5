@@ -1,0 +1,31 @@
+# FILES-R60.md5 — بصمات ملفات جولة 60 (وضع التراكم)
+
+> القاعدة: بعد فك الضغط نفّذ `md5sum -c FILES-R60.md5` من جذر المشروع —
+> كل الأسطر يجب أن تقول OK قبل تشغيل أي شيء.
+
+## الملفات المعدّلة (2)
+
+| الملف | BEFORE (PRO62/R58) | AFTER (R60) |
+|---|---|---|
+| app/backtest/engine1.py | d1cf92b11331fa865303c9a5d3df7cd8 | b8a2186968914d7878294b6371dbe8dd |
+| app/backtest/schemas.py | 3009a39775578abba5494fdfea10857d | d3db1976af2cfa9abde258e50108d1e3 |
+
+## بصمات md5 (للتحكم: `md5sum -c`)
+
+```
+b8a2186968914d7878294b6371dbe8dd  app/backtest/engine1.py
+d3db1976af2cfa9abde258e50108d1e3  app/backtest/schemas.py
+```
+
+## الملفات الجديدة (0)
+
+لا شيء — R60 تعديل صرف على ملفين موجودين.
+
+## ما الذي لم يُمسّ بتاتاً
+
+- `app/tasks/backtest_tasks.py` — كما هو (يقرأ compounding تلقائياً من
+  BacktestConfig عبر model_dump، لا تعديل مطلوب).
+- `app/routers/backtest.py` و `app/routers/backtest1.py` — كما هما
+  (كلاهما يستورد BacktestConfig نفسها من schemas.py — التغطية تلقائية).
+- `app/services/**` — لم يُمسّ أي ملف خدمات.
+- كل حزم R44–R58 السابقة داخل شجرتك تبقى كما هي.

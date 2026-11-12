@@ -1,0 +1,5 @@
+d5052c9e29f99f93c9bf3db20105e404  app/services/exit_engine.py
+50d14becf6346147f5155594d1b29733  app/tasks/backtest_tasks.py
+5d2587e4f7ad7a7811df9546388ac399  app/routers/backtest1.py
+ec07adc23fc7a905d2c9e06b25eadb1f  app/routers/exit_strategy.py
+103b56d892cf2a87ba7c5d3c9d0d1281  verify_r64_post_install.py

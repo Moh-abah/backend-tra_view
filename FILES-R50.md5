@@ -1,0 +1,12 @@
+6730d2dd83df59face0bf3662e2aad84  app/routers/backtest.py
+fa1bee31917c9c0e0d4562763ad6aaec  app/routers/backtest1.py
+a6938364556b64a22f6e2d75ed397c42  app/services/task_registry.py
+e92b827c19947752ed07d1eb176134ad  app/services/candle_cache.py
+a69ddd9cf0a209fe3d7b4109c772e4f7  app/utils/json_safe.py
+83a0a31d35cc64ade314599ec878a15c  app/main.py
+9ad87cfa42060119b590ce004b14361d  app/database/session.py
+1d4eca7ad00d41f53037300d3dee9004  Dockerfile
+4a5c57508492f0d39f662a8cf3ebd9a5  docker-compose.yml
+841b33cd2a17c0d7aa2878a8db35451e  requirements.txt
+71e08fba08ae987376085aa253734c81  INSTALL-R50-MERGE-AR.md
+8aaf525f8fd26dcc74a73afdc876b3f0  REPORT-R50-AR.md

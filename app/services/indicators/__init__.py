@@ -14,6 +14,7 @@ from .calculator import IndicatorCalculator
 # وتمرّ فحص validate وتُستنتج type=support_resistance تلقائياً.
 from . import overlay_adapters as _overlay_adapters  # noqa: F401
 from . import overlays_zlf_e2e as _overlays_zlf_e2e  # noqa: F401  # ✅ ROUND22: ZLF-End-To-End — المحرك المنفصل (تسجيل ذاتي — إضافة فقط)
+from . import overlays_zlf_e2e_blazing as _overlays_zlf_e2e_blazing  # noqa: F401  # 🔥 R69: ZLF-End-To-End-Blazing «الترندية الملتهبة» (تسجيل ذاتي — إضافة فقط)
 from .pine_transpiler import PineScriptTranspiler
 
 

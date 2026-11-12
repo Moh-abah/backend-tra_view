@@ -61,6 +61,23 @@ services:
       # غير موجود + ملفات بملكية root لا يكتبها trader).
       CHART_STATE_DB_PATH: /app/chart_data/chart_states.db
       DRAWINGS_DB_PATH: /app/chart_data/chart_drawings.db
+      # ✅ R56 — ميزانية كاش دفاعية: الافتراضي 900MB لعاملٍ اثنين uvicorn
+      # = حتى 1.8GB كاش فقط (باستثناء الأحمال العابرة لـ /chart-data) —
+      # على خادم صغير مع postgres+redis+celery هذا هو الذي كان يجعل
+      # نظام يقتل أطفال uvicorn دورياً (Child process died ← إعادة تهيئة
+      # دائمة). 350MB/عامل كافية لثلاث مستندات ثقيلة ساخنة. ارفعها
+      # بحرية على الأجهزة الأكبر.
+      BACKTEST_CACHE_BUDGET_MB: "350"
+      BACKTEST_PARSED_CACHE_MAX_MB: "150"
+      # ✅ R50 — تقسيم المسؤوليات: عمال uvicorn متعددون (عامل مشغول بتحميل
+      # ثقيل لا يجمّد بقية النظام) + قيود BLAS أحادية الخيط (numpy/pandas
+      # كان يفتح خيوطاً بعدد الأنوية لكل عملية فيبتلع المعالج كله)
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-2}"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
     ports:
       - "8000:8000"
     volumes:
@@ -77,20 +94,38 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      # ✅ R49: تحصين الصحة — timeout 10s و retries 5 (كان 5s/3: أي ذروة
+      # حساب فوق 90 ثانية تعلّم الحاوية unhealthy وتقتل طلبات معلقة)
       interval: 30s
-      timeout: 5s
-      retries: 3
+      timeout: 10s
+      retries: 5
       start_period: 40s
 
   # --- Celery worker (async backtests) --------------------------------------------
   celery-worker:
     build: .
     container_name: trading-celery-worker
-    command: celery -A app.celery_app worker --loglevel=info
+    # ✅ R50 — تحصين العامل تحت الضغط:
+    #   * --concurrency: عملاقا باك-تست متزامنان كحد افتراضي (بدل عدد
+    #     الأنوية كاملاً — 4 أنوية = 4 محاكيات ثقيلة تبتلع الخادم وتجوّع
+    #     الـAPI. ارفعه عبر CELERY_WORKER_CONCURRENCY إن أردت).
+    #   * --max-tasks-per-child: إعادة تدوير عملية العامل بعد 8 مهام —
+    #     يمنع تضخم الذاكرة التراكمي من pandas/pyarrow بين المهام.
+    #   * خيوط BLAS=1: محاكاة المتجهات 1D لا تستفيد من خيوط BLAS أصلاً،
+    #     وكل خيط إضافي كان يسرق معالجاً كاملاً من باقي النظام.
+    command: >
+      sh -c "exec celery -A app.celery_app worker --loglevel=info
+      --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+      --max-tasks-per-child=8"
     env_file:
       - .env
     environment:
       HISTORY_CACHE_DIR: /app/data/history
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
     volumes:
       - ./logs:/app/logs
       - ./reports:/app/reports
@@ -101,6 +136,18 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    # ✅ R56 — فحص صحة العامل: Dockerfile يفحص http://localhost:8000/health
+    # وهو صحيح لخدمة الـAPI فقط — حاوية العامل لا تشغّل uvicorn فتبقى
+    # unhealthy للأبد رغم عملها الطبيعي تماماً (docker ps: Up ... unhealthy).
+    # الفحص الصحيح هنا: celery inspect ping على عقدة هذا العامل نفسه —
+    # يردّ MainProcess حتى أثناء انشغال العمال بالمحاكاة.
+    # ($$ يهرّب المتغير ليعمل داخل الحاوية لا وقت compose)
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping -d celery@$$HOSTNAME --timeout 8 | grep -q pong"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
 
 volumes:
   postgres_data:

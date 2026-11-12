@@ -22,6 +22,31 @@ __all__ = ["sanitize_json_value", "SafeJSONResponse"]
 
 _MAX_DEPTH = 24
 
+# ✅ R50 — مُسرّع orjson الاختياري: أسرع 3-5× من json القياسي في فك/تسلسل
+# المستندات الضخمة (52-208MB) — أهميته هنا ليست السرعة فقط بل أن مدة
+# احتجاز GIL (الذي يجمد حلقة الأحداث أثناء كود C) تتقلص بنفس النسبة.
+# النتيجة متطابقة دلالياً (JSON مضغوط UTF-8 بلا أسكي-إسكاب).
+try:
+    import orjson as _orjson
+
+    def _fast_dumps(obj) -> bytes:
+        return _orjson.dumps(obj)
+except Exception:  # noqa: BLE001 — orjson غير مثبت ⇒ json القياسي كما كان
+    _orjson = None
+
+    def _fast_dumps(obj) -> bytes:
+        return json.dumps(
+            obj, ensure_ascii=False, allow_nan=False,
+            indent=None, separators=(",", ":"),
+        ).encode("utf-8")
+
+
+def _fast_loads(txt):
+    """فك JSON سريع — orjson إن توفر وإلا json.loads القياسي."""
+    if _orjson is not None:
+        return _orjson.loads(txt)
+    return json.loads(txt)
+
 
 def sanitize_json_value(obj: Any, _depth: int = 0) -> Any:
     """Recursively convert numpy/pandas/NaN values into JSON-safe equivalents."""
@@ -75,6 +100,13 @@ class SafeJSONResponse(JSONResponse):
     """JSONResponse that never fails on NaN/Infinity/numpy types."""
 
     def render(self, content: Any) -> bytes:
+        # ✅ R50: orjson أولاً (متطابق دلالياً وأسرع 3-5×) — sanitize يعمل
+        # قبل التسلسل في كلا المسارين فلا يمر NaN/Inf أبداً.
+        if _orjson is not None:
+            try:
+                return _orjson.dumps(sanitize_json_value(content))
+            except Exception:  # noqa: BLE001 — أنواع غير متوقعة ⇒ مسار آمن
+                pass
         return json.dumps(
             sanitize_json_value(content),
             ensure_ascii=False,

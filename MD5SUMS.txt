@@ -1,8 +1,13 @@
-0131fc48c59dd802e41bd7c7eddf2363  app/services/exit_engine.py
-0d44ac05a0f524bdc4d898d806ab83db  app/services/unified_backtest.py
-2a3e6c41a71f69dd4b54fa0044c4ab09  app/backtest/schemas.py
-5dad5672b0aa5ee5669e3c34b012ef89  app/routers/backtest1.py
-f18ab76414101f2d0212396e93bfb5a5  rollback/app/services/exit_engine.py
-9d5088b006ed78b9145e603aba1c32d7  rollback/app/backtest/schemas.py
-4ef8fdde9af93f0de9edc3e1f54ddcc8  rollback/app/routers/backtest1.py
-747793df5d03e4b70b34c59857d195bd  test_battery_r42.py
+7f140526d65056660d16f47f635e4309  INSTALL-R66-COMPOUNDING-AR.md
+cd0cc634a6261da50b73e848472e6901  app/services/exit_engine.py
+365d92c7d911d9239f7ca895009256b3  app/services/unified_backtest.py
+fcaf32f4e7e2c19499af8c120d184184  app/routers/exit_strategy.py
+d5052c9e29f99f93c9bf3db20105e404  tests-r66/exit_engine_r64_baseline.py
+875970a0594542528b41eb2f3b52dde8  tests-r66/unified_backtest_r64_baseline.py
+4707ffb2b6b568d8c3e7fe87fc9ad352  tests-r66/test_r66_battery.py
+e82cf3b4ec7acbdca218274d89e8c80d  tests-r66/test_r66_fuzz.py
+
+# === بصمات النسخ الحالية قبل R66 (للاسترجاع) ===
+d5052c9e29f99f93c9bf3db20105e404  app/services/exit_engine.py      (نسختك الحالية قبل R66)
+875970a0594542528b41eb2f3b52dde8  app/services/unified_backtest.py (نسختك الحالية قبل R66)
+ec07adc23fc7a905d2c9e06b25eadb1f  app/routers/exit_strategy.py     (نسختك الحالية قبل R66)

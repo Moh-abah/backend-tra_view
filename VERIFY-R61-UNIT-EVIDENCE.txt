@@ -1,0 +1,107 @@
+
+━━ T1 · جبن سويسري #10000098 ⇦ كشف + جلب الفجوة + دمج
+  hit=False delivered=43201/43200 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=40320
+  note: gap fetch merged with cache: +40320 candles
+  ✅ T1 hit=false صادقة (لا شيء يغطي بداية النافذة)
+  ✅ T1 فجوات مكتشفة — detected=1
+  ✅ T1 الفجوة جُلبت ودمجت
+  ✅ T1 التغطية 100%
+  ✅ T1 التسليم كامل ≈43,200 — delivered=43201
+  ✅ T1 gap_filled=true
+  ✅ T1 المخزون شُفي (لا عودة للجبن) — stored_now=43201
+
+━━ T2 · القبول A: كاش يومين ⇦ طلب 30d (فجوة بادئة)
+  hit=False delivered=43200/43200 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=40320
+  note: gap fetch merged with cache: +40320 candles
+  ✅ T2 فجوة بادئة ⇦ hit=false (الجلب هو المصدر)
+  ✅ T2 جلب واحد دقيق للفجوة — calls=[(1699999980, 1702419180)]
+  ✅ T2 الجلب يستهدف الفجوة البادئة (~28 يوماً) — span=28.00d
+  ✅ T2 التسليم ≈43,200 — delivered=43200
+  ✅ T2 coverage=100.0
+  ✅ T2 gap_filled=true
+
+━━ T3 · ساعة يفتقدها المصدر نفسه ⇦ natural_gaps
+  hit=False delivered=43140/43200 coverage=100.0% gaps=0→0 natural=1 fills=1 fetched_new=43141
+  note: full fetch (cold cache)
+  ✅ T3 لا تُحسب نقصاً (gap_filled=true)
+  ✅ T3 natural_gaps=1
+  ✅ T3 coverage=100.0 (طبيعية مستثناة)
+  ✅ T3 gaps_remaining=0
+  ✅ T3 أُعيد محاولة ملئها مرة واحدة فقط
+🩹 [R61] leading gap fill failed (SWISS 1m): simulated provider failure (throttle)
+🚨 [R61] SWISS 1m: partial window delivery 6.67% (2881/43200 expected, 1 gaps remain)
+
+━━ T4 · فشل جلب الفجوة ⇦ إعلان صريح (⚠️)
+  hit=False delivered=2881/43200 coverage=6.67% gaps=1→1 natural=0 fills=1 fetched_new=0
+  note: ⚠️ partial coverage 6.67%: 1 gap(s) unfilled after 1 fetch attempt(s) — was: gap fetch: nothing new from source
+  ✅ T4 hit=false (فشل جلب الفجوة البادئة)
+  ✅ T4 gaps_remaining=1 — remaining=1
+  ✅ T4 gap_filled=false
+  ✅ T4 coverage<100 معلَنة — coverage=6.67%
+  ✅ T4 الملاحظة تحمل ⚠️
+  ✅ T4 التسليم ما هو متاح فقط (~5,760) — delivered=2881
+
+━━ T5 · كاش مكتمل ⇦ صفر نداءات جلب
+  hit=True delivered=43201/43200 coverage=100.0% gaps=0→0 natural=0 fills=0 fetched_new=0
+  note: full coverage from cache
+  ✅ T5 hit=true
+  ✅ T5 صفر نداءات مزوّد — calls=[]
+  ✅ T5 fetched_new=0
+  ✅ T5 coverage=100.0
+  ✅ T5 التسليم ≈43,200 (+شمعة إحماء R58) — delivered=43201
+
+━━ T6 · مخزون يتجاوز النهاية ⇦ لا تسريب للذيل (R57)
+  hit=True delivered=43201/43200 coverage=100.0% gaps=0→0 natural=0 fills=0 fetched_new=0
+  note: full coverage from cache
+  ✅ T6 آخر شمعة ≤ النهاية − عرض الفريم — last=1702591920 limit=1702591920
+  ✅ T6 لا فجوة ذيلية زائفة (الذيل المخزون يغطي)
+
+━━ T7 · ذيل ناقص 3 ساعات ⇦ جلب رأس محقّق
+  hit=True delivered=43201/43200 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=180
+  note: cache + gap fill: +180 candles
+  ✅ T7 hit=true مع جلب الرأس
+  ✅ T7 جلب واحد [آخر شمعة ← النهاية] — calls=[(1702581240, 1702591980)]
+  ✅ T7 التسليم ≈43,200 (+شمعة إحماء R58) — delivered=43201
+  ✅ T7 coverage=100.0
+  ✅ T8 كل حقول البطاقة موجودة — missing=set()
+  ✅ T8 expected_candles=43,200
+  ✅ T8 التواريخ ISO — 2023-11-14T22:13:00+00:00
+
+━━ T9 · 29 فجوة ⇦ دمجها في جلب واحد موحّد
+  hit=True delivered=43200/43200 coverage=100.0% gaps=30→0 natural=0 fills=1 fetched_new=43169
+  note: cache + gap fill: +43169 candles
+  ✅ T9 فجوات كثيرة مكتشفة — detected=30
+  ✅ T9 نداء جلب واحد موحّد — calls=1
+  ✅ T9 hit=true (أول شمعة عند البداية — لا فجوة بادئة)
+  ✅ T9 شُفي بالكامل — delivered=43200
+
+━━ T10 · مخزون خارج النافذة كلياً ⇦ النافذة فجوة بادئة
+  hit=False delivered=43200/43200 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=43201
+  note: gap fetch merged with cache: +43201 candles
+  ✅ T10 hit=false
+  ✅ T10 جلب النافذة المطلوبة بدقة — calls=[(1699999980, 1702591980)]
+  ✅ T10 التسليم ≈43,200
+  ✅ U1 بداية غير موائمة بثوانٍ ⇦ لا فجوة بادئة زائفة — holes=[]
+  ✅ U2 فراغ 50 دقيقة ⇦ فجوة ذيلية مكتشفة — holes=[(1700000580, 1700003580)]
+  ✅ U3 خطة الدمج لـ20 فجوة ⇦ نطاق واحد — plan=[(0, 29)]
+
+━━ T11 · أيام: رأس قديم 3 ساعات ⇦ تحديث رأس R58
+  hit=True delivered=43201 coverage=100.0% note=head refresh: fetched 1d, +180 candles
+  ✅ T11 hit=true (كاش + رأس)
+  ✅ T11 تحديث رأس واحد فقط — calls=[(0, 1)]
+  ✅ T11 النافذة اكتملت بعد الرأس
+
+━━ T12 · أيام: فجوة وسطى ⇦ جلب كامل شافٍ
+  hit=False delivered=43201 coverage=100.0% note=hole-healing full fetch: +43201 candles
+  ✅ T12 الترقية لجلب كامل (hit=false)
+  ✅ T12 النافذة اكتملت
+  ✅ T12 المخزون شُفي (لا عودة للجبن) — delivered=43201
+
+━━ T13 · أيام: مخزون أحدث من النافذة ⇦ جلب كامل R58
+  hit=False delivered=43201 coverage=100.0% note=full fetch merged with cache
+  ✅ T13 hit=false وجلب كامل
+  ✅ T13 النافذة اكتملت
+
+════════════════════════════════════════════════════════════════
+النتيجة: 56 نجاح / 0 فشل
+✅ R61 — كل اختبارات وحدة إصلاح فجوة الكاش ناجحة

@@ -82,6 +82,8 @@ class IndicatorCalculator:
         "zigzag_fib_e2e": "zzfib_e2e", "zzfib_e2e": "zzfib_e2e",
         # ✅ ROUND32: الترندية (استنساخ E2E + بوابة الترند) + مؤشر الترند المستقل
         "zigzag_fib_e2e_trendy": "zzfib_e2e_trendy", "zzfib_e2e_trendy": "zzfib_e2e_trendy",
+        # 🔥 R69: «الترندية الملتهبة» — الترندية بت-بت + N5/N6 (محرك معزول جديد كلياً)
+        "zigzag_fib_e2e_blazing": "zzfib_e2e_blazing", "zzfib_e2e_blazing": "zzfib_e2e_blazing",
         "trend_fractal": "trend_fractal", "fractal_trendlines": "trend_fractal",
     }
     # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
@@ -94,6 +96,8 @@ class IndicatorCalculator:
         "zzfib_e2e": "ind_zzfe_entry",
         # ✅ ROUND32: الترندية = عمود الدخول الجامع بعد البوابة · الترند = بوابة الإجماع
         "zzfib_e2e_trendy": "ind_zzfet_entry",
+        # 🔥 R69: الملتهبة = عمود الدخول الجامع بعد البوابة (S1/S2/S3 + N5/N6)
+        "zzfib_e2e_blazing": "ind_zzfb_entry",
         "trend_fractal": "ind_trf_trend_ok",
     }
     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
@@ -155,6 +159,31 @@ class IndicatorCalculator:
         "zzfet_entry_blocked_s3": "ind_zzfet_entry_blocked_s3",
         "zzfet_trend_ok": "ind_zzfet_trend_ok", "zzfet_trend_bias": "ind_zzfet_trend_bias",
         "zzfet_trend_votes_bull": "ind_zzfet_trend_votes_bull", "zzfet_trend_votes_bear": "ind_zzfet_trend_votes_bear",
+        # 🔥 R69 (الملتهبة) — أعمدة المحرك المعزول الجديد (أسماء جديدة كلياً)
+        "zzfb_dir": "ind_zzfb_dir", "zzfib_e2e_blazing_dir": "ind_zzfb_dir",
+        "zzfb_p1": "ind_zzfb_p1", "zzfb_p2": "ind_zzfb_p2",
+        "zzfb_i1": "ind_zzfb_i1", "zzfb_i2": "ind_zzfb_i2",
+        "zzfb_anchor": "ind_zzfb_anchor", "zzfb_range_index": "ind_zzfb_range_index",
+        "zzfb_liq_state": "ind_zzfb_liq_state", "zzfb_state": "ind_zzfb_liq_state",
+        "zzfb_liq_ref_high": "ind_zzfb_liq_ref_high", "zzfb_ref_high": "ind_zzfb_liq_ref_high",
+        "zzfb_liq_ref_vol": "ind_zzfb_liq_ref_vol", "zzfb_ref_vol": "ind_zzfb_liq_ref_vol",
+        "zzfb_liq_vol_ok": "ind_zzfb_liq_vol_ok", "zzfb_vol_ok": "ind_zzfb_liq_vol_ok",
+        "zzfb_signal_s1": "ind_zzfb_signal_s1", "zzfb_signal_s2": "ind_zzfb_signal_s2",
+        "zzfb_signal_s3": "ind_zzfb_signal_s3", "zzfb_signal_n5": "ind_zzfb_signal_n5",
+        "zzfb_signal_n6": "ind_zzfb_signal_n6", "zzfb_signal_any": "ind_zzfb_signal_any",
+        "zzfb_entry": "ind_zzfb_entry",
+        "zzfb_entry_raw": "ind_zzfb_entry_raw",
+        "zzfb_entry_s1": "ind_zzfb_entry_s1", "zzfb_entry_s2": "ind_zzfb_entry_s2",
+        "zzfb_entry_s3": "ind_zzfb_entry_s3", "zzfb_entry_n5": "ind_zzfb_entry_n5",
+        "zzfb_entry_n6": "ind_zzfb_entry_n6",
+        "zzfb_entry_raw_s1": "ind_zzfb_entry_raw_s1", "zzfb_entry_raw_s2": "ind_zzfb_entry_raw_s2",
+        "zzfb_entry_raw_s3": "ind_zzfb_entry_raw_s3", "zzfb_entry_raw_n5": "ind_zzfb_entry_raw_n5",
+        "zzfb_entry_raw_n6": "ind_zzfb_entry_raw_n6",
+        "zzfb_entry_blocked_s1": "ind_zzfb_entry_blocked_s1", "zzfb_entry_blocked_s2": "ind_zzfb_entry_blocked_s2",
+        "zzfb_entry_blocked_s3": "ind_zzfb_entry_blocked_s3", "zzfb_entry_blocked_n5": "ind_zzfb_entry_blocked_n5",
+        "zzfb_entry_blocked_n6": "ind_zzfb_entry_blocked_n6",
+        "zzfb_trend_ok": "ind_zzfb_trend_ok", "zzfb_trend_bias": "ind_zzfb_trend_bias",
+        "zzfb_trend_votes_bull": "ind_zzfb_trend_votes_bull", "zzfb_trend_votes_bear": "ind_zzfb_trend_votes_bear",
         # ✅ ROUND32 (مؤشر الترند المستقل) — المجاميع والبوابة
         "trf_trend_ok": "ind_trf_trend_ok", "trf_bias": "ind_trf_bias",
         "trf_bull_votes": "ind_trf_bull_votes", "trf_bear_votes": "ind_trf_bear_votes",
@@ -373,6 +402,54 @@ class IndicatorCalculator:
                 _v = params.get('trend_gate', params.get('gate'))
                 if _v is not None:
                     kw['trend_gate'] = _v
+            elif base == 'zzfib_e2e_blazing':
+                # 🔥 R69 — الملتهبة: نفس معاملات الترندية حرفياً (بوابة ترند على
+                # s1/s2/s3/n5/n6 — الأنواع الجديدة قالبية كبقية العائلة).
+                kw = {}
+                if 'length' in params:
+                    kw['length'] = max(2, int(float(params['length'])))
+                if 'reverse' in params:
+                    kw['reverse'] = bool(params['reverse'])
+                lv = params.get('levels', params.get('level_ratios'))
+                if isinstance(lv, (list, tuple)) and lv:
+                    kw['levels'] = [float(x) for x in lv]
+                for k in ('extend_right', 'extend_leg_to_live'):
+                    if k in params:
+                        kw[k] = bool(params[k])
+                if 'mode' in params:
+                    kw['mode'] = str(params['mode']).strip().lower()
+                _v = params.get('depth')
+                if _v is not None:
+                    try:
+                        kw['depth'] = max(2, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('deviation')
+                if _v is not None:
+                    try:
+                        kw['deviation'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('backstep')
+                if _v is not None:
+                    try:
+                        kw['backstep'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('launch_touch_ticks')
+                if _v is not None:
+                    try:
+                        kw['launch_touch_ticks'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('trend_periods', params.get('periods'))
+                if _v is not None:
+                    kw['trend_periods'] = _v
+                if 'trend_confirm' in params:
+                    kw['trend_confirm'] = params['trend_confirm']
+                _v = params.get('trend_gate', params.get('gate'))
+                if _v is not None:
+                    kw['trend_gate'] = _v
             elif base == 'trend_fractal':
                 # ✅ ROUND32 — مؤشر الترند المستقل: فترات قالبية بأي طول + الإجماع.
                 kw = {}
@@ -421,6 +498,14 @@ class IndicatorCalculator:
                         col = 'ind_' + sub_l
                     elif base == 'zzfib_e2e_trendy' and sub_l.startswith('zigzag_fib_e2e_trendy_'):
                         col = 'ind_' + sub_l[len('zigzag_fib_e2e_trendy_'):]
+                # 🔥 R69: أي اسم فرعي من عائلة الملتهبة يُحل بالقاعدة العامة
+                # (سلسلة zzfb_X → عمود ind_zzfb_X — يشمل مستويات zzfb_level_<L>
+                # ومرايا الفترات zzfb_tr_p{n}_* وأعمدة n5/n6 كاملة).
+                if base == 'zzfib_e2e_blazing':
+                    if sub_l.startswith('zzfb_'):
+                        col = 'ind_' + sub_l
+                    elif sub_l.startswith('zigzag_fib_e2e_blazing_'):
+                        col = 'ind_' + sub_l[len('zigzag_fib_e2e_blazing_'):]
                 if col is None:
                     col = self._OVERLAY_SUB_COLUMNS.get(sub_l)
                 if col and col != 'primary':

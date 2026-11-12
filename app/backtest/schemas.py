@@ -189,8 +189,58 @@ class BacktestConfig(BaseModel):
     # إدارة رأس المال
     initial_capital: float = Field(10000.0, gt=0)
     position_sizing: str = "fixed"  # fixed, percentage, kelly
-    position_size_percent: float = Field(0.1, ge=0.01, le=1.0)
-    max_positions: int = Field(3, ge=1, le=10)
+    # ✅ R58 — توحيد دلالات الحجم مع الواجهة (بلاغ #10000042):
+    # وضع percentage ⇒ القيمة نسبة مئوية حقيقية: 1 = 1% ، 100 = كامل الرصيد
+    # (المحرك يقسمها على 100 — نفس منطق SL/TP). الوضع fixed/الافتراضي يبقى
+    # كسراً تاريخياً (1.0 = 100%) بت-بت توافقاً مع الحمولات القديمة.
+    position_size_percent: float = Field(0.1, ge=0.01, le=100.0)
+    # ✅ R55 — ماكس المراكز المفتوحة رقمي فعّال في المحركين:
+    # None أو 1 = السلوك التاريخي بت-بت (مركز واحد في كل لحظة)،
+    # 2..10 = إشارة جديدة والمراكز المفتوحة < N ⇒ مركز مستقل بإدارة
+    # مخاطر كاملة؛ بلغ N ⇒ تجاهل الإشارة (signals_ignored_open).
+    # يمرّر تلقائياً لمحرك الخروج الموحد كـ max_concurrent_positions.
+    max_positions: Optional[int] = Field(None, ge=1, le=10)
+
+    # ✅ R60 — وضع «رأس المال الكامل والربح التزايدي» (compounding):
+    # طلب المستخدم الحرفي: زر تفعيل في الواجهة يجعل كل صفقة تدخل
+    # بـ100% من الرصيد الجاري (رأس المال + كل الأرباح المتراكمة) —
+    # الصفقة الأولى 100$ بربح 15$ ⇒ التالية تدخل بـ115$ وهكذا تباعاً
+    # (نمط التشغيلة التاريخية #10000010: ‎+804.77%).
+    # عند التفعيل (true):
+    #   • الحجم = 100% من الرصيد دائماً (يتجاوز position_size_percent).
+    #   • مركز مفتوح واحد فقط إجبارياً — «اذا النضام في صفقه ما يقدر
+    #     يفتح صفقه جديده لين يقفلها» (max_positions يُتجاهل إن كان أكبر).
+    # عند التعطيل (false — الافتراضي): سلوك R58 بت-بت بلا أي تغيير.
+    compounding: bool = Field(
+        False,
+        description=(
+            "R60 — رأس المال الكامل والربح التزايدي: كل صفقة تدخل بكامل الرصيد "
+            "الجاري (رأس المال + الأرباح المتراكمة) ومركز واحد فقط في كل لحظة. "
+            "يعيد نمط التشغيلات القديمة (#10000010) بشكل صريح وموثق."
+        ),
+    )
+
+    # ✅ R62 — وضع «المراكز المتعددة والرصيد التراكمي» (multi_position_compounding):
+    # طلب المستخدم الحرفي: أرباح كل صفقة تعود للرصيد وتشارك في الصفقات
+    # التالية، مع عدد مراكز قابل للضبط (max_positions). كل مركز جديد
+    # يدخل بحجم = الرصيد الجاري ÷ عدد المراكز لحظة ظهور إشارته.
+    # (مثال المستخدم: 500$ و 5 مراكز ⇒ كل مركز 100$؛ ربح كل مركز +20%
+    # ⇒ +20$ × 5 = +100$ ⇒ الرصيد 600$ ⇒ المركز التالي 600÷5 = 120$).
+    # عند التفعيل (true):
+    #   • الحجم = الرصيد الجاري ÷ max_positions (يتجدد بعد كل إقفال).
+    #   • حتى max_positions مراكز متزامنة (كل إشارة = مركز مستقل
+    #     بإدارة مخاطر كاملة SL/TP خاصة به).
+    #   • يعلو فوق compounding (R60) عند تفعيلهما معاً.
+    # عند التعطيل (false — الافتراضي): سلوك R60/R58 بت-بت بلا أي تغيير.
+    multi_position_compounding: bool = Field(
+        False,
+        description=(
+            "R62 — المراكز المتعددة والرصيد التراكمي: كل مركز جديد بحجم "
+            "الرصيد الجاري ÷ max_positions، وأرباح كل إقفال تعود للرصيد فوراً "
+            "فتكبر أحجام المراكز التالية تلقائياً "
+            "(مثال: 500÷5=100$ للمركز، وبعد الربح 600÷5=120$ للمركز التالي)."
+        ),
+    )
 
     # التكاليف
     # ✅ الجولة 13 — إبادة العمولة (قرار المستخدم الحرفي):
@@ -214,11 +264,25 @@ class BacktestConfig(BaseModel):
     # أو signal_close (تنفيذ عند إغلاق شمعة الإشارة لمطابقة محاكاة الواجهة المحلية)
     fill_model: Literal["next_open", "signal_close"] = "next_open"
 
-    # إدارة المخاطر
-    stop_loss_percent: Optional[float] = Field(5.0, ge=0.1, le=50.0)
-    take_profit_percent: Optional[float] = Field(10.0, ge=0.1, le=100.0)
-    trailing_stop_percent: Optional[float] = Field(2.0, ge=0.1, le=10.0)
-    max_daily_loss_percent: float = Field(5.0, ge=0.1, le=50.0)
+    # إدارة المخاطر — ✅ R55 (كونفيق نظيف):
+    # الحقول غير المُرسلة تُحفظ null وتُعامَل كـ«معطّلة» — انتهى عصر
+    # افتراضات pydantic (5.0/10.0/2.0) التي كانت تُفعّل ستوب/جني/تريلينق
+    # غصباً عن المستخدم وتُلوّث الكونفيق المحفوظ.
+    #
+    # stop_loss_percent — طلب المستخدم الحرفي:
+    #   • عدم الإرسال (null) = تعطيل الستوب لوز كلياً
+    #   • 0                  = تعطيل الستوب لوز كلياً
+    #   • 100                = تعطيل الستوب لوز كلياً (وقفٌ لا يُلمس عملياً)
+    #   • (0..100) حصرياً    = مفعّل بهذه النسبة
+    stop_loss_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    # take_profit_percent: عدم الإرسال أو 0 = تعطيل جني الربح
+    take_profit_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    # ✅ R55 — التريلينق من الجذر يعمل فعلياً في المحرك الرئيسي (engine1)
+    # ويُلغي SL/TP عند تفعيله (نفس دلالات محرك الخروج الموحد).
+    # السقف مرفوع من 10 إلى 50 — كان يرفض 20% بـ422.
+    trailing_stop_percent: Optional[float] = Field(None, ge=0.1, le=50.0)
+    # غير مقروء من أي محرك — يُحفظ كما أُرسل فقط (null عند الغياب)
+    max_daily_loss_percent: Optional[float] = Field(None, ge=0.1, le=50.0)
 
     # إعدادات متقدمة
     enable_short_selling: bool = False
@@ -290,6 +354,49 @@ class BacktestConfig(BaseModel):
                 d["initial_capital"] = float(d["capital"])
             except (TypeError, ValueError):
                 pass
+        # ✅ R60 — قبول المرادفات لوضع التراكم (زر الواجهة قد يرسل أي صيغة):
+        # compounding / compound / full_capital_compounding / compounding_mode /
+        # reinvest_profits — كل قيمة قابلة للتفسير كـ bool تُطبَّع إلى compounding.
+        # الطريق الثاني بلا أي تعديل واجهة: position_sizing="compounding"
+        # (قيمة القائمة المنسدلة نفسها تفعّل الوضع — تمرّ كما هي عبر
+        # «تحميل تشغيلة» وتُطبَّع هنا). الحقل الصريح compounding يعلو فوق
+        # الكل: إرساله بـ false مع position_sizing="compounding" يعني false.
+        if "compounding" not in d:
+            _ps_mode = str(d.get("position_sizing", "") or "").strip().lower()
+            if _ps_mode in ("compounding", "compound", "full_capital_compounding"):
+                d["compounding"] = True
+            else:
+                for _alias in ("compound", "full_capital_compounding",
+                               "compounding_mode", "reinvest_profits"):
+                    if _alias in d:
+                        d["compounding"] = d.pop(_alias)
+                        break
+        _cp = d.get("compounding")
+        if isinstance(_cp, str):
+            d["compounding"] = _cp.strip().lower() in ("1", "true", "yes", "on", "نعم", "مفعل")
+        elif isinstance(_cp, (int, float)) and not isinstance(_cp, bool):
+            d["compounding"] = bool(_cp)
+
+        # ✅ R62 — قبول المرادفات لوضع «المراكز المتعددة والرصيد التراكمي»
+        # (زر الواجهة قد يرسل أي صيغة): multi_position_compounding /
+        # multi_compounding / compound_split / split_compounding — كل قيمة
+        # قابلة للتفسير كـ bool تُطبَّع. الطريق الثاني بلا تعديل واجهة:
+        # position_sizing="multi_compounding". الحقل الصريح يعلو فوق الكل.
+        if "multi_position_compounding" not in d:
+            _ps_mode2 = str(d.get("position_sizing", "") or "").strip().lower()
+            if _ps_mode2 in ("multi_compounding", "compound_split", "multi_position_compounding"):
+                d["multi_position_compounding"] = True
+            else:
+                for _alias2 in ("multi_compounding", "compound_split",
+                                "multi_position", "split_compounding"):
+                    if _alias2 in d:
+                        d["multi_position_compounding"] = d.pop(_alias2)
+                        break
+        _mp = d.get("multi_position_compounding")
+        if isinstance(_mp, str):
+            d["multi_position_compounding"] = _mp.strip().lower() in ("1", "true", "yes", "on", "نعم", "مفعل")
+        elif isinstance(_mp, (int, float)) and not isinstance(_mp, bool):
+            d["multi_position_compounding"] = bool(_mp)
         return d
 
     @model_validator(mode="after")
@@ -569,6 +676,10 @@ class BacktestResult(BaseModel):
     fees_applied: float = 0.0                          # مجموع العمولات الفعلي
     fill_model: str = "next_open"                      # نموذج التنفيذ المطبق فعلاً
     math_audit: Dict[str, Any] = Field(default_factory=dict)  # التدقيق الحسابي الذاتي
+    # ✅ R55 — صدى ما طُبّق فعلاً من إعدادات المخاطر (SL/TP/تريلينق/سقف
+    # المراكز) — يُبنى من الكونفيق النظيف في math_audit.risk_echo نفسه
+    # ويصل للمكتبة والفرونت عبر مهام Celery والمسار الداخلي معاً.
+    effective_config: Dict[str, Any] = Field(default_factory=dict)
     
     # دالة تحويل للأنواع NumPy
     @field_validator('equity_curve', 'drawdown_curve', mode='before')

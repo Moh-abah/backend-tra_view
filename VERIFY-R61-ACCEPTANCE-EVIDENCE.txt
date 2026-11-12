@@ -1,0 +1,63 @@
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+اختبار القبول A · BTCUSDT: كاش يومين فقط ثم طلب 30d·1m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Redis connect failed (cache disabled): Error -2 connecting to redis:6379. Name or service not known.
+  [تعبئة 2d] hit=False delivered=2880/2880 coverage=100.0% gaps=0→0 natural=0 fills=0 fetched_new=2880 incomplete=False
+  ✅ A/1 التعبئة نفذت — rows=2880
+  [طلب 30d] hit=False delivered=43200/43200 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=40320 incomplete=False
+  note: gap fetch merged with cache: +40320 candles
+  ✅ A/2 coverage_pct == 100.0 — coverage=100.0
+  ✅ A/3 delivered ≈ 43,200 — delivered=43200
+  ✅ A/4 gap_filled == true
+  ✅ A/5 فجوة بادئة اكتُشفت وجُلبت — detected=1 fetched_new=40320
+  ✅ A/6 الشموع المسلَّمة للمحرك كاملة — rows=43200
+  ✅ A/7 بطاقة الشفافية كاملة
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+اختبار القبول D · إعادة حمولة #10000098 على مخزونها المتضرر (بلا حذف)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [المخزون المتضرر] 5760 شمعة (شظية قديمة 2880 + ذيل 2880) — مثل #10000098 تماماً
+get_historicallastvirsion() is deprecated (misspelled); use get_historical_last_version() instead
+  [تشغيل المحرك] hit=False delivered=43200/43200 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=40320 incomplete=False
+  note: gap fetch merged with cache: +40320 candles
+  النتيجة: صفقات=9 · PnL=-2.0626% · رأس المال 10000→9793.74
+  المرجع #10000099: صفقات=9 · PnL=-2.0626%
+  ✅ D/1 المحرك استلم نافذته كاملة ≈43,200 — delivered=43200
+  ✅ D/2 coverage_pct == 100.0 — coverage=100.0
+  ✅ D/3 gap_filled == true
+  ✅ D/4 الفجوة اكتُشفت في المخزون المصاب — detected=1
+  ✅ D/5 نفس عدد صفقات المرجع (#10000099) — got=9 ref=9
+  ✅ D/6 نفس ربحية المرجع (±0.25%) — got=-2.0626 ref=-2.0626
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+اختبار القبول C · SOLUSDT 1m · 477d: بارد ثم دافئ (لا تفشّط)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [بارد 14.9s] hit=False delivered=686880/686880 coverage=100.0% gaps=0→0 natural=0 fills=0 fetched_new=686880 incomplete=False
+  note: full fetch (cold cache)
+  [دافئ 9.0s] hit=False delivered=686880/686880 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=86880 incomplete=False
+  note: gap fetch merged with cache: +86880 candles
+  ✅ C/1 الجلب البارد كامل (~686,880+) — delivered=686880 expected=686880
+  ✅ C/2 تغطية البارد 100% — coverage=100.0 natural=0
+  ✅ C/3 الطلب الدافئ لا يفشّط (نفس التسليم ±2) — warm=686880 cold=686880
+  ✅ C/4 تغطية الدافئ 100% — coverage=100.0
+  ✅ C/5 الدافئ أسرع من البارد (كاش القرص+القاعدة) — warm=9.0s cold=14.9s
+  ✅ C/6 لا فجوات متبقية في المسارين — cold_filled=True warm_filled=True
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+اختبار القبول B · SOLUSDT: مفتاح بأسابيع فقط ثم طلب 365d·1m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [تحضير] حذف مفتاح SOLUSDT: True
+  [تعبئة 21d] hit=False delivered=30240/30240 coverage=100.0% gaps=0→0 natural=0 fills=0 fetched_new=30240 incomplete=False
+  ✅ B/1 المخزون الآن أسابيع فقط (~30,240) — stored=30240
+  [طلب 365d] hit=False delivered=525600/525600 coverage=100.0% gaps=1→0 natural=0 fills=1 fetched_new=495360 incomplete=False
+  note: gap fetch merged with cache: +495360 candles
+  ✅ B/2 جلب الفجوة البادئة ≈ 525,600 — delivered=525600
+  ✅ B/3 coverage_pct == 100.0 — coverage=100.0
+  ✅ B/4 gap_filled == true
+  ✅ B/5 لا تكرار لسيناريو #10000085 (كان 5,717 = 1.09%) — delivered=525600
+  ✅ B/6 الشموع المسلَّمة كاملة — rows=525600
+
+════════════════════════════════════════════════════════════════════════
+النتيجة النهائية: 25 نجاح / 0 فشل · الزمن الكلي 52s
+✅ R61 — كل اختبارات القبول الحقيقية ناجحة (Binance حي)

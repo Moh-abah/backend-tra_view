@@ -54,7 +54,7 @@ ROUND = 40.1
 # ---------------------------------------------------------------------------
 # الثوابت والتحقق
 # ---------------------------------------------------------------------------
-_STRATEGIES = ("zzfib", "zzfib_e2e", "zzfib_e2e_trendy")
+_STRATEGIES = ("zzfib", "zzfib_e2e", "zzfib_e2e_trendy", "zzfib_e2e_blazing")  # 🔥 R69: الملتهبة
 
 _TIMEFRAME_RE_OK = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"}
 
@@ -67,6 +67,8 @@ _DEFAULT_STRATEGY_PARAMS: Dict[str, Dict[str, Any]] = {
     # ✅ e2e/ترندية: مواصفة luxalgo التعاقدية — length=100 (عقد الجولات 34+)
     "zzfib_e2e": {"length": 100},
     "zzfib_e2e_trendy": {"length": 100},
+    # 🔥 R69: الملتهبة — مواصفة luxalgo التعاقدية نفسها (S1/S2/S3 + N5/N6)
+    "zzfib_e2e_blazing": {"length": 100},
 }
 
 _STRATEGY_PARAMS_ALLOWED: Dict[str, set] = {
@@ -78,6 +80,10 @@ _STRATEGY_PARAMS_ALLOWED: Dict[str, set] = {
     "zzfib_e2e_trendy": {"length", "reverse", "extend_right", "extend_leg_to_live",
                          "mode", "depth", "deviation", "backstep", "launch_touch_ticks",
                          "trend_periods", "trend_confirm", "trend_gate"},
+    # 🔥 R69: الملتهبة — نفس معاملات الترندية (البوابة تقبل s1/s2/s3/n5/n6)
+    "zzfib_e2e_blazing": {"length", "reverse", "extend_right", "extend_leg_to_live",
+                          "mode", "depth", "deviation", "backstep", "launch_touch_ticks",
+                          "trend_periods", "trend_confirm", "trend_gate"},
 }
 
 
@@ -135,6 +141,10 @@ def _run_strategy(strategy: str, candles: Any, params: Dict[str, Any]) -> Dict[s
     if strategy == "zzfib_e2e_trendy":
         from app.services.indicators.overlays_zlf_e2e_trendy import zigzag_fib_e2e_trendy
         return zigzag_fib_e2e_trendy(candles, **params)
+    if strategy == "zzfib_e2e_blazing":
+        # 🔥 R69: «الترندية الملتهبة» — S1/S2/S3 بت-بت + N5/N6 (محرك معزول جديد)
+        from app.services.indicators.overlays_zlf_e2e_blazing import zigzag_fib_e2e_blazing
+        return zigzag_fib_e2e_blazing(candles, **params)
     raise ValueError(f"استراتيجية غير مدعومة: {strategy!r}")
 
 
@@ -156,6 +166,55 @@ def _df_to_candles(df: Any) -> List[Dict[str, Any]]:
             item["volume"] = float(row[cols["volume"]])
         if tcol is not None:
             item["time"] = int(row[tcol])
+        out.append(item)
+    return out
+
+
+def _df_to_candles_range(df: Any) -> List[Dict[str, Any]]:
+    """✅ R55 — DataFrame بنطاق تواريخ صريح (get_historical_last_version) → شموع المحرك.
+
+    الفرق عن _df_to_candles: هذا المصدر يعيد فهرساً زمنياً DatetimeIndex
+    (باسم 'time' بالمللي ثانية داخلياً) بدل عمود time رقمي — نفس مصدر
+    المحرك الرئيسي engine1 بالضبط. تحويل متجهي سريع يتحمل نوافذ
+    مئات آلاف الشموع (478 يوم فريم دقيقة = ~687 ألف شمعة).
+    """
+    if df is None or getattr(df, "empty", True):
+        return []
+    cols = {str(c).lower(): c for c in df.columns}
+    if "open" not in cols or "close" not in cols:
+        return []
+    import pandas as pd
+
+    o = df[cols["open"]].to_numpy(dtype="float64", na_value=None)
+    h = df[cols["high"]].to_numpy(dtype="float64", na_value=None) if "high" in cols else o
+    l = df[cols["low"]].to_numpy(dtype="float64", na_value=None) if "low" in cols else o
+    c = df[cols["close"]].to_numpy(dtype="float64", na_value=None)
+    v = df[cols["volume"]].to_numpy(dtype="float64", na_value=None) if "volume" in cols else None
+
+    idx = df.index
+    if isinstance(idx, pd.DatetimeIndex):
+        # فهرس زمني (الحالة القياسية من get_historical_last_version)
+        ts_ms = (idx.astype("int64") // 1_000_000).to_numpy()
+    elif "time" in cols:
+        # عمود time بالمللي ثانية (حالة الكاش المعاد بناؤه)
+        try:
+            ts_ms = df[cols["time"]].to_numpy(dtype="int64")
+        except (TypeError, ValueError):
+            ts_ms = pd.to_datetime(df[cols["time"]], utc=True).astype("int64").to_numpy() // 1_000_000
+    else:
+        return []
+
+    out: List[Dict[str, Any]] = []
+    for k in range(len(c)):
+        item: Dict[str, Any] = {
+            "time": int(ts_ms[k]),
+            "open": float(o[k]),
+            "high": float(h[k]),
+            "low": float(l[k]),
+            "close": float(c[k]),
+        }
+        if v is not None:
+            item["volume"] = float(v[k])
         out.append(item)
     return out
 
@@ -205,7 +264,14 @@ class ExitBacktestRequest(BaseModel):
     market: str = Field("crypto", description="crypto | stocks")
     days: int = Field(30, description="كم يوماً من التاريخ تُجلب")
     limit: Optional[int] = Field(None, description="قص الشموع لآخر N شمعة بعد الجلب")
-    strategy: str = Field("zzfib_e2e", description="zzfib | zzfib_e2e | zzfib_e2e_trendy")
+    strategy: str = Field("zzfib_e2e", description="zzfib | zzfib_e2e | zzfib_e2e_trendy | zzfib_e2e_blazing (الملتهبة — R69)")
+    # ✅ R66 — بذرة التراكم للمسار المستقل (top-level — نص عقد الجولة):
+    # تُقرأ فقط عند config.position_sizing='percent_of_equity'. الأولوية:
+    # هذا الحقل > initial_capital داخل الكتلة > 10000$ افتراضياً.
+    initial_capital: Optional[float] = Field(
+        None, gt=0,
+        description="بذرة التراكم ($) — تُقرأ فقط في الوضع التراكمي position_sizing=percent_of_equity",
+    )
     config: Optional[Dict[str, Any]] = Field(None, description="إعدادات محرك الخروج (اختياري)")
     strategy_params: Optional[Dict[str, Any]] = Field(None, description="معاملات محرك الاستراتيجية نفسها (اختياري)")
 
@@ -261,6 +327,8 @@ async def exit_strategy_defaults():
             "هذه الاستراتيجية بلا وقف خسارة نسبي — الوقف الوحيد هو كسر أرضية الفيبو.",
             "كل الحقول قابلة للتعديل من الواجهة — أرسل ما تعدّله فقط في /backtest وسيُكمل الباقي بالافتراضات.",
             "حقول ROUND40.1 (مرشحات الدخول والجني المتحرك) معطّلة افتراضياً — سلوك الخطة الحرفية هو الافتراضي.",
+            # ✅ R66
+            "الوضع التراكمي (R66): position_sizing='percent_of_equity' يجعل كل دخول (الأول + التعزيزان) نسبة من الرصيد الجاري، والرصيد يتحدث بعد كل إغلاق محقق — البذرة عبر initial_capital في جسم الطلب (المسار المستقل).",
         ],
     }
 
@@ -305,6 +373,28 @@ async def exit_strategy_validate(req: ValidateRequest):
             f"فلتر الاتجاه مفعّل: أي إشارة في أول {cfg['trend_filter_sma_bars']} شمعة من النافذة تُرفض "
             f"تلقائياً (تاريخ غير كافٍ لحساب المتوسط)."
         )
+    # ✅ R64 — تحذير تعطيل خروج الفيبو بلا وقف بديل (شفافية كاملة للفرونت)
+    if cfg.get("fibo_floor_exit") is False and float(cfg.get("stop_loss_pct", 0.0) or 0.0) <= 0:
+        warnings.append(
+            "fibo_floor_exit=false و stop_loss_pct=0 — لا وقف خسارة نهائياً في هذه الكتلة: "
+            "الصفقة تُدار بالهدف والتعزيزات حتى نهاية البيانات. (في المسار الموحد "
+            "/backtest1/run قد يُورَث الوقف تلقائياً من stop_loss_percent بجذر الكونفيق "
+            "إن كان مفعلاً هناك.)"
+        )
+    # ✅ R66 — تحذيرات الوضع التراكمي (ليست أخطاء — الأولوية موثقة)
+    if cfg.get("position_sizing") == "percent_of_equity":
+        if "position_size_usd" in (req.config or {}):
+            warnings.append(
+                "الوضع التراكمي مفعّل (position_sizing='percent_of_equity') مع إرسال position_size_usd "
+                "صراحةً — النسبة مقدمة على الحجم الثابت: الحجم الثابت مُتجاهل."
+            )
+        _exposure_r66 = float(cfg.get("position_size_pct") or 0.0) * int(cfg["max_entries"])
+        if _exposure_r66 > 100.0:
+            warnings.append(
+                f"نسبة الدخول {cfg['position_size_pct']:g}٪ × {cfg['max_entries']} مراكز = "
+                f"{_exposure_r66:g}٪ من الرصيد في الدورة الواحدة — يتجاوز 100٪ من الرصيد "
+                f"(تعرض لا يوفره الرصيد واقعياً — للعلم عند قراءة النتائج)."
+            )
     return {"valid": True, "round": ROUND, "config": cfg, "warnings": warnings}
 
 
@@ -339,9 +429,11 @@ async def exit_strategy_backtest(req: ExitBacktestRequest):
     strategy_params = validated["strategy_params"]
 
     # الكاش — نفس الطلب يعيد نفس النتيجة خلال 60 ثانية
+    # ✅ R66 — initial_capital (بذرة التراكم) داخل المفتاح: تشغيلتان بنفس
+    # الإعدادات وبذرات مختلفتين نتيجتهما مختلفة.
     cache_key_src = json.dumps(
         ["POST-exit-backtest", symbol, timeframe, market, req.days, req.limit,
-         strategy, strategy_params, req.config or {}],
+         strategy, strategy_params, req.config or {}, req.initial_capital],
         sort_keys=True, default=str,
     )
     cache_key = hashlib.md5(cache_key_src.encode()).hexdigest()
@@ -391,8 +483,9 @@ async def exit_strategy_backtest(req: ExitBacktestRequest):
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"errors": [str(exc)], "round": ROUND})
 
-    # 4) محرك الخروج
-    exit_result = run_exit_backtest(candles, entries, cfg)
+    # 4) محرك الخروج — ✅ R66: تمرير بذرة التراكم (top-level) للمحرك.
+    #    الأولوية الموثقة: هذا المعامل > initial_capital داخل الكتلة > 10000$.
+    exit_result = run_exit_backtest(candles, entries, cfg, initial_capital=req.initial_capital)
 
     # 5) التجميع والرد
     sig_stats = {
@@ -420,5 +513,9 @@ async def exit_strategy_backtest(req: ExitBacktestRequest):
         "notes": exit_result.get("notes", []),
         "took_ms": int((time.perf_counter() - t0) * 1000),
     }
+    # ✅ R66 — التدقيق الرياضي الذاتي للوضع التراكمي (يظهر فقط عند تفعيله —
+    # الوضع الثابت بلا أي مفتاح جديد: توافق رجعي بت-بت)
+    if exit_result.get("compounding_audit") is not None:
+        response["compounding_audit"] = exit_result["compounding_audit"]
     _bt_cache_put(cache_key, response)
     return response

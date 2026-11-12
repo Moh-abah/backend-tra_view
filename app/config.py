@@ -43,6 +43,38 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     REDIS_URL: str = ""
 
+    # --- ✅ الجولة 44 — درع قفل قاعدة البيانات (SQLite فقط، اختياري) ---------
+    # قيم افتراضية آمنة — لا تحتاج إضافة شيء إلى .env إطلاقاً.
+    # SQLITE_BUSY_TIMEOUT_MS: مهلة انتظار القفل بدل الفشل بعد 5 ثوانٍ.
+    # SQLITE_LOCK_RETRIES/BASE_DELAY/MAX_DELAY: إعادة المحاولة التصاعدية.
+    SQLITE_BUSY_TIMEOUT_MS: int = 30000
+    SQLITE_LOCK_RETRIES: int = 5
+    SQLITE_LOCK_BASE_DELAY: float = 0.35
+    SQLITE_LOCK_MAX_DELAY: float = 6.0
+
+    # --- ✅ الجولة 45 — سجل العمليات المؤسساتي + كاش الشموع ------------------
+    # ترقيم تسلسلي صريح يراه المستخدم: 10000001 ثم 10000002 ... حتى 99999999
+    # (نهاية العداد كما طُلب حرفياً). العدّاد ذرّي ولا يعيد الأرقام أبداً.
+    TASK_ID_START: int = 10000001
+    TASK_ID_MAX: int = 99999999
+    # تنظيف المهام الميتة (سقوط العملية): مهمة PROGRESS بلا نبض منذ هذه
+    # المدة تُعلَّم FAILURE. 0 = تعطيل. الاكتمال المتأخر يشفى تلقائياً.
+    TASK_REGISTRY_REAP_SECONDS: int = 1800
+    # كاش الشموع الدائم في قاعدة البيانات (جدول candle_cache): جلب كامل
+    # أول مرة ثم قراءة فورية + جلب الرأس الناقص فقط في كل مرة تالية.
+    CANDLE_CACHE_ENABLED: bool = True
+    CANDLE_CACHE_DFSPACE: bool = True    # كاش مسار المحرك القياسي (DataFrame)
+    CANDLE_CACHE_MAX_CANDLES: int = 600000  # سقف الحجم لكل مفتاح (الأحدث يبقى)
+    CANDLE_CACHE_REFRESH_HEAD: bool = True  # جلب أحدث الشموع فوق المخزنة
+    # --- ✅ R61 — إصلاح فجوة الكاش: مقارنة النطاق المطلوب بالنطاق المخزون ---
+    # فجوة زمنية أقصاها (هذا المضاعف × عرض الفريم) تُعتبر طبيعية (صيانة
+    # المضيف/غياب تداول) ولا تُعاد من أجلها نداءات جلب. ما فوقها ⇦ فجوة
+    # حقيقية تُجلب من المصدر وتُدمج.
+    CANDLE_CACHE_GAP_TOLERANCE_MULT: int = 3
+    # عدد الفجوات الأقصى الذي يُجلب كلٌّ منها بنطاقه الدقيق؛ فوقه تُدمج كلها
+    # في جلب واحد موحّد [أول فجوة ← آخر فجوة] (حد أعلى لنداءات المزوّد).
+    CANDLE_CACHE_MAX_GAP_FETCHES: int = 6
+
     # Disk (parquet) cache for historical klines — makes repeat dashboard
     # requests for the same window ~instant (only the new tail is fetched).
     # Mount this path as a Docker volume so the cache survives restarts.

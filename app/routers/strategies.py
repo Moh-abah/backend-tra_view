@@ -450,8 +450,9 @@ async def get_official_strategy_presets():
 
     يتضمن استراتيجية البطل المُثبَّتة بحيا من الواجهة (BTCUSDT · 1h · دخول قاع
     زيجزاق مؤكد أعلى من سابقه · خروج عند تأكيد قمة · SL 2% · عمولة 0) مع
-    الملاحظات التعاقدية (position_size_percent عشري ≤ 1.0، شكل and الصحيح،
-    fill_model: next_open | signal_close).
+    الملاحظات التعاقدية (✅ R58: position_size_percent في وضع percentage =
+    نسبة مئوية حقيقية: 1 = 1%، 100 = رأس مال كامل؛ الوضع fixed يبقى كسراً
+    تاريخياً، شكل and الصحيح، fill_model: next_open | signal_close).
     """
     try:
         from app.services.strategy.presets import get_presets

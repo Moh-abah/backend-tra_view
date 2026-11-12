@@ -53,13 +53,16 @@ def audit(symbol_candles_file, label):
             if c["close"] > c["open"]:
                 green_max = c["volume"] if green_max is None else max(green_max, c["volume"])
         G = candles[G_bar]
-        green = G["close"] > G["open"]
+        # ✅ ROUND35 (قرار المالك #R68): لا مانع من نوع الشمعة — الإشارة تُمنح
+        # لأي شمعة (دوجي/خضراء/حمراء) ما دامت تملك سيولة وتصرخ صعوداً.
+        # الهيمنة أعلاه تظل على الخضراء الصريحة فقط (c["close"] > c["open"]).
+        signal_ok = (G["close"] is not None and G["open"] is not None)
         launch_ok = G["low"] >= (s["launch_line"] - 1.0 * tick)
         dominance = (green_max is None) or (G["volume"] > green_max)
         breakout = (live_ref is not None) and (G["high"] > live_ref["high"])
         vol_dom = (live_ref is not None) and (G["volume"] > live_ref["vol"])
         cell = 1 if (breakout and vol_dom) else 2 if breakout else 3 if vol_dom else 0
-        ok = bool(green and launch_ok and dominance and cell)
+        ok = bool(signal_ok and launch_ok and dominance and cell)
         eng_cell = int(s["signal"].rsplit("S", 1)[-1])
         ref_match = (live_ref is not None and live_ref["bar"] == s.get("ref_bar")
                      and abs(live_ref["vol"] - s["ref_vol"]) < 1e-9)

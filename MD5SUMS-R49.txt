@@ -1,0 +1,5 @@
+40f8e5cb353e58bb7d84f70343365126  app/routers/backtest.py
+64229e9b6ebc004b12bb0578a71d10eb  app/routers/backtest1.py
+54a2d915e87641f4b821a7de8c9aeb2b  app/tasks/backtest_tasks.py
+c63830b2fa9f1afc03d84dfd0a99577b  Dockerfile
+23d23f3c854d7278da006792bef46adc  docker-compose.yml

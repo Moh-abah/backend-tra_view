@@ -103,7 +103,12 @@ import pandas as pd
 from app.backtest.engine1 import BacktestEngine
 from app.backtest.schemas import BacktestConfig
 from app.services.data_service import DataService
-from app.services.strategy.presets import ZLF_TRIPLE_SIGNAL, ZLF_E2E_TRIPLE_SIGNAL, ZLF_E2E_TRENDY_TRIPLE_SIGNAL
+from app.services.strategy.presets import (
+    ZLF_TRIPLE_SIGNAL,
+    ZLF_E2E_TRIPLE_SIGNAL,
+    ZLF_E2E_TRENDY_TRIPLE_SIGNAL,
+    ZLF_E2E_BLAZING_QUINT_SIGNAL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +136,13 @@ _STRATEGY_ALIASES = {
     "zlf_e2e_trendy_triple_signal": "zlf_e2e_trendy",
     "zlf_e2e_trendy_triple_signal_zero_fee": "zlf_e2e_trendy",
     "zlf_end_to_end_trendy": "zlf_e2e_trendy",
+    # 🔥 R69: «الترندية الملتهبة» — الترندية بت-بت + N5/N6 (محرك معزول جديد كلياً)
+    "zigzag_fib_e2e_blazing": "zlf_e2e_blazing",
+    "zlf_e2e_blazing": "zlf_e2e_blazing",
+    "blazing": "zlf_e2e_blazing",
+    "zlf_e2e_blazing_quint_signal": "zlf_e2e_blazing",
+    "zlf_e2e_blazing_quint_signal_zero_fee": "zlf_e2e_blazing",
+    "zlf_end_to_end_blazing": "zlf_e2e_blazing",
 }
 
 # هوية المحركين (تُعلن في meta.engine في كل جواب)
@@ -139,6 +151,8 @@ _ENGINE_META = {
     "zlf_e2e": "ZLF-End-To-End",
     # ✅ ROUND32
     "zlf_e2e_trendy": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+    # 🔥 R69
+    "zlf_e2e_blazing": "ZLF-End-To-End-Blazing (الترندية الملتهبة — S1/S2/S3 + N5/N6)",
 }
 
 WINDOW_CANDLES = 2000          # شموع مغلقة للتقييم
@@ -361,6 +375,75 @@ def _normalize_trendy_overrides(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]
     return clean
 
 
+def _normalize_blazing_overrides(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """🔥 R69 — تحقق التجاوزات لمحرك ZLF-End-To-End-Blazing «الترندية الملتهبة».
+
+    المبيّح: معاملات الزقزاق نفسها المبيّحة للترندية
+    (zz_mode/zz_depth/zz_deviation/zz_backstep/length) + قوالب الترند الثلاثة:
+      trend_periods:  «7,15,25» أو قائمة — أعداد 2..500 (حتى 12 ترنداً)
+      trend_confirm:  majority|all|any أو رقم صريح 1..500
+      trend_gate:     s1/s2/s3/n5/n6 (بأي صيغة) أو none للتعطيل — الملتهبة
+                      تبوّب خمسة أنواع (إشارتا R68 الجديدتان ن5/ن6 مع العائلة).
+    معاملات liq_* غير منطبقة (كما في الترندية — النطاق يعتمد لحظة ظهور
+    الزقزاق ونافذة الحساب = عمر النطاق) — تُرفض برسالة واضحة (لا تطبيق صامت).
+    """
+    if not raw:
+        return {}
+    blazing_zlf_keys = ("zz_mode", "zz_depth", "zz_deviation", "zz_backstep", "length")
+    allowed = set(blazing_zlf_keys) | set(TRENDY_TREND_KEYS)
+    unknown = sorted(k for k in raw if k not in allowed)
+    if unknown:
+        non_appl = [k for k in unknown if k in ZLF_PARAM_OVERRIDABLE]
+        hint = (" — معاملات السيولة liq_* غير منطبقة على الملتهبة (النطاق يعتمد لحظة ظهور الزقزاق)" if non_appl else "")
+        raise LiveStrategyError(
+            f"Unsupported ZLF-End-To-End-Blazing param(s): {unknown}{hint} — "
+            f"overridable: {sorted(allowed)}"
+        )
+    clean = normalize_zlf_overrides({k: raw[k] for k in raw if k in blazing_zlf_keys})
+    if "trend_periods" in raw and raw["trend_periods"] is not None:
+        clean["trend_periods"] = _parse_int_list(raw["trend_periods"], 2, 500, "trend_periods")
+    if "trend_confirm" in raw and raw["trend_confirm"] is not None:
+        v = raw["trend_confirm"]
+        if isinstance(v, str) and v.strip().lower() in ("majority", "all", "any"):
+            clean["trend_confirm"] = v.strip().lower()
+        else:
+            try:
+                iv = int(float(v))
+            except (TypeError, ValueError):
+                raise LiveStrategyError(
+                    f"param 'trend_confirm' must be majority|all|any or an integer, got {v!r}"
+                )
+            if not (1 <= iv <= 500):
+                raise LiveStrategyError(f"param 'trend_confirm'={iv} out of range [1, 500]")
+            clean["trend_confirm"] = iv
+    if "trend_gate" in raw and raw["trend_gate"] is not None:
+        v = raw["trend_gate"]
+        ok_tokens = ("s1", "s2", "s3", "n5", "n6", "1", "2", "3", "5", "6")
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in ("none", "off", "false", "0", ""):
+                clean["trend_gate"] = "none"
+            else:
+                parts = [x.strip().lower() for x in v.replace(";", ",").split(",") if x.strip()]
+                bad = [x for x in parts if x not in ok_tokens]
+                if bad:
+                    raise LiveStrategyError(
+                        f"param 'trend_gate' accepts s1/s2/s3/n5/n6 (or none), got {bad}"
+                    )
+                clean["trend_gate"] = parts
+        elif isinstance(v, (list, tuple)):
+            parts = [str(x).strip().lower() for x in v]
+            bad = [x for x in parts if x not in ok_tokens]
+            if bad:
+                raise LiveStrategyError(
+                    f"param 'trend_gate' accepts s1/s2/s3/n5/n6 (or none), got {bad}"
+                )
+            clean["trend_gate"] = parts or "none"
+        else:
+            raise LiveStrategyError(f"param 'trend_gate' must be a list or comma string, got {v!r}")
+    return clean
+
+
 def _build_strategy_config(
     param_overrides: Optional[Dict[str, Any]] = None,
     engine: str = "zlf",
@@ -383,6 +466,10 @@ def _build_strategy_config(
     # + قوالب الترند القالبية [7,15,25] — الأرقام في القالب لا في الكود).
     if engine == "zlf_e2e_trendy":
         template = ZLF_E2E_TRENDY_TRIPLE_SIGNAL
+    elif engine == "zlf_e2e_blazing":
+        # 🔥 R69: قالب «الترندية الملتهبة» (zigzag_fib_e2e_blazing — S1/S2/S3 بت-بت
+        # + N5/N6) — محرك معزول جديد كلياً، لا مساس بأي قالب قائم.
+        template = ZLF_E2E_BLAZING_QUINT_SIGNAL
     elif engine == "zlf_e2e":
         template = ZLF_E2E_TRIPLE_SIGNAL
     else:
@@ -406,6 +493,11 @@ def _build_strategy_config(
         # ✅ ROUND32: لقطة قوالب الترند الفعلية + تطبيق تجاوزاتها — شفافية كاملة
         # (meta.params_applied تعلن دائماً الفترات/الإجماع/الأنواع المبوّبة المستخدمة)
         if engine == "zlf_e2e_trendy":
+            for tk in TRENDY_TREND_KEYS:
+                if tk in params:
+                    applied[tk] = params[tk]
+        # 🔥 R69: نفس شفافية قوالب الترند للملتهبة (الفترات/الإجماع/بوابة الخمسة)
+        if engine == "zlf_e2e_blazing":
             for tk in TRENDY_TREND_KEYS:
                 if tk in params:
                     applied[tk] = params[tk]
@@ -433,7 +525,7 @@ NEGATIVE_CACHE_TTL_MAX = 300.0
 # الوسم في الجواب: meta.stale=true + meta.stale_age_s — الفرونت يقرر.
 STALE_MAX_SECONDS = float(os.environ.get("LIVE_SIGNAL_STALE_MAX", "60"))
 
-_LABEL_RE = re.compile(r"\bS([123])\b")
+_LABEL_RE = re.compile(r"\b([SN])([12356])\b")
 
 # مدة الفريم للأغراض الهيورستيكية فقط (اكتشاف الشمعة الحية + طابع شمعة الملء).
 # الفريمات الشبكية غير الثابتة تُعالج حالات خاصة، والفريم غير المدعوم يرفضه
@@ -582,11 +674,15 @@ class _PreparedDataService:
 
 
 def _parse_label(decision_reason: Optional[str]) -> str:
-    """S1/S2/S3 من decision_reason — نفس اسم القاعدة في الباك تست حرفياً."""
+    """S1/S2/S3/N5/N6 من decision_reason — نفس اسم القاعدة في الباك تست حرفياً.
+
+    🔥 R69: الملتهبة تحمل N5/N6 في أسماء قواعدها — المُطابقة تشمل العائلتين.
+    (عقد توافر خلفي: أسماء الترندية لا تحوي N5/N6 فلا يتغير سلوكها إطلاقاً.)
+    """
     if decision_reason:
         m = _LABEL_RE.search(str(decision_reason))
         if m:
-            return f"S{m.group(1)}"
+            return f"{m.group(1)}{m.group(2)}"
     # احتياط صريح — لا تخصيص صامت: العلامة مجهولة الاسم تُعرض كما هي
     return "S?"
 
@@ -705,7 +801,7 @@ def _evaluate_compute(
             start_date=df.index[0].to_pydatetime(),
             end_date=live_open_ts,
             initial_capital=10000.0,
-            position_size_percent=1.0,      # لا يؤثر على الإشارة — رأس مال كامل كالبريسِت
+            position_size_percent=100.0,     # ✅ R58 — رأس مال كامل (نسبة مئوية حقيقية في وضع percentage)
             stop_loss_percent=CHAMPION_SL_PERCENT,
             take_profit_percent=CHAMPION_TP_PERCENT,
             fill_model="next_open",
@@ -833,13 +929,18 @@ async def evaluate_live_signal(
             f"Unsupported strategy: {strategy!r} — supported: 'zigzag_fib' "
             "(ZLF — المحرك الحالي) و 'zigzag_fib_e2e' "
             "(ZLF-End-To-End — المحرك المنفصل — ROUND22) و 'zigzag_fib_e2e_trendy' "
-            "(ZLF-End-To-End-Trendy — الزقزاق البطل e2e الترنديه — ROUND32)"
+            "(ZLF-End-To-End-Trendy — الزقزاق البطل e2e الترنديه — ROUND32) و "
+            "'zigzag_fib_e2e_blazing' "
+            "(ZLF-End-To-End-Blazing — الترندية الملتهبة S1/S2/S3+N5/N6 — R69)"
         )
     strategy_key = _STRATEGY_ALIASES[key_strategy]
     # ✅ ROUND21: تحقق التجاوزات قبل أي شيء (خطأ عقد → 400) + توقيعها في مفتاح الكاش
     # ✅ ROUND22: تحقق حسب المحرك — للمحرك المنفصل معاملاته الخاصة فقط
     # ✅ ROUND32: للترندية معاملاتها الخاصة (الزقزاق + قوالب الترند الثلاثة)
-    if strategy_key == "zlf_e2e_trendy":
+    # 🔥 R69: للملتهبة معاملاتها (الزقزاق + قوالب الترند — البوابة تقبل ن5/ن6)
+    if strategy_key == "zlf_e2e_blazing":
+        applied = _normalize_blazing_overrides(param_overrides)
+    elif strategy_key == "zlf_e2e_trendy":
         applied = _normalize_trendy_overrides(param_overrides)
     elif strategy_key == "zlf_e2e":
         applied = _normalize_e2e_overrides(param_overrides)

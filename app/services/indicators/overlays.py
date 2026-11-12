@@ -898,10 +898,13 @@ def zigzag_fib(
                     # vol_ok = علاقة الحجم الخام مع المرجع (> مطلوب في S1/S3 · ≤ يمنح S2)
                     liq_vol_ok[i] = 1.0 if v_n > ref_v else 0.0
 
-            # 3) G خضراء + مصفوفة الحالات (تقسيم كامل بعلاقة الحجم مع الحمراء)
-            green = c_n is not None and o_n is not None and c_n > o_n
+            # 3) G — ✅ ROUND35 (قرار المالك #R68): لا مانع من نوع الشمعة:
+            #    الدوجي/الحمراء مؤهلة للإشارة ما دامت تملك سيولة وتصرخ صعوداً.
+            #    «الخضراء» بمفهوم الاستراتيجية = شمعة بمنطقنا، لا لونها. الهيمنة
+            #    (خطوة 4) تظل تقارن بالخضراء الصريحة فقط.
+            signal_ok = c_n is not None and o_n is not None
             cell = 0
-            if have_ref and green and v_n is not None and hi_n is not None:
+            if have_ref and signal_ok and v_n is not None and hi_n is not None:
                 breakout = hi_n > ref_h
                 vol_dom = v_n > ref_v
                 if breakout and vol_dom:
@@ -1136,6 +1139,10 @@ OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib",
                  # + مؤشر الترند المستقل (فراكتالات Pine Auto Trendline — يرسل إحداثياته
                  # للباك اند ويحسب محرك الاستراتيجية الإشارة منها) — إضافة تسجيل فقط.
                  "zzfib_e2e_trendy",
+                 # 🔥 R69: «الترندية الملتهبة» (ZLF-End-To-End-Blazing) — الترندية بت-بت
+                 # + إشارتا R68 المُقاستان N5 «إشعال بلا مرجع» وN6 «الاختراق الهادئ» —
+                 # محرك معزول جديد كلياً (أسماء zzfb_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
+                 "zzfib_e2e_blazing",
                  "trend_fractal")
 
 
@@ -1179,6 +1186,11 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
                              "extend_leg_to_live", "mode", "depth", "deviation",
                              "backstep", "launch_touch_ticks",
                              "trend_periods", "trend_confirm", "trend_gate"},
+        # 🔥 R69: الملتهبة — نفس معاملات الترندية حرفياً (بوابة ترند قبل s1/s2/s3/n5/n6).
+        "zzfib_e2e_blazing": {"length", "reverse", "levels", "extend_right",
+                              "extend_leg_to_live", "mode", "depth", "deviation",
+                              "backstep", "launch_touch_ticks",
+                              "trend_periods", "trend_confirm", "trend_gate"},
         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
         "trend_fractal": {"periods", "confirm_mode"},
         "zigzag": {"length", "extend_right"},
@@ -1242,6 +1254,12 @@ def compute_overlays(
         from app.services.indicators.overlays_zlf_e2e_trendy import zigzag_fib_e2e_trendy
         trendy_params = _normalize_overlay_params("zzfib_e2e_trendy", params.get("zzfib_e2e_trendy") or {})
         out["overlays"]["zzfib_e2e_trendy"] = zigzag_fib_e2e_trendy(candles, **trendy_params)
+    if "zzfib_e2e_blazing" in wanted:
+        # 🔥 R69: «الترندية الملتهبة» — استدعاء مؤجل للمحرك المعزول الجديد
+        # (الترندية بت-بت + N5/N6) — بلا أي مساس بأي محرك قائم.
+        from app.services.indicators.overlays_zlf_e2e_blazing import zigzag_fib_e2e_blazing
+        blazing_params = _normalize_overlay_params("zzfib_e2e_blazing", params.get("zzfib_e2e_blazing") or {})
+        out["overlays"]["zzfib_e2e_blazing"] = zigzag_fib_e2e_blazing(candles, **blazing_params)
     if "trend_fractal" in wanted:
         # ✅ ROUND32: مؤشر الترند المستقل — إحداثيات الخطوط وسلاسلها (Pine حرفياً).
         from app.services.indicators.trend_fractals import auto_trendlines_fractal

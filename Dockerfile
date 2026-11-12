@@ -37,8 +37,19 @@ USER trader
 EXPOSE 8000
 
 # --- Healthcheck: /health is served at the app root (app/main.py) -------------------
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+# ✅ R49: timeout 5s→10s و retries 3→5 — كان الحساب الثقيل داخل حلقة الأحداث
+# يفشل 3 فحوص متتالية خلال الذروة فتُعلَّم الحاوية unhealthy وتُعاد تشغيلها
+# في وسط طلبات معلقة (بصمة لوج الإنتاج: Started server process [1] بلا
+# traceback). الجذر عولج في R49 (كل البناء الثقيل في to_thread) — هذا
+# تحصين إضافي للمسارات غير المتوقعة.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=5 \
     CMD curl -fsS http://localhost:8000/health || exit 1
 
 # --- Start app ------------------------------------------------------------------------
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ✅ R50 — عمال uvicorn متعددون: عملية واحدة كانت تعني أي حجب عابر
+# (فك JSON ضخم، تسلسل 200MB، GC) = تجميد كامل للنظام كله ثم فشل
+# healthcheck وإعادة تشغيل الحاوية. عاملان (افتراضياً — قابل للضبط
+# عبر WEB_CONCURRENCY) يعنيان أن عاملًا مشغولاً بتحميل ثقيل لا يمنع
+# الآخر من خدمة /health و/tasks والشارت الحي. الحالة داخل العملية
+# (كاش/سجل) مرآتها الحقيقية في PostgreSQL فلا يتأثر العقد.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-2}"]

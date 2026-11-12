@@ -1,0 +1,29 @@
+{
+  "label": "BEFORE1_SOL_leak",
+  "trades": 28,
+  "first_entry": "2024-12-01 07:29:00+00:00",
+  "last_exit": "2026-03-08 00:00:00+00:00",
+  "window_end": "2025-02-02T00:00:00",
+  "entries_after_end": 22,
+  "exits_after_end": 25,
+  "negative_sizes": 17,
+  "tp_exits_with_loss": 12,
+  "sl_exits_with_profit": 5,
+  "first_position_notional_usd": 300.0,
+  "initial_capital": 300.0,
+  "final_capital": 259.921,
+  "total_pnl": -40.079,
+  "total_pnl_percent": -13.3597,
+  "min_equity": -682.1001,
+  "max_drawdown_percent": 256.8046,
+  "exit_reasons": {
+    "Take Profit Hit": 6,
+    "Take Profit Hit (additional position)": 11,
+    "Stop Loss Hit": 3,
+    "Stop Loss Hit (additional position)": 5,
+    "End of Data": 3
+  },
+  "account_blown": false,
+  "exec_seconds": 169.4,
+  "candles_served": 1262881
+}

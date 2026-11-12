@@ -72,6 +72,10 @@ def _base_report() -> Dict[str, Any]:
         ZLF_E2E_TRENDY_ENGINE_NAME,
         ZLF_E2E_TRENDY_SPEC,
     )
+    from app.services.indicators.overlays_zlf_e2e_blazing import (
+        ZLF_E2E_BLAZING_ENGINE_NAME,
+        ZLF_E2E_BLAZING_SPEC,
+    )
     from app.services.indicators.trend_fractals import TRF_ENGINE_NAME, TRF_SPEC
 
     return {
@@ -89,6 +93,7 @@ def _base_report() -> Dict[str, Any]:
                 "app/services/indicators/overlays.py (zigzag_channels + zigzag_fib — البطل ZLF)",
                 "app/services/indicators/overlays_zlf_e2e.py (zigzag_fib_e2e — البطل e2e)",
                 "app/services/indicators/overlays_zlf_e2e_trendy.py (zigzag_fib_e2e_trendy — الترندية)",
+                "app/services/indicators/overlays_zlf_e2e_blazing.py (zigzag_fib_e2e_blazing — الترندية الملتهبة — R69)",
                 "app/services/indicators/trend_fractals.py (تطبيع الشموع/الوقت)",
             ],
         },
@@ -134,6 +139,26 @@ def _base_report() -> Dict[str, Any]:
                     "حراس دخول ثلاثيون: entry_raw_* (الخام) · entry_* (بعد البوابة) · "
                     "entry_blocked_* (ممنوعة بالترند — تُرسم بلون تحذيري)",
                     "خطوط الترند (علوي/سفلي لكل فترة) تصل جاهزة للرسم في trend.lines",
+                ],
+            },
+            "zigzag_fib_e2e_blazing": {
+                "file": "app/services/indicators/overlays_zlf_e2e_blazing.py",
+                "engine": ZLF_E2E_BLAZING_ENGINE_NAME,
+                "spec": ZLF_E2E_BLAZING_SPEC,
+                "modes": "luxalgo length=100 (default) | tradingview",
+                "series_prefix": "zzfb_", "columns_prefix": "ind_zzfb_",
+                "signals": ["ZLF-E2E-Blazing Liquidity S1/S2/S3/N5/N6",
+                            "ZLF-E2E-Blazing Entry S1/S2/S3/N5/N6",
+                            "ZLF-E2E-Blazing Blocked S1/S2/S3/N5/N6 (trend gate)"],
+                "used_by_strategy": "الترندية الملتهبة (zlf_e2e_blazing_quint_signal_zero_fee — R69)",
+                "distinguishing_features": [
+                    "🔥 الترندية بت-بت (S1/S2/S3 بنفس المرجع R/الهيمنة/الانطلاقة) + إشارتا R68 "
+                    "المُقاستان: N5 «إشعال بلا مرجع» (نطاق بلا أي حمراء + صرخة فوق قمة الجبل "
+                    "range_top بهيمنة حجم) وN6 «الاختراق الهادئ» (اختراق ref_high بلا هيمنة الخضراء)",
+                    "بوابة الترند القالبية نفسها — الأنواع المبوّبة خمسة s1/s2/s3/n5/n6 "
+                    "وأعمدة الشفافية لكلها (entry_raw_*/entry_*/entry_blocked_*)",
+                    "إشارات N5 تحمل range_top (قمة الجبل) وgreen_max؛ إشارات N6 تحمل ref_* "
+                    "وgreen_max (سياق الهدوء) — نفس حمولة الترندية فيرسمها الفرونت بنفس مساره",
                 ],
             },
             "trend_fractal": {
@@ -222,6 +247,16 @@ def _base_report() -> Dict[str, Any]:
                                  "ind_zzfet_trend_ok", "ind_zzfet_trend_bias",
                                  "ind_zzfet_trend_votes_bull|bear",
                                  "ind_zzfet_tr_p{n}_upper|lower|bias (مرايا الترند)"],
+            "zzfib_e2e_blazing": ["ind_zzfb_dir", "ind_zzfb_p1", "ind_zzfb_p2",
+                                   "ind_zzfb_anchor (خط ولادة النطاق)", "ind_zzfb_range_index",
+                                   "ind_zzfb_level_<L>", "ind_zzfb_liq_state",
+                                   "ind_zzfb_signal_s1|s2|s3|n5|n6|any", "ind_zzfb_entry",
+                                   "ind_zzfb_entry_raw", "ind_zzfb_entry_s1|s2|s3|n5|n6",
+                                   "ind_zzfb_entry_raw_s1|s2|s3|n5|n6",
+                                   "ind_zzfb_entry_blocked_s1|s2|s3|n5|n6",
+                                   "ind_zzfb_trend_ok", "ind_zzfb_trend_bias",
+                                   "ind_zzfb_trend_votes_bull|bear",
+                                   "ind_zzfb_tr_p{n}_upper|lower|bias (مرايا الترند)"],
             "trend_fractal": ["ind_trf_trend_ok", "ind_trf_bias", "ind_trf_bull_votes",
                               "ind_trf_bear_votes", "ind_trf_threshold",
                               "ind_trf_cross_upper", "ind_trf_cross_lower",

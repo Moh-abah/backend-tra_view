@@ -1,0 +1,45 @@
+# 📄 FILES-R57.md5 — بيان التحقق: ماذا تغيّر بالضبط فوق نسختك
+
+> **نسختك المرجعية** (آخر إصدار من رابطك — 132Y-…): MD5 = `b81c7ea45dcf6fd62926d277edf3f5c8`
+> وهي بالفعل **مشروعك + إصلاحات R55 السبعة مدموجة** (تحققنا بت-بت).
+> **هذه الحزمة (R57-MERGE)**: 5 ملفات معدّلة فقط فوقها — كل ملف آخر في
+> مشروعك لا يُمَس. وهي **بديلة لحزمة R56** وتشمل محتواها كاملًا + إصلاح
+> النهاية الجديد (R57).
+
+## الملفات الخمسة المعدّلة (قبل = في نسختك · بعد = في هذه الحزمة)
+
+| الملف | MD5 قبل (نسختك) | MD5 بعد (R57-MERGE) | الجولة |
+|---|---|---|---|
+| app/services/candle_cache.py | e92b827c19947752ed07d1eb176134ad | 59bae32c56c0ed2fc778c6feeba267d5 | **R57 — جديد** |
+| app/routers/backtest1.py | b4801337183a95c0d66580ee91aa8d26 | ada2cd54969942a885e3ec3e1861e9b0 | R56 |
+| app/routers/backtest.py | 6730d2dd83df59face0bf3662e2aad84 | 85067174486d3a2a2d6a8e355c3d1d5f | R56 |
+| app/tasks/backtest_tasks.py | fc86a32d3c3c79a6540c2878ec8bb4e9 | e49523ff764f1357a95036b87003486d | R56 |
+| docker-compose.yml | 4a5c57508492f0d39f662a8cf3ebd9a5 | a79089f4d08b14381c561ba4c317ecac | R56 |
+
+## كيف تتحقق بنفسك (دقيقة)
+
+```bash
+cd /مسار/مشروعك
+md5sum app/services/candle_cache.py app/routers/backtest1.py \
+      app/routers/backtest.py app/tasks/backtest_tasks.py docker-compose.yml
+# قبل التركيب = عمود «قبل» أعلاه · بعد التركيب = عمود «بعد»
+```
+
+## علاقة الحزم
+
+```
+نسختك المرجعية (b81c7ea4… = مشروعك + R55)
+   │
+   ├── backend_R56_PATCH_ONLY.zip  (4 ملفات — استقرار الإنتاج)  ← تُلغى بهذه
+   └── backend_R57_MERGE.zip  (5 ملفات = الـ4 نفسها بت-بت + candle_cache.py)  ✅ هذه
+```
+
+- الملفات الأربعة من R56 هنا **مطابقة بت-بت** لحزمة R56 — إن كنت ركّبت R56
+  فعليك فقط استبدال `app/services/candle_cache.py` ثم إعادة التشغيل.
+- إن كنت تركّب من نسختك المرجعية مباشرة → ركّب الخمسة معًا.
+
+## ما الذي لم يُمَس إطلاقًا
+
+- ملفات R55 السبعة (schemas/engine1/exit_engine/unified_backtest/exit_strategy) — كما هي بالبايت
+- كل الفرونت إند · الهجرات · الجداول · الاستراتيجيات · .env · Dockerfile · requirements
+- ملفا `proof-lab/` و`rollback/` داخل مشروعك — لم نلمسهما (الحزمة تكتب فقط في `app/` والجذر)

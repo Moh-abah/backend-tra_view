@@ -6,7 +6,9 @@
 #   (Higher Low Structure) · الخروج عند تأكيد قمة · SL 2% · عمولة 0.
 #
 # ملاحظات مثبتة بهذا التشغيل (العقد):
-#   - position_size_percent عشري بحد أقصى 1.0 = رأس مال كامل (100%).
+#   - ✅ R58 — في وضع percentage أصبحت القيمة نسبة مئوية حقيقية: رأس المال
+#     الكامل = 100 (كانت 1.0 كسراً — نفس السلوك تماماً، صيغة جديدة بلا لبس
+#     «1%» في الواجهة = 1 فعلاً).
 #   - الشكل الصحيح للدمج المنطقي: {"type": "and", "conditions": [...]}
 #     وليس {"type":"composite","logic":"and"} (الآن يُوحَّد تلقائياً مع تحذير،
 #     وأي شكل غير معروف يُرفض برسالة واضحة).
@@ -87,7 +89,7 @@ CHAMPION_ZIGZAG_HL_V2: Dict[str, Any] = {
     },
     "initial_capital": 10000,
     "position_sizing": "percentage",
-    "position_size_percent": 1.0,
+    "position_size_percent": 100.0,
     "max_positions": 1,
     "commission_rate": 0,
     "slippage_percent": 0,
@@ -228,7 +230,7 @@ ZLF_TRIPLE_SIGNAL: Dict[str, Any] = {
     },
     "initial_capital": 10000,
     "position_sizing": "percentage",
-    "position_size_percent": 1.0,
+    "position_size_percent": 100.0,
     "max_positions": 1,
     "commission_rate": 0,
     "slippage_percent": 0,
@@ -330,7 +332,7 @@ ZLF_E2E_TRIPLE_SIGNAL: Dict[str, Any] = {
     },
     "initial_capital": 10000,
     "position_sizing": "percentage",
-    "position_size_percent": 1.0,
+    "position_size_percent": 100.0,
     "max_positions": 1,
     "commission_rate": 0,
     "slippage_percent": 0,
@@ -478,7 +480,198 @@ ZLF_E2E_TRENDY_TRIPLE_SIGNAL: Dict[str, Any] = {
     },
     "initial_capital": 10000,
     "position_sizing": "percentage",
-    "position_size_percent": 1.0,
+    "position_size_percent": 100.0,
+    "max_positions": 1,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "leverage": 1,
+}
+
+
+# =============================================================================
+# 🔥 R69 — ZLF-End-To-End-Blazing — «الترندية الملتهبة»
+# =============================================================================
+# أمر صاحب القرار (2026-11-11): «اكتب لي الاستراتيجية الجديدة التي فيها 🔥 N5 —
+# إشعال بلا مرجع — وسمّها استراتيجية الترندية الملتهبة … كمان أضف +N6».
+#
+# هذا القالب يعتمد:
+#   - المحرك المعزول الجديد كلياً: zigzag_fib_e2e_blazing
+#     (overlays_zlf_e2e_blazing.py — الترندية بت-بت + N5/N6).
+#   - 🔥 N5 «إشعال بلا مرجع» (مُقاسة R68 على 4 رموز × 6 نوافذ — منها سنتان
+#     خارج العينة): نطاق لم يرَ أي حمراء منذ ولادته ∧ صرخة فوق قمة الجبل
+#     نفسها ∧ هيمنة حجم على الخضراء ∧ انضباط الانطلاقة. نافذة البطل:
+#     أضافت الصفقة 64 الرابحة (+4.7%) — 64 · +1638.16% مقابل 63 · +1560.14%.
+#   - 🤫 N6 «الاختراق الهادئ» (مُقاسة): اختراق سقف المرجع R بلا هيمنة
+#     الخضراء — مضخّم الأسواق المتعبة (INIT: 47 · +295% → 55 · +432%).
+#   - S1/S2/S3 كما في الترندية **بت-بت** (مثبت بمطابقة أعمدة الإنتاج) —
+#     بوابة الترند القالبية نفسها (7/15/25 majority) والأنواع المبوّبة
+#     الآن خمسة: s1/s2/s3/n5/n6 (كلها قالبية — لا أرقام داخل الكود).
+#   - الخروج كما في الترندية حرفياً (انقلاب النطاق zzfb_dir < 0 + SL القالب).
+ZLF_E2E_BLAZING_QUINT_SIGNAL: Dict[str, Any] = {
+    "name": "ZLF-End-To-End-Blazing — الترندية الملتهبة · 5 Entry Signals (S1/S2/S3 + N5/N6) — ZERO FEE",
+    "timeframe": "1h",
+    "market": "crypto",
+    "symbols": ["BTCUSDT"],
+    "strategy_config": {
+        "name": "ZLF-End-To-End-Blazing (الترندية الملتهبة — 5 Entry Signals: S1/S2/S3 + N5 إشعال بلا مرجع + N6 الاختراق الهادئ)",
+        "base_timeframe": "1h",
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_blazing",
+                "type": "support_resistance",
+                "params": {
+                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — كما في الترندية حرفياً
+                    "mode": "luxalgo",
+                    "length": 100,
+                    "touch_level": 0.618,
+                    # 🔥 قوالب الترند (الأرقام هنا لا في الكود) — غيّرها/أضف
+                    # ترنداً رابعاً 30 بحرية — المحرك عام على القائمة.
+                    # trend_confirm: majority|all|any|رقم.
+                    # trend_gate: الأنواع المبوّبة s1/s2/s3/n5/n6 أو "none" للتعطيل.
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3", "n5", "n6"],
+                },
+                "enabled": True,
+                "timeframe": "1h",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "ZLF-E2E-Blazing S1 · الحالة الأولى: الاختراق الكامل المؤكد + موافقة الترند (7/15/25)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_entry_s1",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Blazing S2 · الحالة الثانية: الاختراق بدون هيمنة الحجم («ويبرغم عندها لفل حجم سيولتها») + موافقة الترند",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_entry_s2",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Blazing S3 · الحالة الثالثة: الامتصاص قبل الاختراق + موافقة الترند",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_entry_s3",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Blazing N5 🔥 · إشعال بلا مرجع: النطاق لم يرَ أي حمراء منذ ولادته (اندفاع خالص) + صرخة فوق قمة الجبل نفسها بهيمنة حجم + موافقة الترند",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_entry_n5",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Blazing N6 🤫 · الاختراق الهادئ: صرخة فوق سقف المرجع R بلا هيمنة الخضراء (ثقة بلا ضجيج) + موافقة الترند",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_entry_n6",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "ZLF-E2E-Blazing · تأكيد قمة — انقلاب النطاق إلى هابطة (نطاق جديد قمة→قاع) · افتراضي مؤقت provisional",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": "<",
+                    "left_value": "indicator:zigzag_fib_e2e_blazing:zzfb_dir",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 10000,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
     "max_positions": 1,
     "commission_rate": 0,
     "slippage_percent": 0,
@@ -487,7 +680,7 @@ ZLF_E2E_TRENDY_TRIPLE_SIGNAL: Dict[str, Any] = {
 
 
 PRESET_NOTES: List[str] = [
-    "position_size_percent عشري بحد أقصى 1.0 = رأس مال كامل (100%) — لا يُرسل كنسبة مئوية (100).",
+    "✅ R58 — وضع percentage: القيمة نسبة مئوية حقيقية (1 = 1%، 100 = رأس مال كامل). الوضع fixed يبقى كسراً تاريخياً (1.0 = 100%).",
     "الشكل الصحيح للدمج المنطقي: {\"type\": \"and\", \"conditions\": [...]} — وليس {\"type\":\"composite\",\"logic\":\"and\"}؛ "
     "الشكل القديم يُوحَّد تلقائياً الآن مع تحذير، وأي شكل غير معروف يُرفض برسالة واضحة بدل 0 صفقات صامتة.",
     "commission_rate و slippage_percent DEPRECATED (الجولة 13 — سياسة Zero-Fee الإبادية): النظام يعمل بلا عمولات ولا انزلاق نهائياً. "
@@ -587,6 +780,26 @@ def get_presets() -> List[Dict[str, Any]]:
                      "وفترات قالبية لا تُكتب داخل الكود",
             "reference_result": "يُعاد التحقق منه حياً بعد النشر — عقد Zero-Fee/الدقة لم يُلمس",
             "payload": ZLF_E2E_TRENDY_TRIPLE_SIGNAL,
+            "notes": PRESET_NOTES,
+        },
+        # 🔥 R69 — «الترندية الملتهبة» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "zlf_e2e_blazing_quint_signal_zero_fee",
+            "title": "ZLF-E2E-Blazing — الترندية الملتهبة · 5 Entry Signals (S1/S2/S3 + N5/N6) — ZERO FEE",
+            "description": "المحرك المعزول الجديد كلياً (R69): الترندية بت-بت (S1/S2/S3 بنفس المرجع R وهيمنة الخضراء "
+                           "وخط الانطلاقة وبوابة الترند) + إشارتا R68 المُقاستان على 4 رموز × 6 نوافذ (منها سنتان "
+                           "خارج العينة): N5 «إشعال بلا مرجع» — نطاق لم يرَ أي حمراء منذ ولادته + صرخة فوق قمة الجبل "
+                           "نفسها بهيمنة حجم (أعواد عمياء بنيوياً عند الترندية؛ نافذة البطل: أضافت الصفقة 64 الرابحة "
+                           "+4.7% — 64 صفقة · +1638% مقابل 63 · +1560%) · N6 «الاختراق الهادئ» — اختراق سقف المرجع "
+                           "R بلا هيمنة الخضراء (ثقة بلا ضجيج؛ مضخّم الأسواق المتعبة: INIT 47→55 صفقة · +295%→+432%). "
+                           "بوابة الترند القالبية نفسها (7/15/25 majority — قالبية بلا أرقام في الكود) والأنواع المبوّبة "
+                           "خمسة s1/s2/s3/n5/n6 — والخروج كما في الترندية (انقلاب النطاق + SL 2%).",
+            "source": "R69 — أمر صاحب القرار: «اكتب لي الاستراتيجية الجديدة التي فيها 🔥 N5 — إشعال بلا مرجع — "
+                      "وسمّها استراتيجية الترندية الملتهبة … كمان أضف +N6» فوق قياسات R68 المخبرية "
+                      "(lab/trendy_x.py + results/x_signals_r68.json)",
+            "reference_result": "نافذة البطل #10000233 (SOLUSDT · 1m): الأرضية 63 صفقة · +1560.14% → "
+                                "الملتهبة 64 صفقة · +1638.16% — يُعاد التحقق منه حياً بعد الدمج",
+            "payload": ZLF_E2E_BLAZING_QUINT_SIGNAL,
             "notes": PRESET_NOTES,
         },
     ]

@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.routing import APIRoute
 
 from app.config import settings
@@ -51,10 +52,26 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize resources on startup and release them on shutdown."""
-    try:
-        await init_db()
-        logger.info("Database initialized")
-    except Exception:
+    # ✅ R50: إعادة محاولة تهيئة القاعدة — مع عمال uvicorn متعددين قد
+    # يتسابق عاملان على CREATE TABLE IF NOT EXISTS لحظة الإقلاع؛
+    # إعادة محاولة قصيرة (3 محاولات) تجعل الإقلاع حتمياً بدل انهيار
+    # العامل وترك الحاوية تدور.
+    last_exc = None
+    for attempt in range(1, 4):
+        try:
+            await init_db()
+            logger.info("Database initialized")
+            last_exc = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            logger.warning(
+                "init_db attempt %d/3 failed: %s", attempt, exc
+            )
+            import asyncio as _asyncio
+
+            await _asyncio.sleep(1.5)
+    if last_exc is not None:
         logger.exception("Failed to initialize database")
         raise RuntimeError("Database initialization failed; refusing to serve requests")
 
@@ -162,6 +179,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ----------------------------------------------------------------------------
+# ✅ R50 — ضغط الاستجابات (GZip): مستندات الباك-تست الثقيلة (52-208MB JSON)
+# كانت تُرسل غير مضغوطة — الضغط يقللها 8-12× فيصبح تحميل المكتبة أسرع
+# دراماتيكياً وتتقلص مدة احتلال حلقة الأحداث لكتابة المقابس.
+# (يُطبّق فقط على الردود > 1KB — الصغيرة تبقى كما هي بلا overhead)
+# ----------------------------------------------------------------------------
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 
 # ----------------------------------------------------------------------------

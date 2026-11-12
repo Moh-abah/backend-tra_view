@@ -58,7 +58,7 @@ from __future__ import annotations
 
 import math
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # ---------------------------------------------------------------------------
 # الهوية
@@ -178,8 +178,11 @@ def run_unified_exit_backtest(
     strategy_payload = _run_strategy(st, candles, params)
 
     # 3) محرك الخروج الج41 — إدارة الصفقة كاملة
+    #    ✅ R66: تمرير بذرة التراكم من جذر الطلب (meta.initial_capital) —
+    #    يحكم دائماً في المسار الموحد (أولوية موثقة: الجذر > الكتلة > 10000$)،
+    #    ويُتجاهل تماماً في الوضع الثابت (سلوك اليوم بت-بت).
     entries = extract_entries_for_strategy(st, strategy_payload)
-    exit_result = run_exit_backtest(candles, entries, exit_cfg)
+    exit_result = run_exit_backtest(candles, entries, exit_cfg, initial_capital=initial_capital)
     trades = exit_result["trades"]
     exsum = exit_result["summary"]
     notes: List[str] = list(exit_result.get("notes") or [])
@@ -226,8 +229,25 @@ def run_unified_exit_backtest(
         "entry_exec": exit_cfg["entry_exec"],
         "cooldown_bars": int(exit_cfg["cooldown_bars"]),
         "allow_overlap": bool(exit_cfg["allow_overlap"]),
+        # ✅ R55 — السقف الرقمي المفعّل فعلاً (من جذر الطلب max_positions)
+        "max_concurrent_positions": exit_cfg.get("max_concurrent_positions"),
         "fees_pct": float(exit_cfg["fees_pct"]),
     }
+    # ✅ R66 — صدى الوضع التراكمي في العرض الموحد (يظهر فقط عند تفعيله —
+    # الحمولات الثابتة بلا أي مفتاح جديد: توافق رجعي بت-بت). البذرة هنا
+    # دائماً من جذر الطلب (meta.initial_capital) — لا من الكتلة.
+    compounding_on_r66 = exit_cfg.get("position_sizing") == "percent_of_equity"
+    if compounding_on_r66:
+        exit_strategy_view["position_sizing"] = "percent_of_equity"
+        exit_strategy_view["position_size_pct"] = float(exit_cfg.get("position_size_pct") or 0.0)
+        exit_strategy_view["initial_capital_usd"] = initial_capital
+        exit_strategy_view["position_size_semantics"] = (
+            f"الوضع التراكمي: كل دخول (الأول + التعزيزان) = {float(exit_cfg.get('position_size_pct') or 0.0):g}٪ "
+            f"من الرصيد الجاري، والرصيد يتحدث بعد كل إغلاق محقق — البذرة من "
+            f"initial_capital بجذر الكونفيق ({initial_capital:g}$)."
+        )
+        if exit_result.get("compounding_audit") is not None:
+            exit_strategy_view["compounding_audit"] = exit_result["compounding_audit"]
 
     summary: Dict[str, Any] = {
         # --- الحقول القياسية (نفس أسماء المحرك الرئيسي بت-بت) ---
@@ -261,6 +281,12 @@ def run_unified_exit_backtest(
         "fill_model": str(exit_cfg["entry_exec"]),
         "math_audit": metrics["math_audit"],
         "effective_config": dict(exit_cfg),
+        # ✅ R66 — التدقيق الرياضي الذاتي للوضع التراكمي (نمط math_audit ج12؛
+        # يظهر فقط عند التفعيل — بلا أي مفتاح جديد في الوضع الثابت)
+        **(
+            {"compounding_audit": exit_result["compounding_audit"]}
+            if exit_result.get("compounding_audit") is not None else {}
+        ),
         # --- إضافات الجولة 42 (المصدر الموحد لاستراتيجية الخروج) ---
         "engine": {
             "name": EXIT_ENGINE_NAME,
@@ -489,13 +515,46 @@ def _build_chart_data(
             if en.get("kind", "entry") != "entry":
                 dca_at.setdefault(int(en["bar"]), []).append((tr, en))
 
-    # عمودا ساق الزقزاق (إن وُجدا — zzfib فقط) كأعمدة ind_ للرسم
+    # ✅ R55 — كل سلاسل الاستراتيجية كأعمدة ind_* (نفس عقد /get للمحرك
+    # الرئيسي): كانت الشموع تحمل عمودين فقط (zzf_p1/p2) فيأتي الشارت
+    # فارغاً بلا زقزاق ولا فيبو — الآن كل مفتاح في series يُحقن ببادئة
+    # ind_ (zzfib_e2e_trendy ⇒ 47 عمود ind_zzfet_* كاملة).
     series = strategy_payload.get("series") or {}
-    zzf_p1 = list(series.get("zzf_p1") or [])
-    zzf_p2 = list(series.get("zzf_p2") or [])
+    series_cols: List[Tuple[str, List[Optional[float]]]] = [
+        (str(k), vals) for k, vals in series.items()
+        if isinstance(vals, list)
+    ]
+
+    # ✅ R55 — سقف الشموع المرئية 20,000 (نفس _VISUAL_CAP في engine1):
+    # سنة فريم دقيقة = 525,600 شمعة كانت تُسلسَل كلها ⇒ 311MB مستند.
+    # الآن: أخذ عينات بمضاعف visual_step مع تضمين إجباري لشموع الصفقات
+    # (دخول/خروج/تعزيز) وأول وآخر شمعة — نفس مقياس 41MB المرجعي.
+    _VISUAL_CAP = 20000
+    visual_step = 1
+    if n > _VISUAL_CAP:
+        visual_step = int(math.ceil(n / _VISUAL_CAP))
+    must_include: Set[int] = set()
+    for tr in trades:
+        try:
+            must_include.add(int(tr["opened_at_bar"]))
+            must_include.add(int(tr["exit"]["bar"]))
+            for en in tr["entries"]:
+                must_include.add(int(en["bar"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    if n:
+        must_include.add(0)
+        must_include.add(n - 1)
 
     visual_candles: List[Dict[str, Any]] = []
     for i, c in enumerate(candles):
+        # أخذ العينات: كل شمعة على مضاعف الخطوة + شموع الصفقات إجبارياً
+        if not (
+            visual_step == 1
+            or (i % visual_step == 0)
+            or (i in must_include)
+        ):
+            continue
         vc: Dict[str, Any] = {
             "timestamp": _ts(c.get("time")),
             "open": float(c.get("open") or 0.0),
@@ -525,10 +584,18 @@ def _build_chart_data(
             "pnl": None,
             "pnl_percentage": None,
         }
-        if i < len(zzf_p1) and zzf_p1[i] is not None:
-            vc["indicators"]["zzf_p1"] = float(zzf_p1[i])
-        if i < len(zzf_p2) and zzf_p2[i] is not None:
-            vc["indicators"]["zzf_p2"] = float(zzf_p2[i])
+        # ✅ R55 — حقن كل أعمدة السلاسل (ind_*) بنفس أسماء عقد /get
+        indicators_vc: Dict[str, Any] = {}
+        for _sname, _sarr in series_cols:
+            _sv = _sarr[i] if i < len(_sarr) else None
+            if _sv is None:
+                indicators_vc[f"ind_{_sname}"] = None
+            else:
+                try:
+                    indicators_vc[f"ind_{_sname}"] = float(_sv)
+                except (TypeError, ValueError):
+                    indicators_vc[f"ind_{_sname}"] = None
+        vc["indicators"] = indicators_vc
 
         tr_open = open_at.get(i)
         if tr_open is not None:
@@ -656,9 +723,14 @@ def _build_chart_data(
                 })
             trail_lines[str(tr["trade_id"])] = line
 
-    if equity_curve is None:
-        equity_curve, _dd = _equity_and_drawdown(candles, trades, initial_capital)
-    equity_curve_vals = list(equity_curve)
+    # ✅ R55 — منحنيات لكل صفقة (نفس مقياس المحرك الرئيسي): نقطة عند كل
+    # خروج + نقطة البداية، بدل نقطة لكل شمعة (525,600 نقطة كانت تنفخ
+    # المستند إلى 311MB — الآن عشرات النقاط لكل نفس مقياس 41MB المرجعي).
+    equity_curve_vals: List[float] = [round(float(initial_capital), 6)]
+    _running = float(initial_capital)
+    for tr in sorted(trades, key=lambda x: int(x.get("exit", {}).get("bar", 0))):
+        _running += float(tr.get("pnl_usd") or 0.0)
+        equity_curve_vals.append(round(_running, 6))
     drawdown_vals = _drawdown_from_equity(equity_curve_vals)
 
     return {
@@ -666,6 +738,15 @@ def _build_chart_data(
         "trade_points": trade_points,
         "equity_curve": equity_curve_vals,
         "drawdown_curve": drawdown_vals,
+        # ✅ R55 — هوية النافذة المنفّذة (نفس عقد window بالمحرك الرئيسي)
+        "window": {
+            "bars": n,
+            "time_from": _ts(candles[0].get("time")) if n else None,
+            "time_to": _ts(candles[n - 1].get("time")) if n else None,
+            "visual_bars": len(visual_candles),
+            "visual_step": visual_step,
+            "indicator_columns": [f"ind_{name}" for name, _ in series_cols],
+        },
         # --- إثراءات ج42 (يقرأها الفرونت اختيارياً — تُتجاهل إن لم تُستخدم) ---
         "trail_lines": trail_lines,
         "trailing_active": trailing_on,

@@ -26,6 +26,87 @@ MAX_WALK_FORWARD_WINDOWS = 20
 MAX_MONTE_CARLO_SIMULATIONS = 500
 
 
+def _resolve_risk_fraction(config: "BacktestConfig") -> float:
+    """✅ R58 — توحيد دلالات حجم المركز بين الواجهة والمحرك.
+
+    البلاغ الحي (#10000042 — سولانا): الواجهة ترسل position_size_percent=1
+    بمعنى «1%» بينما المحرك كان يضرب القيمة مباشرة ككسر ⇒ 1.0 = 100% من
+    الرصيد لكل مركز (أول صفقة: 300$ بالضبط من رأس مال 300$، ومع
+    max_positions=3 صارت رافعة خفية 3x ⇒ Drawdown 256% وأحجام سالبة).
+
+    العقد الجديد الموحّد (نفس منطق SL/TP الذي يقبل نسبة مئوية 49 = 49%):
+      • position_sizing="percentage" ⇒ القيمة نسبة مئوية حقيقية:
+          1 = 1% ، 50 = 50% ، 100 = كامل الرصيد.
+      • أي وضع آخر (fixed/افتراضي) ⇒ يبقى الكسر التاريخي (1.0 = 100%)
+        بت-بت — فلا يتغير أي سلوك قديم غير الواجهة.
+    القيمة تُقصّ نهائياً إلى [0, 1] (لا يمكن للحجم أن يتجاوز الرصيد أو يكون سالباً).
+
+    ✅ R60 — وضع «رأس المال الكامل والربح التزايدي» (compounding):
+      طلب المستخدم الحرفي: زر تفعيل يجعل كل صفقة تدخل بكامل الرصيد
+    الجاري (رأس المال + كل الأرباح المتراكمة) — الصفقة الأولى 100$،
+    ربحها 15$ ⇒ التالية تدخل بـ115$ وهكذا (نمط التشغيلة التاريخية
+    #10000010: +804.77%). عند التفعيل: الكسر = 1.0 دائماً مهما كان
+    position_size_percent، ومركز مفتوح واحد فقط (max_concurrent=1).
+    """
+    # ✅ R62 — المراكز المتعددة التراكمية تعلو فوق R60: كل مركز جديد
+    # بحجم الرصيد الجاري ÷ عدد المراكز (يتجدد مع كل إقفال ربحاً أو خسارة).
+    _multi_n = _multi_position_compounding_enabled(config)
+    if _multi_n is not None:
+        return 1.0 / float(_multi_n)
+    # ✅ R60 — التراكم يعلو فوق كل دلالات الحجم الأخرى
+    if bool(getattr(config, "compounding", False)):
+        return 1.0
+    try:
+        _v = float(getattr(config, "position_size_percent", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        _v = 0.0
+    _mode = str(getattr(config, "position_sizing", "") or "").strip().lower()
+    _frac = (_v / 100.0) if _mode == "percentage" else _v
+    if _frac < 0.0:
+        _frac = 0.0
+    if _frac > 1.0:
+        _frac = 1.0
+    return _frac
+
+
+def _compounding_enabled(config: "BacktestConfig") -> bool:
+    """✅ R60 — هل وضع «رأس المال الكامل والربح التزايدي» مفعّل؟
+
+    دالة واحدة مصدر الحقيقة — يستخدمها محلل الكسر وسقف المراكز
+    وصدى المخاطر حتى يظل الثلاثة متطابقين دائماً بلا انحراف.
+    """
+    try:
+        return bool(getattr(config, "compounding", False))
+    except Exception:  # noqa: BLE001 — القراءة الدفاعية لا تنكسر أبداً
+        return False
+
+
+def _multi_position_compounding_enabled(config: "BacktestConfig") -> "int | None":
+    """✅ R62 — هل وضع «المراكز المتعددة والرصيد التراكمي» مفعّل؟
+
+    يعيد عدد الخانات الفعّال (1..10) أو None إن كان معطلاً.
+    دالة واحدة مصدر الحقيقة — يستخدمها محلل الكسر وسقف المراكز
+    وصدى المخاطر حتى يظل الثلاثة متطابقين دائماً بلا انحراف.
+    الوضع يعلو فوق R60 عند تفعيلهما معاً (طلب المستخدم الحرفي:
+    الأرباح تعود للرصيد وتشارك في الصفقات التالية مع تعدد المراكز).
+    """
+    try:
+        _on = bool(getattr(config, "multi_position_compounding", False))
+    except Exception:  # noqa: BLE001 — القراءة الدفاعية لا تنكسر أبداً
+        return None
+    if not _on:
+        return None
+    try:
+        _n = int(getattr(config, "max_positions", 0) or 0)
+    except (TypeError, ValueError):
+        _n = 0
+    if _n < 1:
+        _n = 1
+    if _n > 10:
+        _n = 10
+    return _n
+
+
 class _NoopStrategyEngine:
     """
     ✅ الجولة 12 (هوت-فكس): محرك استراتيجية محايد للحمولات الفارغة.
@@ -290,8 +371,181 @@ class BacktestEngine:
         cumulative_pnl = 0.0
         account_balance = initial_capital
 
+        # ✅ R55 — سياسة المخاطر الفعلية (كونفيق نظيف):
+        # الحقول غير المُرسلة = null = معطّلة. طلب المستخدم الحرفي:
+        #   SL=0 أو SL=100 أو عدم الإرسال ⇒ تعطيل الستوب لوز كلياً
+        #   TP=0 أو عدم الإرسال ⇒ تعطيل جني الربح
+        #   التريلينق من الجذر ⇒ يعمل فعلياً هنا ويُلغي SL/TP (نفس دلالات
+        #   محرك الخروج الموحد: القمة تبدأ من سعر الدخول، وكل قمة أعلى ترفع
+        #   السقف، وهبوط الإغلاق بنسبة التريلينق من القمة يغلق عند الإغلاق)
+        _sl_cfg = config.stop_loss_percent
+        _tp_cfg = config.take_profit_percent
+        _trail_cfg = config.trailing_stop_percent
+        sl_active = _sl_cfg is not None and 0.0 < float(_sl_cfg) < 100.0
+        tp_active = _tp_cfg is not None and float(_tp_cfg) > 0.0
+        trail_active = _trail_cfg is not None and float(_trail_cfg) > 0.0
+        if trail_active:
+            sl_active = False
+            tp_active = False
+        sl_frac = (float(_sl_cfg) / 100.0) if sl_active else None
+        tp_frac = (float(_tp_cfg) / 100.0) if tp_active else None
+        trail_frac = (float(_trail_cfg) / 100.0) if trail_active else None
+        trail_peak = 0.0  # قمة التريلينق للمركز الأساسي (تبدأ من سعر الدخول)
+
+        # ✅ R55 — السقف الرقمي للمراكز المتزامنة (max_positions من الجذر):
+        # None أو 1 = السلوك التاريخي بت-بت (مركز واحد)، 2..10 = إشارة جديدة
+        # والمراكز المفتوحة < N ⇒ مركز إضافي مستقل بإدارة مخاطر كاملة.
+        # ✅ R60 — وضع التراكم (compounding): مركز واحد فقط إجبارياً —
+        # طلب المستخدم الحرفي: «اذا النضام في صفقه ما يقدر يفتح صفقه جديده
+        # لين يقفلها». 100% من الرصيد في كل صفقة + مركز واحد = صفر رافعة
+        # ضمنية (علة #10000042 القديمة مستحيلة الحدوث في هذا الوضع).
+        _compounding_on = _compounding_enabled(config)
+        _multi_n = _multi_position_compounding_enabled(config)  # ✅ R62
+        if _multi_n is not None:
+            # ✅ R62 — المراكز المتعددة التراكمية: N خانات فعلية — كل
+            # إشارة دخول تفتح مركزاً بحجم الرصيد الجاري ÷ N لحظة الإشارة،
+            # والرصيد يتجدد بعد كل إقفال (ربحاً أو خسارة) فتكبر الأحجام.
+            max_concurrent = _multi_n
+        elif _compounding_on:
+            max_concurrent = 1
+        else:
+            max_concurrent = int(config.max_positions) if (config.max_positions or 0) > 1 else 1
+        extra_positions: List[Dict[str, Any]] = []  # المراكز الإضافية 2..N
+        max_open_observed = 0
+        risk_echo = {
+            "stop_loss_percent": float(_sl_cfg) if _sl_cfg is not None else None,
+            "stop_loss_active": bool(sl_active),
+            "take_profit_percent": float(_tp_cfg) if _tp_cfg is not None else None,
+            "take_profit_active": bool(tp_active),
+            "trailing_stop_percent": float(_trail_cfg) if _trail_cfg is not None else None,
+            "trailing_active": bool(trail_active),
+            "trailing_cancels_sl_tp": bool(trail_active),
+            "max_positions_requested": int(config.max_positions) if config.max_positions is not None else None,
+            "max_concurrent_applied": max_concurrent,
+            # ✅ R62 — صدى وضع المراكز المتعددة التراكمية (شفافية كاملة)
+            "multi_position_compounding": _multi_n is not None,
+            "multi_position_slots": _multi_n,
+            # ✅ R60 — صدى وضع التراكم (شفافية كاملة للفرونت والمكتبة)
+            "compounding": _compounding_on,
+            "compounding_semantics": (
+                "R60: كل صفقة بـ100% من الرصيد الجاري + مركز واحد فقط"
+                if _compounding_on else None
+            ),
+            "multi_position_semantics": (
+                f"R62: كل مركز جديد = الرصيد الجاري ÷ {_multi_n} "
+                f"(حتى {_multi_n} مراكز متزامنة، الحجم يتجدد بعد كل إقفال)"
+                if _multi_n is not None else None
+            ),
+        }
+
         # ✅ الجولة 12: نموذج التنفيذ المطبق فعلياً (next_open افتراضياً)
         fill_model_str = str(getattr(config, "fill_model", "next_open") or "next_open")
+
+        # ✅ R58 — توحيد دلالات الحجم + جدار النهاية + حاجز الإفلاس
+        # (البلاغ #10000042: حجم 100% بدل 1% + تداول بعد نهاية النافذة +
+        #  رصيد سالب استمر يتداول بأحجام سالبة وانعكست إشارة الربح)
+        _risk_frac = _resolve_risk_fraction(config)
+        _end_ts = None
+        _end_dt = getattr(config, "end_date", None)
+        if _end_dt is not None:
+            try:
+                _end_ts = int(pd.Timestamp(_end_dt).timestamp())
+            except Exception:  # noqa: BLE001 — الجدار رفاهية دفاعية لا شرط بقاء
+                _end_ts = None
+        account_blown = False
+        _liquidation_truncated = 0.0
+
+        def _force_close_all(price: float, ts, reason: str) -> None:
+            """✅ R58 — تصفية كاملة عند جدار النهاية أو إفلاس الحساب.
+
+            تغلق المركز الأساسي وكل المراكز الإضافية عند «سعر» الشمعة الحالية
+            (open أول شمعة بعد الجدار — نموذج تنفيذ واقعي)، تسجّل الصفقات
+            ونقاط الخروج، ثم تثبّت الرصيد عند صفر إن سال (لا يمكن للحساب أن
+            يخسر أكثر من رأس ماله — أرضية الواقع المالي).
+            """
+            nonlocal current_state, trade_id, entry_price, position_size
+            nonlocal sl_price, tp_price, trail_peak, account_balance
+            nonlocal cumulative_pnl, account_blown, _liquidation_truncated
+            if current_state != 'NEUTRAL' and trade_id:
+                _pnl_fc = ((price - entry_price) * position_size
+                           if current_state == 'LONG'
+                           else (entry_price - price) * position_size)
+                _inv_fc = entry_price * position_size
+                _pct_fc = (_pnl_fc / _inv_fc) * 100 if _inv_fc else 0.0
+                _net_fc = self._close_trade_logic(
+                    trades, trade_id, price, ts, reason, _pnl_fc, _pct_fc, config,
+                )
+                account_balance += _net_fc
+                cumulative_pnl += _net_fc
+                equity_curve.append(account_balance)
+                trade_points.append({
+                    "timestamp": ts,
+                    "type": "exit",
+                    "trade_id": trade_id,
+                    "price": float(price),
+                    "exit_price": float(price),
+                    "exit_reason": reason,
+                    "pnl": float(_net_fc),
+                    "pnl_percentage": float(_pct_fc),
+                    "entry_price": float(entry_price),
+                    "position_size": float(position_size),
+                    "position_type": current_state.lower(),
+                    "commission": 0.0,
+                    "fill_entry": fill_model_str,
+                    "fill_exit": fill_model_str,
+                    "direction": current_state.lower(),
+                    "symbol": symbol,
+                })
+                current_state = 'NEUTRAL'
+                trade_id = None
+                entry_price = 0.0
+                position_size = 0.0
+                sl_price = 0.0
+                tp_price = 0.0
+                trail_peak = 0.0
+            for _xp in list(extra_positions):
+                _xs = _xp['position_size']
+                if _xp['direction'] == 'LONG':
+                    _xpnl = (price - _xp['entry_price']) * _xs
+                else:
+                    _xpnl = (_xp['entry_price'] - price) * _xs
+                _xinv = _xp['entry_price'] * _xs
+                _xpct = (_xpnl / _xinv) * 100 if _xinv else 0.0
+                _xnet = self._close_trade_logic(
+                    trades, _xp['trade_id'], price, ts, reason, _xpnl, _xpct, config,
+                )
+                account_balance += _xnet
+                cumulative_pnl += _xnet
+                equity_curve.append(account_balance)
+                trade_points.append({
+                    "timestamp": ts,
+                    "type": "exit",
+                    "trade_id": _xp['trade_id'],
+                    "price": float(price),
+                    "exit_price": float(price),
+                    "exit_reason": reason,
+                    "pnl": float(_xnet),
+                    "pnl_percentage": float(_xpct),
+                    "entry_price": float(_xp['entry_price']),
+                    "position_size": float(_xs),
+                    "position_type": _xp['direction'].lower(),
+                    "stop_loss": float(_xp['sl_price']) if _xp['sl_price'] else None,
+                    "take_profit": float(_xp['tp_price']) if _xp['tp_price'] else None,
+                    "commission": 0.0,
+                    "fill_entry": fill_model_str,
+                    "fill_exit": fill_model_str,
+                    "direction": _xp['direction'].lower(),
+                    "symbol": symbol,
+                    "position_kind": "additional",
+                })
+                extra_positions.remove(_xp)
+            if account_balance < 0:
+                # ✅ R58 — أرضية الواقع: التصفية لا تدع الرصيد سالباً أبداً
+                _liquidation_truncated = -account_balance
+                account_balance = 0.0
+                equity_curve.append(0.0)
+            if reason.startswith("Liquidation"):
+                account_blown = True
 
         # متغيرات النموذج المتقدم (Pending Decision)
         pending_decision = None  # سيحمل القرار من الشمعة السابقة للتنفيذه الآن
@@ -320,6 +574,29 @@ class BacktestEngine:
             close_price = close_prices[i]    # ✅
             volume_val = volume_vals[i]      # ✅
 
+            # ✅ R58 — حاجز الإفلاس (Liquidation): رصيد ≤ 0 يعني انتهاء الحساب.
+            # بلاغ #10000042: المحرك استمر يتداول برصيد سالب ففتح مراكز بأحجام
+            # سالبة (-354 و-1,247…) فانعكست إشارة الربح: تيك بروفت خاسر$ وستوب
+            # رابح$. الآن: نصفي كل ما هو مفتوح عند open هذه الشمعة ونقف.
+            if account_balance <= 0:
+                if current_state != 'NEUTRAL' or extra_positions:
+                    _force_close_all(open_price, current_time, "Liquidation (Account Blown)")
+                account_blown = True
+                break
+
+            # ✅ R58 — جدار نهاية النافذة داخل المحرك (خط الدفاع الثاني):
+            # بلاغ #10000042: نافذة 2023-10-14 → 2025-02-02 نُفّذت حتى «الآن»
+            # (دخول 17 صفقة بعد النهاية وخروج End of Data عند نهاية البيانات).
+            # حتى لو تسربت شموع أبعد من end_date عبر أي مسار بيانات، لا تُتاجر
+            # بعد النهاية — الإغلاق عند إغلاق آخر شمعة داخل النافذة
+            # (إغلاق الشمعة التي تسبق الجدار يقع عند النهاية نفسها بالضبط).
+            if _end_ts is not None and current_time_sec > _end_ts:
+                if i > 0:
+                    _force_close_all(float(close_prices[i - 1]), data.index[i - 1], "End of Data")
+                else:
+                    _force_close_all(open_price, current_time, "End of Data")
+                break
+
             # متغيرات مؤقتة لهذه الشمعة
             entering_trade = False
             exiting_trade = False
@@ -329,6 +606,9 @@ class BacktestEngine:
             pnl_gross = 0.0
             pnl_percentage = 0.0
             balance_before_exit = account_balance 
+            # ✅ R55 — أحداث المراكز الإضافية في هذه الشمعة (دخول/خروج)
+            extra_entries_bar: List[Dict[str, Any]] = []
+            extra_exits_bar: List[Dict[str, Any]] = []
 
             # ✅ الجولة 12: بيانات الصفقة المغلقة محفوظة قبل التصفير — كانت
             # entry_price/position_size تعود 0.0 في نقاط الخروج (bug قديم)
@@ -352,6 +632,13 @@ class BacktestEngine:
                     unrealized_pnl = (close_price - entry_price) * position_size
                 else:
                     unrealized_pnl = (entry_price - close_price) * position_size
+            # ✅ R55 — أرباح المراكز الإضافية غير المتحققة (مستقلة لكل مركز)
+            for _xp in extra_positions:
+                if _xp['entry_price'] > 0 and _xp['position_size'] > 0:
+                    if _xp['direction'] == 'LONG':
+                        unrealized_pnl += (close_price - _xp['entry_price']) * _xp['position_size']
+                    else:
+                        unrealized_pnl += (_xp['entry_price'] - close_price) * _xp['position_size']
             
             current_account_balance = account_balance + unrealized_pnl
 
@@ -440,28 +727,74 @@ class BacktestEngine:
                 position_size = 0.0
                 sl_price = 0.0
                 tp_price = 0.0
-            
-            # فتح مركز جديد
-            if target_state != 'NEUTRAL' and current_state == 'NEUTRAL':
+                trail_peak = 0.0  # ✅ R55
+
+                # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً
+                # (كل التعرض لاتجاه الاستراتيجية يُقفل عند خروجها)
+                _x_reason_root = f"{exit_reason} (additional position)"
+                for _xp in list(extra_positions):
+                    _x_size = _xp['position_size']
+                    if _xp['direction'] == 'LONG':
+                        _x_pnl = (execution_price - _xp['entry_price']) * _x_size
+                    else:
+                        _x_pnl = (_xp['entry_price'] - execution_price) * _x_size
+                    _x_inv = _xp['entry_price'] * _x_size
+                    _x_pct = (_x_pnl / _x_inv) * 100 if _x_inv else 0
+                    _net_x = self._close_trade_logic(
+                        trades, _xp['trade_id'], execution_price, current_time,
+                        _x_reason_root, _x_pnl, _x_pct, config,
+                    )
+                    account_balance += _net_x
+                    cumulative_pnl += _net_x
+                    equity_curve.append(account_balance)
+                    extra_exits_bar.append({
+                        "timestamp": current_time,
+                        "type": "exit",
+                        "trade_id": _xp['trade_id'],
+                        "price": float(execution_price),
+                        "exit_price": float(execution_price),
+                        "exit_reason": _x_reason_root,
+                        "pnl": float(_net_x),
+                        "pnl_percentage": float(_x_pct),
+                        "entry_price": float(_xp['entry_price']),
+                        "position_size": float(_x_size),
+                        "position_type": _xp['direction'].lower(),
+                        "stop_loss": float(_xp['sl_price']) if _xp['sl_price'] else None,
+                        "take_profit": float(_xp['tp_price']) if _xp['tp_price'] else None,
+                        "commission": 0.0,
+                        "fill_entry": fill_model_str,
+                        "fill_exit": fill_model_str,
+                        "direction": _xp['direction'].lower(),
+                        "symbol": symbol,
+                        "position_kind": "additional",
+                    })
+                    extra_positions.remove(_xp)
+
+            # فتح مركز جديد (✅ R58: لا دخول برصيد ≤ 0 — الحساب المفلس لا يتداول)
+            if target_state != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:
                 entry_price = open_price
                 entry_time = current_time
                 
-                risk_amount = account_balance * config.position_size_percent
+                # ✅ R58 — دلالة موحّدة: percentage=1 ⇒ 1% فعلاً (كانت تُفهم 100%)
+                risk_amount = account_balance * _risk_frac
                 position_size = risk_amount / entry_price 
                 
-                if config.stop_loss_percent:
-                    sl_offset = entry_price * (config.stop_loss_percent / 100)
+                if sl_active and sl_frac is not None:
+                    sl_offset = entry_price * sl_frac
                     if target_state == 'LONG':
                         sl_price = entry_price - sl_offset
                     else:
                         sl_price = entry_price + sl_offset
                 
-                if config.take_profit_percent:
-                    tp_offset = entry_price * (config.take_profit_percent / 100)
+                if tp_active and tp_frac is not None:
+                    tp_offset = entry_price * tp_frac
                     if target_state == 'LONG':
                         tp_price = entry_price + tp_offset
                     else:
                         tp_price = entry_price - tp_offset
+
+                # ✅ R55 — قمة التريلينق تبدأ من سعر تنفيذ الدخول
+                trail_peak = entry_price
 
                 current_state = target_state
                 trade_id = str(uuid.uuid4())
@@ -492,8 +825,8 @@ class BacktestEngine:
                     pnl_percentage=None,
                     commission=0.0,
                     slippage=0.0,
-                    stop_loss=sl_price if config.stop_loss_percent else None,
-                    take_profit=tp_price if config.take_profit_percent else None,
+                    stop_loss=sl_price if sl_active else None,
+                    take_profit=tp_price if tp_active else None,
                     exit_reason=None,
                     # ✅ الجولة 12: الشفافية — نموذج التنفيذ الفعلي + الاتجاه
                     direction='long' if target_state == 'LONG' else 'short',
@@ -508,6 +841,99 @@ class BacktestEngine:
                 )
                 trades.append(trade)
 
+                # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي)
+                _open_now = 1 + len(extra_positions)
+                if _open_now > max_open_observed:
+                    max_open_observed = _open_now
+
+            # ✅ R55 — مركز إضافي مستقل (max_positions من الجذر): إشارة جديدة
+            # بنفس الاتجاه والمراكز المفتوحة < N ⇒ مركز مستقل بإدارة مخاطر
+            # كاملة (SL/TP/تريلينق خاصة به). بلغ N ⇒ التجاهل (لا فتح).
+            # الشرط `not entering_trade` يضمن أن إشارة واحدة لا تفتح مركزين
+            # في نفس الشمعة — الأساس يُفتح أولاً والإضافي في إشارة لاحقة.
+            if (
+                max_concurrent > 1
+                and not entering_trade
+                and target_state != 'NEUTRAL'
+                and current_state == target_state
+                and (1 + len(extra_positions)) < max_concurrent
+                and account_balance > 0  # ✅ R58 — لا مراكز إضافية بحساب مفلس
+            ):
+                _x_entry = open_price
+                _x_time = current_time
+                _x_risk = account_balance * _risk_frac  # ✅ R58 — دلالة موحّدة
+                _x_size = _x_risk / _x_entry if _x_entry else 0.0
+                _x_sl = 0.0
+                _x_tp = 0.0
+                if sl_active and sl_frac is not None:
+                    _x_off = _x_entry * sl_frac
+                    _x_sl = _x_entry - _x_off if target_state == 'LONG' else _x_entry + _x_off
+                if tp_active and tp_frac is not None:
+                    _x_off = _x_entry * tp_frac
+                    _x_tp = _x_entry + _x_off if target_state == 'LONG' else _x_entry - _x_off
+                _x_id = str(uuid.uuid4())
+                _x_trade = Trade(
+                    id=_x_id,
+                    symbol=symbol,
+                    entry_time=_x_time,
+                    exit_time=None,
+                    entry_price=_x_entry,
+                    exit_price=None,
+                    position_type='long' if target_state == 'LONG' else 'short',
+                    position_size=_x_size,
+                    pnl=None,
+                    pnl_percentage=None,
+                    commission=0.0,
+                    slippage=0.0,
+                    stop_loss=_x_sl if sl_active else None,
+                    take_profit=_x_tp if tp_active else None,
+                    exit_reason=None,
+                    direction='long' if target_state == 'LONG' else 'short',
+                    fill_entry=fill_model_str,
+                    fill_exit=fill_model_str,
+                    metadata={
+                        'strategy': config.strategy_config.get('name', 'Unknown') if config.strategy_config else 'Unknown',
+                        'decision_reason': executed_decision.reason if executed_decision else None,
+                        'confidence': executed_decision.confidence if executed_decision else None,
+                        'position_kind': 'additional',
+                        'risk_reward_ratio': 0.0,
+                    },
+                )
+                trades.append(_x_trade)
+                extra_positions.append({
+                    'trade_id': _x_id,
+                    'trade': _x_trade,
+                    'direction': target_state,
+                    'entry_price': _x_entry,
+                    'entry_time': _x_time,
+                    'position_size': _x_size,
+                    'sl_price': _x_sl,
+                    'tp_price': _x_tp,
+                    'trail_peak': _x_entry,  # قمة التريلينق تبدأ من سعر الدخول
+                })
+                _open_now = (1 if current_state != 'NEUTRAL' else 0) + len(extra_positions)
+                if _open_now > max_open_observed:
+                    max_open_observed = _open_now
+                extra_entries_bar.append({
+                    "timestamp": current_time,
+                    "type": "entry",
+                    "trade_id": _x_id,
+                    "price": float(_x_entry),
+                    "position_type": target_state.lower(),
+                    "position_size": float(_x_size),
+                    "entry_price": float(_x_entry),
+                    "stop_loss": float(_x_sl) if (sl_active and _x_sl) else None,
+                    "take_profit": float(_x_tp) if (tp_active and _x_tp) else None,
+                    "decision_reason": executed_decision.reason if executed_decision else None,
+                    "confidence": executed_decision.confidence if executed_decision else None,
+                    "account_balance_before": account_balance,
+                    "commission": 0.0,
+                    "fill_entry": fill_model_str,
+                    "direction": target_state.lower(),
+                    "symbol": symbol,
+                    "position_kind": "additional",
+                })
+
             # ==========================================================
             # المرحلة 2: إدارة المخاطر (SL/TP) - داخل الشمعة
             # ==========================================================
@@ -515,27 +941,49 @@ class BacktestEngine:
             if current_state != 'NEUTRAL':
                 stop_hit = False
                 take_profit_hit = False
+                trail_hit = False  # ✅ R55 — خروج التريلينق من الجذر
                 
-                if current_state == 'LONG':
-                    if low_price <= sl_price:
+                # ✅ R55 — التريلينق من الجذر (يلغي SL/TP عند تفعيله — نفس
+                # دلالات محرك الخروج الموحد): القمة تبدأ من سعر الدخول، كل
+                # قمة شمعة أعلى ترفع السقف (لا ينخفض أبداً)، وهبوط إغلاق
+                # الشمعة بنسبة التريلينق من أعلى قمة يغلق المركز كاملاً
+                # عند سعر ذلك الإغلاق (reason = "Trailing Stop").
+                if trail_active and trail_frac is not None:
+                    if current_state == 'LONG':
+                        if high_price > trail_peak:
+                            trail_peak = high_price
+                        if close_price <= trail_peak * (1.0 - trail_frac):
+                            exit_price = close_price
+                            exit_reason = "Trailing Stop"
+                            trail_hit = True
+                    elif current_state == 'SHORT':
+                        if low_price < trail_peak:
+                            trail_peak = low_price
+                        if close_price >= trail_peak * (1.0 + trail_frac):
+                            exit_price = close_price
+                            exit_reason = "Trailing Stop"
+                            trail_hit = True
+                
+                if not trail_hit and current_state == 'LONG':
+                    if sl_active and low_price <= sl_price:
                         exit_price = sl_price
                         exit_reason = "Stop Loss Hit"
                         stop_hit = True
-                    elif high_price >= tp_price:
+                    elif tp_active and high_price >= tp_price:
                         exit_price = tp_price
                         exit_reason = "Take Profit Hit"
                         take_profit_hit = True
-                elif current_state == 'SHORT':
-                    if high_price >= sl_price:
+                elif not trail_hit and current_state == 'SHORT':
+                    if sl_active and high_price >= sl_price:
                         exit_price = sl_price
                         exit_reason = "Stop Loss Hit"
                         stop_hit = True
-                    elif low_price <= tp_price:
+                    elif tp_active and low_price <= tp_price:
                         exit_price = tp_price
                         exit_reason = "Take Profit Hit"
                         take_profit_hit = True
                 
-                if stop_hit or take_profit_hit:
+                if stop_hit or take_profit_hit or trail_hit:
                     if current_state == 'LONG':
                         pnl = (exit_price - entry_price) * position_size
                     else:
@@ -573,10 +1021,82 @@ class BacktestEngine:
                     position_size = 0.0
                     sl_price = 0.0
                     tp_price = 0.0
+                    trail_peak = 0.0  # ✅ R55
                     
                     # ✅ تمت إزالة 'continue' للسماح بتسجيل البيانات البصرية للشمعة الحالية
                     # إذا أردت منع فتح صفقة جديدة في نفس الشمعة بعد إغلاق، يمكن إضافة flag هنا.
                     pending_decision = None
+
+            # ✅ R55 — إدارة مخاطر المراكز الإضافية (مستقلة لكل مركز):
+            # كل مركز إضافي يُدار بسل/تيبي/تريلينق خاصة به — خروج أحدها لا
+            # يمس الآخرين ولا المركز الأساسي (استقلال كامل كما طلب المستخدم).
+            for _xp in list(extra_positions):
+                _x_exit = None
+                _x_reason = None
+                if _xp['direction'] == 'LONG':
+                    if trail_active and trail_frac is not None:
+                        if high_price > _xp['trail_peak']:
+                            _xp['trail_peak'] = high_price
+                        if close_price <= _xp['trail_peak'] * (1.0 - trail_frac):
+                            _x_exit = close_price
+                            _x_reason = "Trailing Stop (additional position)"
+                    if _x_exit is None and sl_active and low_price <= _xp['sl_price']:
+                        _x_exit = _xp['sl_price']
+                        _x_reason = "Stop Loss Hit (additional position)"
+                    if _x_exit is None and tp_active and high_price >= _xp['tp_price']:
+                        _x_exit = _xp['tp_price']
+                        _x_reason = "Take Profit Hit (additional position)"
+                else:  # SHORT
+                    if trail_active and trail_frac is not None:
+                        if low_price < _xp['trail_peak']:
+                            _xp['trail_peak'] = low_price
+                        if close_price >= _xp['trail_peak'] * (1.0 + trail_frac):
+                            _x_exit = close_price
+                            _x_reason = "Trailing Stop (additional position)"
+                    if _x_exit is None and sl_active and high_price >= _xp['sl_price']:
+                        _x_exit = _xp['sl_price']
+                        _x_reason = "Stop Loss Hit (additional position)"
+                    if _x_exit is None and tp_active and low_price <= _xp['tp_price']:
+                        _x_exit = _xp['tp_price']
+                        _x_reason = "Take Profit Hit (additional position)"
+
+                if _x_exit is not None:
+                    _x_size = _xp['position_size']
+                    if _xp['direction'] == 'LONG':
+                        _x_pnl = (_x_exit - _xp['entry_price']) * _x_size
+                    else:
+                        _x_pnl = (_xp['entry_price'] - _x_exit) * _x_size
+                    _x_inv = _xp['entry_price'] * _x_size
+                    _x_pct = (_x_pnl / _x_inv) * 100 if _x_inv else 0
+                    _net_x = self._close_trade_logic(
+                        trades, _xp['trade_id'], _x_exit, current_time,
+                        _x_reason, _x_pnl, _x_pct, config,
+                    )
+                    account_balance += _net_x
+                    cumulative_pnl += _net_x
+                    equity_curve.append(account_balance)
+                    extra_exits_bar.append({
+                        "timestamp": current_time,
+                        "type": "exit",
+                        "trade_id": _xp['trade_id'],
+                        "price": float(_x_exit),
+                        "exit_price": float(_x_exit),
+                        "exit_reason": _x_reason,
+                        "pnl": float(_net_x),
+                        "pnl_percentage": float(_x_pct),
+                        "entry_price": float(_xp['entry_price']),
+                        "position_size": float(_x_size),
+                        "position_type": _xp['direction'].lower(),
+                        "stop_loss": float(_xp['sl_price']) if _xp['sl_price'] else None,
+                        "take_profit": float(_xp['tp_price']) if _xp['tp_price'] else None,
+                        "commission": 0.0,
+                        "fill_entry": fill_model_str,
+                        "fill_exit": fill_model_str,
+                        "direction": _xp['direction'].lower(),
+                        "symbol": symbol,
+                        "position_kind": "additional",
+                    })
+                    extra_positions.remove(_xp)
 
             # ==========================================================
             # المرحلة 3: التحليل (Strategy Analysis)
@@ -681,21 +1201,65 @@ class BacktestEngine:
                     position_size = 0.0
                     sl_price = 0.0
                     tp_price = 0.0
+                    trail_peak = 0.0  # ✅ R55
 
-                if target_state_sc != 'NEUTRAL' and current_state == 'NEUTRAL':
+                    # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً (مسار signal_close)
+                    _x_reason_root = f"{exit_reason} (additional position)"
+                    for _xp in list(extra_positions):
+                        _x_size = _xp['position_size']
+                        if _xp['direction'] == 'LONG':
+                            _x_pnl = (execution_price_sc - _xp['entry_price']) * _x_size
+                        else:
+                            _x_pnl = (_xp['entry_price'] - execution_price_sc) * _x_size
+                        _x_inv = _xp['entry_price'] * _x_size
+                        _x_pct = (_x_pnl / _x_inv) * 100 if _x_inv else 0
+                        _net_x = self._close_trade_logic(
+                            trades, _xp['trade_id'], execution_price_sc, current_time,
+                            _x_reason_root, _x_pnl, _x_pct, config,
+                        )
+                        account_balance += _net_x
+                        cumulative_pnl += _net_x
+                        equity_curve.append(account_balance)
+                        extra_exits_bar.append({
+                            "timestamp": current_time,
+                            "type": "exit",
+                            "trade_id": _xp['trade_id'],
+                            "price": float(execution_price_sc),
+                            "exit_price": float(execution_price_sc),
+                            "exit_reason": _x_reason_root,
+                            "pnl": float(_net_x),
+                            "pnl_percentage": float(_x_pct),
+                            "entry_price": float(_xp['entry_price']),
+                            "position_size": float(_x_size),
+                            "position_type": _xp['direction'].lower(),
+                            "stop_loss": float(_xp['sl_price']) if _xp['sl_price'] else None,
+                            "take_profit": float(_xp['tp_price']) if _xp['tp_price'] else None,
+                            "commission": 0.0,
+                            "fill_entry": fill_model_str,
+                            "fill_exit": fill_model_str,
+                            "direction": _xp['direction'].lower(),
+                            "symbol": symbol,
+                            "position_kind": "additional",
+                        })
+                        extra_positions.remove(_xp)
+
+                if target_state_sc != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:  # ✅ R58
                     entry_price = fill_price_sc
                     entry_time = current_time
 
-                    risk_amount_sc = account_balance * config.position_size_percent
+                    risk_amount_sc = account_balance * _risk_frac  # ✅ R58 — دلالة موحّدة
                     position_size = risk_amount_sc / entry_price if entry_price else 0.0
 
-                    if config.stop_loss_percent:
-                        sl_offset_sc = entry_price * (config.stop_loss_percent / 100)
+                    if sl_active and sl_frac is not None:
+                        sl_offset_sc = entry_price * sl_frac
                         sl_price = entry_price - sl_offset_sc if target_state_sc == 'LONG' else entry_price + sl_offset_sc
 
-                    if config.take_profit_percent:
-                        tp_offset_sc = entry_price * (config.take_profit_percent / 100)
+                    if tp_active and tp_frac is not None:
+                        tp_offset_sc = entry_price * tp_frac
                         tp_price = entry_price + tp_offset_sc if target_state_sc == 'LONG' else entry_price - tp_offset_sc
+
+                    # ✅ R55 — قمة التريلينق تبدأ من سعر تنفيذ الدخول
+                    trail_peak = entry_price
 
                     current_state = target_state_sc
                     trade_id = str(uuid.uuid4())
@@ -725,8 +1289,8 @@ class BacktestEngine:
                         pnl_percentage=None,
                         commission=0.0,
                         slippage=0.0,
-                        stop_loss=sl_price if config.stop_loss_percent else None,
-                        take_profit=tp_price if config.take_profit_percent else None,
+                        stop_loss=sl_price if sl_active else None,
+                        take_profit=tp_price if tp_active else None,
                         exit_reason=None,
                         direction='long' if target_state_sc == 'LONG' else 'short',
                         fill_entry=fill_model_str,
@@ -740,6 +1304,96 @@ class BacktestEngine:
                     )
                     trades.append(trade_sc)
 
+                    # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي — مسار signal_close)
+                    _open_now = 1 + len(extra_positions)
+                    if _open_now > max_open_observed:
+                        max_open_observed = _open_now
+
+                # ✅ R55 — مركز إضافي مستقل (مسار signal_close): إشارة جديدة
+                # بنفس الاتجاه والسعة متاحة ⇒ مركز مستقل بإدارة كاملة.
+                if (
+                    max_concurrent > 1
+                    and not entering_trade
+                    and target_state_sc != 'NEUTRAL'
+                    and current_state == target_state_sc
+                    and (1 + len(extra_positions)) < max_concurrent
+                    and account_balance > 0  # ✅ R58 — لا مراكز إضافية بحساب مفلس
+                ):
+                    _x_entry = fill_price_sc
+                    _x_time = current_time
+                    _x_risk = account_balance * _risk_frac  # ✅ R58 — دلالة موحّدة
+                    _x_size = _x_risk / _x_entry if _x_entry else 0.0
+                    _x_sl = 0.0
+                    _x_tp = 0.0
+                    if sl_active and sl_frac is not None:
+                        _x_off = _x_entry * sl_frac
+                        _x_sl = _x_entry - _x_off if target_state_sc == 'LONG' else _x_entry + _x_off
+                    if tp_active and tp_frac is not None:
+                        _x_off = _x_entry * tp_frac
+                        _x_tp = _x_entry + _x_off if target_state_sc == 'LONG' else _x_entry - _x_off
+                    _x_id = str(uuid.uuid4())
+                    _x_trade = Trade(
+                        id=_x_id,
+                        symbol=symbol,
+                        entry_time=_x_time,
+                        exit_time=None,
+                        entry_price=_x_entry,
+                        exit_price=None,
+                        position_type='long' if target_state_sc == 'LONG' else 'short',
+                        position_size=_x_size,
+                        pnl=None,
+                        pnl_percentage=None,
+                        commission=0.0,
+                        slippage=0.0,
+                        stop_loss=_x_sl if sl_active else None,
+                        take_profit=_x_tp if tp_active else None,
+                        exit_reason=None,
+                        direction='long' if target_state_sc == 'LONG' else 'short',
+                        fill_entry=fill_model_str,
+                        fill_exit=fill_model_str,
+                        metadata={
+                            'strategy': config.strategy_config.get('name', 'Unknown') if config.strategy_config else 'Unknown',
+                            'decision_reason': decision_sc.reason,
+                            'confidence': decision_sc.confidence,
+                            'position_kind': 'additional',
+                            'risk_reward_ratio': 0.0,
+                        },
+                    )
+                    trades.append(_x_trade)
+                    extra_positions.append({
+                        'trade_id': _x_id,
+                        'trade': _x_trade,
+                        'direction': target_state_sc,
+                        'entry_price': _x_entry,
+                        'entry_time': _x_time,
+                        'position_size': _x_size,
+                        'sl_price': _x_sl,
+                        'tp_price': _x_tp,
+                        'trail_peak': _x_entry,
+                    })
+                    _open_now = (1 if current_state != 'NEUTRAL' else 0) + len(extra_positions)
+                    if _open_now > max_open_observed:
+                        max_open_observed = _open_now
+                    extra_entries_bar.append({
+                        "timestamp": current_time,
+                        "type": "entry",
+                        "trade_id": _x_id,
+                        "price": float(_x_entry),
+                        "position_type": target_state_sc.lower(),
+                        "position_size": float(_x_size),
+                        "entry_price": float(_x_entry),
+                        "stop_loss": float(_x_sl) if (sl_active and _x_sl) else None,
+                        "take_profit": float(_x_tp) if (tp_active and _x_tp) else None,
+                        "decision_reason": decision_sc.reason,
+                        "confidence": decision_sc.confidence,
+                        "account_balance_before": account_balance,
+                        "commission": 0.0,
+                        "fill_entry": fill_model_str,
+                        "direction": target_state_sc.lower(),
+                        "symbol": symbol,
+                        "position_kind": "additional",
+                    })
+
                 pending_decision = None
 
 
@@ -751,6 +1405,7 @@ class BacktestEngine:
                 visual_step == 1
                 or (i % visual_step == 0)
                 or entering_trade or exiting_trade
+                or extra_entries_bar or extra_exits_bar  # ✅ R55 — شموع أحداث المراكز الإضافية دائماً مرئية
                 or i == 0 or i == len(data) - 1
             )
             if create_visual:
@@ -825,6 +1480,9 @@ class BacktestEngine:
                 margin_used = 0.0
                 if current_state != 'NEUTRAL':
                     margin_used = (position_size * close_price) / leverage_used
+                # ✅ R55 — هامش المراكز الإضافية
+                for _xp in extra_positions:
+                    margin_used += (_xp['position_size'] * close_price) / leverage_used
             
                 free_margin = current_account_balance - margin_used
                 roi = (cumulative_pnl / config.initial_capital * 100) if config.initial_capital > 0 else 0.0
@@ -961,6 +1619,13 @@ class BacktestEngine:
                         "symbol": symbol,
                     })
             
+                # ✅ R55 — نقاط دخول/خروج المراكز الإضافية لهذه الشمعة
+                # (نفس عقد النقاط + مفتا sl/tp + وسم position_kind)
+                for _xe in extra_entries_bar:
+                    trade_points.append(_xe)
+                for _xx in extra_exits_bar:
+                    trade_points.append(_xx)
+                
                 visual_candles.append(visual_candle)
                 t_visual += time.perf_counter() - t0
                 t_loop += time.perf_counter() - t_loop_start
@@ -1036,8 +1701,148 @@ class BacktestEngine:
                     "symbol": symbol,
                 })
 
+        # ✅ R55 — إغلاق المراكز الإضافية في نهاية البيانات (نفس سعر آخر إغلاق)
+        if extra_positions:
+            _eod_price = data['close'].iloc[-1]
+            _eod_time = data.index[-1]
+            for _xp in list(extra_positions):
+                _x_size = _xp['position_size']
+                if _xp['direction'] == 'LONG':
+                    _x_pnl = (_eod_price - _xp['entry_price']) * _x_size
+                else:
+                    _x_pnl = (_xp['entry_price'] - _eod_price) * _x_size
+                _x_inv = _xp['entry_price'] * _x_size
+                _x_pct = (_x_pnl / _x_inv) * 100 if _x_inv else 0
+                _net_x = self._close_trade_logic(
+                    trades, _xp['trade_id'], _eod_price, _eod_time,
+                    "End of Data", _x_pnl, _x_pct, config,
+                )
+                account_balance += _net_x
+                cumulative_pnl += _net_x
+                equity_curve.append(account_balance)
+                trade_points.append({
+                    "timestamp": _eod_time,
+                    "type": "exit",
+                    "trade_id": _xp['trade_id'],
+                    "price": float(_eod_price),
+                    "exit_price": float(_eod_price),
+                    "exit_reason": "End of Data",
+                    "pnl": float(_net_x),
+                    "pnl_percentage": float(_x_pct),
+                    "entry_price": float(_xp['entry_price']),
+                    "position_size": float(_x_size),
+                    "position_type": _xp['direction'].lower(),
+                    "stop_loss": float(_xp['sl_price']) if _xp['sl_price'] else None,
+                    "take_profit": float(_xp['tp_price']) if _xp['tp_price'] else None,
+                    "commission": 0.0,
+                    "fill_entry": fill_model_str,
+                    "fill_exit": fill_model_str,
+                    "direction": _xp['direction'].lower(),
+                    "symbol": symbol,
+                    "position_kind": "additional",
+                })
+                extra_positions.remove(_xp)
+
+        # ✅ R58 — أرضية الواقع المالي (ختامية): إغلاق نهاية البيانات قد يترك
+        # الرصيد سالباً حسابياً بعد خسائر متزامنة — لا يمكن للحساب أن يخسر أكثر
+        # من رأس ماله: نثبّته عند صفر ونقطع منحنى الرصيد عند الصفر
+        # (الخسارة القصوى الممكنة = -100% مهما كانت الأحجام أو التزامن).
+        if account_balance < 0:
+            account_blown = True
+            _liquidation_truncated = -account_balance
+            account_balance = 0.0
+        if account_blown:
+            equity_curve[:] = [max(0.0, float(v)) for v in equity_curve]
+
         return trades, equity_curve, visual_candles, trade_points
 
+
+    def _build_risk_echo(self, config: BacktestConfig, trades: List[Trade]) -> Dict[str, Any]:
+        """✅ R55 — صدى سياسة المخاطر المطبّقة فعلاً (نفس منطق المحاكاة حرفياً).
+
+        يُبنى من الكونفيق النظيف: الحقول غير المُرسلة = null = معطّلة،
+        SL=0/100 = تعطيل، التريلينق يُلغي SL/TP عند تفعيله، والسقف الرقمي
+        max_positions يُطبَّق في المحركين. يُحقن في math_audit ليصل للفرونت
+        والمكتبة — انتهى عصر الافتراضات المخفية (5/10/2 غصباً).
+        """
+        _sl = config.stop_loss_percent
+        _tp = config.take_profit_percent
+        _tr = config.trailing_stop_percent
+        sl_active = _sl is not None and 0.0 < float(_sl) < 100.0
+        tp_active = _tp is not None and float(_tp) > 0.0
+        trail_active = _tr is not None and float(_tr) > 0.0
+        if trail_active:
+            sl_active = False
+            tp_active = False
+        # أقصى تزامن ملحوظ من فترات الصفقات المتداخلة (إن وُجدت)
+        _max_open = 0
+        try:
+            _events = []
+            for tr in trades:
+                _events.append((tr.entry_time, 1))
+                if tr.exit_time is not None:
+                    _events.append((tr.exit_time, -1))
+            _events.sort(key=lambda e: (e[0] is None, e[0]))
+            _cur = 0
+            for _, d in _events:
+                _cur += d
+                if _cur > _max_open:
+                    _max_open = _cur
+        except Exception:  # noqa: BLE001 — الإحصاء غير حرج
+            _max_open = 0
+        return {
+            "stop_loss_percent": float(_sl) if _sl is not None else None,
+            "stop_loss_active": bool(sl_active),
+            "take_profit_percent": float(_tp) if _tp is not None else None,
+            "take_profit_active": bool(tp_active),
+            "trailing_stop_percent": float(_tr) if _tr is not None else None,
+            "trailing_active": bool(trail_active),
+            "trailing_cancels_sl_tp": bool(trail_active),
+            "max_positions_requested": int(config.max_positions) if config.max_positions is not None else None,
+            "max_concurrent_applied": (
+                _multi_position_compounding_enabled(config)
+                if _multi_position_compounding_enabled(config) is not None
+                else (
+                    1 if _compounding_enabled(config)
+                    else (int(config.max_positions) if (config.max_positions or 0) > 1 else 1)
+                )
+            ),
+            "max_open_positions_observed": int(_max_open),
+            "additional_positions_trades": sum(
+                1 for tr in trades
+                if isinstance(getattr(tr, "metadata", None), dict)
+                and tr.metadata.get("position_kind") == "additional"
+            ),
+            # ✅ R58 — شفافية الحجم والتصفية (نهاية عصر الالتباس 1% ↔ 100%):
+            # ما استلمه المحرك، وما طبّقه فعلاً ككسر من الرصيد، وهل صُفّي الحساب.
+            "position_sizing_mode": str(getattr(config, "position_sizing", "") or ""),
+            "position_size_percent_input": (
+                float(config.position_size_percent)
+                if config.position_size_percent is not None else None
+            ),
+            "position_fraction_applied": _resolve_risk_fraction(config),
+            "position_size_semantics": (
+                (
+                    f"R62: كل مركز جديد = الرصيد الجاري ÷ {_multi_position_compounding_enabled(config)} "
+                    "+ حتى N مراكز متزامنة (الحجم يتجدد بعد كل إقفال)"
+                    if _multi_position_compounding_enabled(config) is not None
+                    else None
+                )
+                or (
+                    "R60: compounding ⇒ 100% من الرصيد الجاري في كل صفقة + مركز واحد فقط"
+                    if _compounding_enabled(config)
+                    else "R58: percentage ⇒ نسبة مئوية (1 = 1%)؛ غير ذلك كسر تاريخي (1.0 = 100%)"
+                )
+            ),
+            # ✅ R60 — صدى وضع التراكم في effective_config (يصل للفرونت والمكتبة)
+            "compounding": _compounding_enabled(config),
+            # ✅ R62 — صدى وضع المراكز المتعددة التراكمية (يصل للفرونت والمكتبة)
+            "multi_position_compounding": _multi_position_compounding_enabled(config) is not None,
+            "multi_position_slots": _multi_position_compounding_enabled(config),
+            "account_liquidated": any(
+                (tr.exit_reason or "").startswith("Liquidation") for tr in trades
+            ),
+        }
 
     def _convert_to_serializable(self, obj):
         """تحويل الكائنات إلى صيغة قابلة للتسلسل (لـ JSON)"""
@@ -1187,10 +1992,24 @@ class BacktestEngine:
             except Exception:
                 logger.exception("math_audit: فحص صفقة فشل — تجاهل")
         total_pnl_matches = bool(abs(total_pnl - sum_pnl) <= 0.01)
-        if not total_pnl_matches:
+        # ✅ R58 — التصفية القسرية تقطع خسائر الصفقات عند رأس المال المتاح:
+        # الفرق بين مجموع pnl الخام و total_pnl المحدود هو «المقطوع» — متوقع
+        # وموثق، ليس خطأ حسابياً.
+        _r58_liquidated = bool(
+            equity_curve and float(equity_curve[-1]) <= 0.0
+        ) or any(
+            (tr.exit_reason or "").startswith("Liquidation") for tr in trades
+        )
+        if not total_pnl_matches and not _r58_liquidated:
             logger.warning(
                 "math_audit: total_pnl (%.6f) != مجموع pnl الصفقات (%.6f)",
                 total_pnl, sum_pnl,
+            )
+        elif not total_pnl_matches and _r58_liquidated:
+            logger.info(
+                "math_audit: تباقط تصفية متوقع (R58) — الرصيد ثُبّت عند صفر "
+                "والمقطوع %.6f موثق في liquidation_truncated",
+                sum_pnl - total_pnl,
             )
         math_audit = {
             "checked_trades": checked,
@@ -1210,6 +2029,15 @@ class BacktestEngine:
                 "float64": True,
                 "rounded_fields": [],
             },
+            # ✅ R55 — صدى سياسة المخاطر المطبّقة فعلاً + إحصاء التزامن:
+            # شفافية كاملة (ما طُبّق من SL/TP/تريلينق/سقف مراكز ومن القيم)
+            "risk_echo": self._build_risk_echo(config, trades),
+            # ✅ R58 — أرضية الواقع المالي: هل صُفّي الحساب (رصيد ≤ 0)؟
+            "account_liquidated": _r58_liquidated,
+            # ✅ R58 — مقدار الخسارة المقطوعة عند التصفية (صفر إن لم تُصفَّ)
+            "liquidation_truncated": (
+                max(0.0, sum_pnl - total_pnl) if _r58_liquidated else 0.0
+            ),
         }
         
         # 3. حساب منحنى الانخفاض
@@ -1331,6 +2159,8 @@ class BacktestEngine:
             fees_applied=float(fees_applied),
             fill_model=str(getattr(config, "fill_model", "next_open") or "next_open"),
             math_audit=math_audit,
+            # ✅ R55 — صدى إعدادات المخاطر المطبّقة فعلاً (نفس risk_echo)
+            effective_config=dict(math_audit.get("risk_echo") or {}),
         )
 
 
