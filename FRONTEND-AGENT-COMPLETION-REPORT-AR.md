@@ -27,7 +27,7 @@
 ### 2.1 المسار والطلب
 ```
 GET /api/v1/backtest/{id}/chart-data?include_indicators=true&overlays=zzfib,zzfib_e2e,zzfib_e2e_trendy,trend_fractal
-```
+``` 
 - الافتراضي (بلا `overlays=`): `zzfib,fib,zzfib_e2e` — **مرر الأنواع الأخرى صراحة** إذا أردت رسم النطاق/الترندات (نفس ج32).
 - `overlays=none` يعطلها (سقف 50,000 شمعة).
 
