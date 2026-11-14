@@ -1,0 +1,140 @@
+{
+ "generated": "2026-11-14",
+ "backend": "http://161.97.73.254:8000",
+ "champion_configs_fetched": {
+  "10000265": {
+   "uuid": "b56fdbd1-fd20-4351-b2c1-ead0fb925e15",
+   "name": "الملتهبة🔥 · S|N5 (بلا قاعدة N6) · نافذة البطل NL2K",
+   "ref": "64 trades / +1638.16% / WR 98.4%"
+  },
+  "10000233": {
+   "uuid": "cf9c69d1-2fd1-449a-a718-afcd8623398e",
+   "name": "NL2K·ماكس1·هدف4.7·بطل-التراكم",
+   "ref": "63 trades / +1651.25% / WR 100%"
+  }
+ },
+ "live_runs": [
+  {
+   "task": 10000283,
+   "label": "A ترندية ماكدية (بوابة أي حالة · 67)",
+   "outcome": "SIGKILL OOM (توازٍ)"
+  },
+  {
+   "task": 10000284,
+   "label": "B ملتهبة ماكدية S|N5 (بوابة أي حالة · 67)",
+   "outcome": "SIGKILL OOM (توازٍ)"
+  },
+  {
+   "task": 10000285,
+   "label": "C ترندية ماكدية (بوابة RSI · 67)",
+   "outcome": "SIGKILL OOM (تزامن ثلاثي)"
+  },
+  {
+   "task": 10000286,
+   "label": "D ملتهبة ماكدية S|N5 (بوابة RSI · 67) — كامل نافذة البطل",
+   "outcome": "done · 25min",
+   "result": {
+    "trades": 54,
+    "pnl_pct": 998.054189856173,
+    "wr": 98.15
+   },
+   "backtest_id": "8d52a695-f9bc-4c55-b9be-d98b2b2ba6cc",
+   "columns_returned": 257,
+   "warmup_blocked_trades": 11
+  },
+  {
+   "task": 10000287,
+   "label": "(من الواجهة — ليست من هذه الجلسة)",
+   "outcome": "done · 0 trades (نافذة صغيرة)"
+  },
+  {
+   "task": 10000288,
+   "label": "A-retry (67)",
+   "outcome": "SIGKILL OOM"
+  },
+  {
+   "task": 10000289,
+   "label": "D2 خفيفة (7 نسخ) متوازية مع C2",
+   "outcome": "SIGKILL OOM (توازٍ)"
+  },
+  {
+   "task": 10000290,
+   "label": "C2 خفيفة (7 نسخ) متوازية مع D2",
+   "outcome": "SIGKILL OOM (توازٍ)"
+  },
+  {
+   "task": 10000291,
+   "label": "D2 خفيفة تسلسلية",
+   "outcome": "SIGKILL OOM (ضغط خارجي على السيرفر)"
+  },
+  {
+   "task": 10000292,
+   "label": "D2-final خفيفة تسلسلية (سيرفر خالٍ)",
+   "outcome": "SIGKILL OOM (حالة الذاكرة المتدهورة للسيرفر خلال الجلسة)"
+  },
+  {
+   "task": 10000293,
+   "label": "D2-short: القالب الخفيف R74 (7 نسخ RSI) على نافذة 6 أشهر (2026-05→11)",
+   "outcome": "done · 354s",
+   "result": {
+    "trades": 7,
+    "pnl_pct": 1.2498056788569158,
+    "wr": 85.71
+   },
+   "backtest_id": "d4b90b65-61d6-4fcc-a575-e306d9d47105",
+   "columns_returned": 91,
+   "osc_columns": 29,
+   "note": "برهان حي: القالب الخفيف يعمل على الباك اند المنشور ويرجع كل البيانات — نتيجتها قبل إصلاح الإحماء (أول 15 أسبوعًا من النافذة محجوبة زورًا بالإصدار الحالي غير المصلَّح)"
+  }
+ ],
+ "warmup_bug_proof": {
+  "blocked_trades_live": "كلها في 2023-10-16 → 2023-10-25 (أول 10 أيام — نمط إحماء)",
+  "fixed_local_proof": "صفر من 64 محجوب → 64 صفقة/+1638.16% بت-بت",
+  "horizon_bars": 151199,
+  "horizon_pct": 22.7
+ },
+ "bear_warm_correction": {
+  "window": "2025-01-20 → 2025-04-20 (SOL 250.5 → 137.9)",
+  "identity": {
+   "trades": 7,
+   "pnl": -49.95,
+   "mdd": 56.4
+  },
+  "rsi_gate_warm": {
+   "trades": 5,
+   "pnl": -50.42,
+   "mdd": 56.8
+  },
+  "macd_gate_warm": {
+   "trades": 7,
+   "pnl": -49.95,
+   "mdd": 56.4
+  },
+  "conclusion": "البوابات الكلية لا تحمي ببيانات دافئة — نتائج PRO73-AB السابقة كانت أثر إحماء"
+ },
+ "data_return_proof": {
+  "engine": "zigzag_fib_e2e_blazing_macd",
+  "columns_per_candle": 257,
+  "families": [
+   "zzfbm zigzag",
+   "fib 8 levels",
+   "liquidity",
+   "signals 4-layers x5 types",
+   "trend 7/15/25",
+   "osc series"
+  ]
+ },
+ "light_preset_live_proof": {
+  "task": 10000293,
+  "window": "2026-05-01 → 2026-11-01",
+  "trades": 7,
+  "pnl_pct": 1.2498,
+  "wr": 85.71,
+  "duration_s": 354,
+  "columns": {
+   "total_ind": 91,
+   "osc": 29,
+   "engine": "zigzag_fib_e2e_blazing_macd"
+  }
+ }
+}

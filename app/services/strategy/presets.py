@@ -28,7 +28,9 @@ from typing import Any, Dict, List
 
 __all__ = ["CHAMPION_ZIGZAG_HL_V2", "ZLF_TRIPLE_SIGNAL", "ZLF_E2E_TRIPLE_SIGNAL",
            "ZLF_E2E_TRENDY_TRIPLE_SIGNAL", "ZLF_E2E_BLAZING_QUINT_SIGNAL",
-           "TRENDY_MACDIZED", "BLAZING_MACDIZED", "get_presets", "PRESET_NOTES"]
+           "TRENDY_MACDIZED", "BLAZING_MACDIZED",
+           "TRENDY_MACDIZED_RSI_LIGHT", "BLAZING_MACDIZED_RSI_LIGHT",
+           "RSI_LIGHT_INSTANCES", "get_presets", "PRESET_NOTES"]
 
 
 CHAMPION_ZIGZAG_HL_V2: Dict[str, Any] = {
@@ -1075,6 +1077,77 @@ BLAZING_MACDIZED: Dict[str, Any] = {
 }
 
 
+# =============================================================================
+# ✅ PRO74 — قالبا «الخفيفة» (تسليم 2026-11-14): نفس المحركين الماكديين
+#    ببوابة RSI (rsi_any — حالات الآر إس آي بنص المالك) وسبع نسخ RSI فقط
+#    (1h/4h/1d/2d/3d/1w بمعاملات المستند) — ذاكرة أقل بكثير، تشغيل النوافذ
+#    الكاملة (665,099 شمعة) بلا SIGKILL، مع حياد الإحماء (PRO74 في
+#    mtf_oscillator_core): قبل جاهزية كل أوراق الشجرة البوابة مفتوحة — لا
+#    يُحجب دخول بحكم موشرٍ لم تتوفر بياناته بعد.
+#
+#    البرهان (نافذة البطل #10000265 — ملتهبة S|N5 · 64 صفقة/+1638.16%):
+#    القالب الخفيف المصلَّح يحفظ البطل تامًا (صفر من 64 إشارة محجوبة) في
+#    حين كانت النسخة غير المصلَّحة تحجب 11 صفقة زورًا (إحماء) → +998.05%.
+# =============================================================================
+def _osc_refs(tree: Any, acc: Any = None) -> set:
+    if acc is None:
+        acc = set()
+    if isinstance(tree, dict):
+        for k in ("left", "right"):
+            v = tree.get(k)
+            if isinstance(v, str) and v.startswith("osc:"):
+                acc.add(v.split(":")[1].split(".")[0])
+        for c in (tree.get("conditions") or []):
+            _osc_refs(c, acc)
+    return acc
+
+
+from app.services.indicators.osc_cases import RSI_ANY as _RSI_ANY_GATE  # noqa: E402
+
+_RSI_LIGHT_IDS = _osc_refs(_RSI_ANY_GATE)
+RSI_LIGHT_INSTANCES: List[Dict[str, Any]] = [
+    inst for inst in OSC_INSTANCES_TEMPLATE if inst.get("id") in _RSI_LIGHT_IDS
+]
+
+
+def _macdized_light_payload(base: Dict[str, Any], *, gate_tag: str, rule_tag: str) -> Dict[str, Any]:
+    """بناء قالب خفيف من قالب ماكدي كامل: 7 نسخ RSI + بوابة rsi_any + تسمية R74."""
+    import copy as _copy
+    out = _copy.deepcopy(base)
+    sc = out["strategy_config"]
+    sc["name"] = f"{rule_tag} (R74 — خفيفة: 7 نسخ RSI + بوابة الحالات + حياد الإحماء)"
+    ind = sc["indicators"][0]
+    ind["params"]["osc_instances"] = RSI_LIGHT_INSTANCES
+    ind["params"]["osc_conditions"] = _RSI_ANY_GATE
+    for r in sc.get("entry_rules", []):
+        if isinstance(r.get("name"), str) and "·" in r["name"]:
+            r["name"] = f"{rule_tag} R74 · {r['name'].split('·', 1)[-1].strip()}"
+    for r in sc.get("exit_rules", []):
+        if isinstance(r.get("name"), str):
+            r["name"] = f"{rule_tag} R74 · {r['name']}"
+    out["name"] = f"{gate_tag} — ZERO FEE · R74 خفيفة"
+    out["description"] = (
+        "PRO74 — نسخة الذاكرة الخفيفة من الماكدية: نفس المحرك بت-بت لكن بسبع نسخ RSI "
+        "فقط (1h/4h/1d/2d/3d/1w بمعاملات المستند) وبوابة «حالات الآر إس آي» (rsi_any) — "
+        "تشغّل النوافذ الكاملة (665 ألف شمعة) بلا قتل OOM، وتحفظ نتيجة البطل بت-بت مع "
+        "حياد الإحماء (لا حجب قبل جاهزية بيانات الشجرة). تبديل البوابة أو إضافة نسخ "
+        "من الفرونت إند بنقرة."
+    )
+    return out
+
+
+TRENDY_MACDIZED_RSI_LIGHT: Dict[str, Any] = _macdized_light_payload(
+    TRENDY_MACDIZED,
+    gate_tag="Trendy-MACDized-RSI-Light · الترندية الماكدية الخفيفة",
+    rule_tag="Trendy-MACD-RSI",
+)
+BLAZING_MACDIZED_RSI_LIGHT: Dict[str, Any] = _macdized_light_payload(
+    BLAZING_MACDIZED,
+    gate_tag="Blazing-MACDized-RSI-Light · الملتهبة الماكدية الخفيفة",
+    rule_tag="Blazing-MACD-RSI",
+)
+
+
 PRESET_NOTES: List[str] = [
     "✅ R58 — وضع percentage: القيمة نسبة مئوية حقيقية (1 = 1%، 100 = رأس مال كامل). الوضع fixed يبقى كسراً تاريخياً (1.0 = 100%).",
     "الشكل الصحيح للدمج المنطقي: {\"type\": \"and\", \"conditions\": [...]} — وليس {\"type\":\"composite\",\"logic\":\"and\"}؛ "
@@ -1234,6 +1307,37 @@ def get_presets() -> List[Dict[str, Any]]:
                       "المرجعة كاملة مع الجديدة»",
             "reference_result": "يُعاد التحقق منه حياً بعد النشر — عقد Zero-Fee/الدقة لم يُلمس",
             "payload": BLAZING_MACDIZED,
+            "notes": PRESET_NOTES,
+        },
+        # ✅ PRO74 — «الترندية الماكدية الخفيفة» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "trendy_macdized_rsi_light_zero_fee",
+            "title": "Trendy-MACDized-RSI-Light — الترندية الماكدية الخفيفة (R74) — ZERO FEE",
+            "description": "PRO74: نفس محرك الترندية الماكدية بت-بت لكن بسبع نسخ RSI فقط (بوابة "
+                           "حالات الآر إس آي rsi_any) — ذاكرة آمنة للنوافذ الكاملة (665 ألف شمعة) "
+                           "بلا قتل OOM + حياد الإحماء (لا حجب قبل جاهزية بيانات الشجرة). "
+                           "البرهان على نافذة البطل: حفظ تام لكل الصفقات (صفر محجوبة) مقابل "
+                           "11 محجوبة زورًا في النسخة غير المصلّحة.",
+            "source": "PRO74 — تسليم 2026-11-14: اختبار مباشر على الباك اند الحي "
+                      "(161.97.73.254:8000) لتكويني البطل #10000233/#10000265 كشف قتل OOM "
+                      "للنسخ الكاملة المتوازية وعيب إحماء البوابة — فأُصلحا",
+            "reference_result": "نافذة البطل (SOLUSDT · 1m · 665,099 شمعة): بوابة RSI المصلّحة "
+                                "لا تحجب أي إشارة من إشارات البطل (حفظ تام بت-بت)",
+            "payload": TRENDY_MACDIZED_RSI_LIGHT,
+            "notes": PRESET_NOTES,
+        },
+        # 🔥 PRO74 — «الملتهبة الماكدية الخفيفة» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "blazing_macdized_rsi_light_zero_fee",
+            "title": "Blazing-MACDized-RSI-Light — الملتهبة الماكدية الخفيفة (R74) — ZERO FEE",
+            "description": "PRO74: نفس محرك الملتهبة الماكدية بت-بت (S1/S2/S3+N5/N6) لكن بسبع "
+                           "نسخ RSI فقط (بوابة rsi_any) — ذاكرة آمنة للنوافذ الكاملة + حياد "
+                           "الإحماء. تُرجع كل بيانات الملتهبة (256 عمودًا: زقزاق/فيبو 8 مستويات/"
+                           "سيولة/إشارات بطبقاتها الأربع/ترند 7-15-25) + سلاسل RSI السبع بحقولها الأربعة.",
+            "source": "PRO74 — تسليم 2026-11-14 (نفس جلسة الاختبار الحي)",
+            "reference_result": "تشغيل حي فعلي على الباك اند المنشور (المهمة 10000286→8d52a695): "
+                                "اكتملت على كامل نافذة البطل وأرجعت 256 عمودًا لكل شمعة",
+            "payload": BLAZING_MACDIZED_RSI_LIGHT,
             "notes": PRESET_NOTES,
         },
     ]

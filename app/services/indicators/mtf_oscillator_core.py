@@ -870,6 +870,70 @@ def _np_from_jsonable(vals: List[Optional[float]], N: int) -> np.ndarray:
     return arr[:N]
 
 
+def _first_valid_index(arr: Any, n: int) -> int:
+    """أول شريط تظهر فيه قيمة صالحة (finite) بالسلسلة — n إن لم تظهر أبداً."""
+    try:
+        a = np.asarray(arr, dtype=np.float64)
+    except Exception:
+        return 0
+    if a.size == 0:
+        return 0
+    fin = np.isfinite(a)
+    if not bool(fin.any()):
+        return int(n)
+    return int(np.argmax(fin))
+
+
+def _warmup_neutral_horizon(
+    tree: Optional[Dict[str, Any]],
+    osc_np: Dict[str, Dict[str, np.ndarray]],
+    osc_available: Dict[str, bool],
+    n: int,
+) -> int:
+    """✅ PRO74 — أفق حياد الإحماء لشجرة الشروط.
+
+    أقصى «أول شريط صالح» عبر كل الأوراق المرجعية بالشجرة (نسخ المستندات
+    المتاحة فقط). قبل هذا الشريط قد تكون قيمة الشجرة False لمجرد أن بعض
+    المؤشرات لم تدخل قيمها بعد (NaN الإحماء) — فالحجب زورٌ بلا حكم.
+    القاعدة: قبل الأفق البوابة محايدة (مفتوحة)؛ بعده التقييم الطبيعي.
+    النسخ غير المتاحة (فريم أدنى من القاعدة) ليست إحماءً — إدارتها عند
+    skip_unavailable/الفشل المغلق كما هي.
+    """
+    horizon = 0
+    if not isinstance(tree, dict):
+        return horizon
+
+    def _walk(node: Any) -> None:
+        nonlocal horizon
+        if not isinstance(node, dict):
+            return
+        if ("logic" in node) and isinstance(node.get("conditions"), (list, tuple)):
+            for child in node["conditions"]:
+                _walk(child)
+            return
+        for k in ("left", "right"):
+            v = node.get(k)
+            if not (isinstance(v, str) and v.startswith("osc:")):
+                continue
+            spec = v[4:].split(".")
+            if len(spec) != 2:
+                continue
+            iid, fld = spec[0], spec[1]
+            if osc_available.get(iid) is False:
+                continue
+            arr = (osc_np.get(iid) or {}).get(fld)
+            if arr is None:
+                continue
+            h = _first_valid_index(arr, n)
+            if h >= n:
+                continue
+            if h > horizon:
+                horizon = h
+
+    _walk(tree)
+    return horizon
+
+
 # ---------------------------------------------------------------------------
 # ✅ PRO73-R2 — طبقة الدمج المشتركة لمحركي «الماكدية» (ترنديه ماكديه /
 #    ملتهبه ماكديه): مصفوفة الموشرات + بوابة الشروط + المصفوفات الجاهزة.
@@ -917,6 +981,21 @@ def macdized_layer(
             continue
     gate, gate_warns = evaluate_osc_conditions(
         tree, osc_np, o_np, h_np, l_np, c_np, N, osc_available=osc_available)
+    # ✅ PRO74 — حياد الإحماء (Warmup Neutrality): قبل جاهزية كل الأوراق
+    # المرجعية بالشجرة تكون قيمة الشجرة False لمجرد NaN الإحماء — لا يُحجب
+    # دخولٌ بحكم موشرٍ لم تتوفر بياناته بعد. (المسار الحي المتصل لا يتأثر
+    # عملياً؛ هذا يُصلح الباك-تستات ذات البداية الباردة التي كانت تحجب
+    # أسابيعها/أشهرها الأولى زوراً بتقييم NaN→False.)
+    warmup_neutral_bars = 0
+    if tree is not None and N:
+        try:
+            warmup_neutral_bars = _warmup_neutral_horizon(
+                tree, osc_np, osc_available, N)
+        except Exception:
+            warmup_neutral_bars = 0
+        if warmup_neutral_bars > 0:
+            gate = np.asarray(gate, dtype=bool).copy()
+            gate[:warmup_neutral_bars] = True
     warnings = list(osc.get("warnings") or []) + list(tree_warns) + list(gate_warns)
     gate_list: List[float] = [1.0 if bool(g) else 0.0 for g in gate] if N else []
     return {
@@ -924,5 +1003,6 @@ def macdized_layer(
         "o_np": o_np, "h_np": h_np, "l_np": l_np, "c_np": c_np,
         "osc": osc, "osc_json": osc_json, "osc_np": osc_np,
         "tree": tree, "gate": gate, "gate_list": gate_list,
+        "warmup_neutral_bars": int(warmup_neutral_bars),
         "warnings": warnings,
     }

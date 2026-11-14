@@ -1,0 +1,17 @@
+{
+ "identity": {
+  "trades": 7,
+  "pnl": -49.95,
+  "mdd": 56.4
+ },
+ "rsi_gate_warm": {
+  "trades": 5,
+  "pnl": -50.42,
+  "mdd": 56.8
+ },
+ "macd_gate_warm": {
+  "trades": 7,
+  "pnl": -49.95,
+  "mdd": 56.4
+ }
+}
