@@ -1,0 +1,77 @@
+--- a/app/services/live_strategy_service.py
++++ b/app/services/live_strategy_service.py
+@@ -108,6 +108,8 @@
+     ZLF_E2E_TRIPLE_SIGNAL,
+     ZLF_E2E_TRENDY_TRIPLE_SIGNAL,
+     ZLF_E2E_BLAZING_QUINT_SIGNAL,
++    TRENDY_MACDIZED,
++    BLAZING_MACDIZED,
+ )
+ 
+ logger = logging.getLogger(__name__)
+@@ -143,6 +145,16 @@
+     "zlf_e2e_blazing_quint_signal": "zlf_e2e_blazing",
+     "zlf_e2e_blazing_quint_signal_zero_fee": "zlf_e2e_blazing",
+     "zlf_end_to_end_blazing": "zlf_e2e_blazing",
++    # ✅ PRO73: «الترندية الماكدية» — الترندية + بوابة الموشرات (نسخ المستند 67)
++    "zigzag_fib_e2e_trendy_macd": "zlf_e2e_trendy_macd",
++    "zlf_e2e_trendy_macd": "zlf_e2e_trendy_macd",
++    "trendy_macdized": "zlf_e2e_trendy_macd",
++    "trendy_macdized_zero_fee": "zlf_e2e_trendy_macd",
++    # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة + بوابة الموشرات (نسخ المستند 67)
++    "zigzag_fib_e2e_blazing_macd": "zlf_e2e_blazing_macd",
++    "zlf_e2e_blazing_macd": "zlf_e2e_blazing_macd",
++    "blazing_macdized": "zlf_e2e_blazing_macd",
++    "blazing_macdized_zero_fee": "zlf_e2e_blazing_macd",
+ }
+ 
+ # هوية المحركين (تُعلن في meta.engine في كل جواب)
+@@ -153,6 +165,9 @@
+     "zlf_e2e_trendy": "ZLF-End-To-End-Trendy (الترندية — بوابة الترند القالبية)",
+     # 🔥 R69
+     "zlf_e2e_blazing": "ZLF-End-To-End-Blazing (الترندية الملتهبة — S1/S2/S3 + N5/N6)",
++    # ✅ PRO73
++    "zlf_e2e_trendy_macd": "PRO73-Trendy-MACDized (الترندية الماكدية — بوابة الموشرات: 67 نسخة + الحالات)",
++    "zlf_e2e_blazing_macd": "PRO73-Blazing-MACDized (الملتهبة الماكدية — بوابة الموشرات: 67 نسخة + الحالات)",
+ }
+ 
+ WINDOW_CANDLES = 2000          # شموع مغلقة للتقييم
+@@ -472,6 +487,12 @@
+         template = ZLF_E2E_BLAZING_QUINT_SIGNAL
+     elif engine == "zlf_e2e":
+         template = ZLF_E2E_TRIPLE_SIGNAL
++    elif engine == "zlf_e2e_trendy_macd":
++        # ✅ PRO73: «الترندية الماكدية» — الترندية + بوابة الموشرات (67 نسخة + الحالات)
++        template = TRENDY_MACDIZED
++    elif engine == "zlf_e2e_blazing_macd":
++        # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة + بوابة الموشرات (67 نسخة + الحالات)
++        template = BLAZING_MACDIZED
+     else:
+         template = ZLF_TRIPLE_SIGNAL
+     cfg = copy.deepcopy(template["strategy_config"])
+@@ -931,16 +952,22 @@
+             "(ZLF-End-To-End — المحرك المنفصل — ROUND22) و 'zigzag_fib_e2e_trendy' "
+             "(ZLF-End-To-End-Trendy — الزقزاق البطل e2e الترنديه — ROUND32) و "
+             "'zigzag_fib_e2e_blazing' "
+-            "(ZLF-End-To-End-Blazing — الترندية الملتهبة S1/S2/S3+N5/N6 — R69)"
++            "(ZLF-End-To-End-Blazing — الترندية الملتهبة S1/S2/S3+N5/N6 — R69) و "
++            "'zigzag_fib_e2e_trendy_macd' "
++            "(PRO73 — الترندية الماكدية: بوابة الموشرات 67 نسخة + الحالات) و "
++            "'zigzag_fib_e2e_blazing_macd' "
++            "(PRO73 — الملتهبة الماكدية: بوابة الموشرات 67 نسخة + الحالات)"
+         )
+     strategy_key = _STRATEGY_ALIASES[key_strategy]
+     # ✅ ROUND21: تحقق التجاوزات قبل أي شيء (خطأ عقد → 400) + توقيعها في مفتاح الكاش
+     # ✅ ROUND22: تحقق حسب المحرك — للمحرك المنفصل معاملاته الخاصة فقط
+     # ✅ ROUND32: للترندية معاملاتها الخاصة (الزقزاق + قوالب الترند الثلاثة)
+     # 🔥 R69: للملتهبة معاملاتها (الزقزاق + قوالب الترند — البوابة تقبل ن5/ن6)
+-    if strategy_key == "zlf_e2e_blazing":
++    # ✅ PRO73: للماكديين نفس معاملات أصليهما (الزقزاق + قوالب الترند) —
++    #           طبقة الموشرات قالبية داخل القالب (تُدار عبر خدمة التحكم لا query)
++    if strategy_key in ("zlf_e2e_blazing", "zlf_e2e_blazing_macd"):
+         applied = _normalize_blazing_overrides(param_overrides)
+-    elif strategy_key == "zlf_e2e_trendy":
++    elif strategy_key in ("zlf_e2e_trendy", "zlf_e2e_trendy_macd"):
+         applied = _normalize_trendy_overrides(param_overrides)
+     elif strategy_key == "zlf_e2e":
+         applied = _normalize_e2e_overrides(param_overrides)

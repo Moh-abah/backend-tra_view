@@ -1,0 +1,49 @@
+{
+  "spec": "PRO73-MERGE-PACKAGE",
+  "version": "1.0.0",
+  "baseline_zip": "backend_PRO73.zip",
+  "baseline_md5": "ad31b9a417aa7f7f26803fff752f50a8",
+  "new_files": [
+    "BACKEND-REPORT-PRO73-AR.md",
+    "BACKEND-REPORT-PRO73-R3-AR.md",
+    "FILES-PRO73.md5",
+    "app/services/indicators/mtf_oscillator_core.py",
+    "app/services/indicators/osc_cases.py",
+    "app/services/indicators/overlays_zlf_e2e_blazing_macd.py",
+    "app/services/indicators/overlays_zlf_e2e_trendy_macd.py",
+    "scripts/build_pro73_merge_package.py",
+    "scripts/pro73_package_extras/README-INSTALL-AR.md",
+    "scripts/pro73_package_extras/pine-reference/CM_MacD_Ult_MTF.pine",
+    "scripts/pro73_package_extras/pine-reference/MOMENTUM.pine",
+    "scripts/pro73_package_extras/pine-reference/RSI_MA_BB.pine",
+    "scripts/pro73_package_extras/verify_pro73_merge.py",
+    "tests-r73/battery-run.log",
+    "tests-r73/cases-run.log",
+    "tests-r73/integration_lib.py",
+    "tests-r73/r73-evidence/battery-r73-cases.json",
+    "tests-r73/r73-evidence/battery-r73-f.json",
+    "tests-r73/r73-evidence/battery-r73.json",
+    "tests-r73/r73-evidence/champion-1651.json",
+    "tests-r73/test_r73_battery.py",
+    "tests-r73/test_r73_cases.py",
+    "tests-r73/verify_champion_1651.py",
+    "DELIVERY-REPORT-PRO73-FINAL-AR.md",
+    "ADOPTION-REPORT-AR.md",
+    "ENCYCLOPEDIA-SECTION14-PRO73-AR.md",
+    "FRONTEND-AGENT-REPORT-PRO73-AR.md"
+  ],
+  "modified_files": [
+    "SIGMA_FRONTEND_CONTRACT.md",
+    "app/routers/backtest.py",
+    "app/services/indicators/__init__.py",
+    "app/services/indicators/calculator.py",
+    "app/services/indicators/overlay_columns.py",
+    "app/services/indicators/overlays.py",
+    "app/services/live_strategy_service.py",
+    "app/services/strategy/presets.py"
+  ],
+  "counts": {
+    "new": 27,
+    "modified": 8
+  }
+}

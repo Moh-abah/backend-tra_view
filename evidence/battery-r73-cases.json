@@ -1,0 +1,70 @@
+{
+  "sections": {
+    "G_doc_defaults": {
+      "pass": 0,
+      "fail": 0,
+      "counts": {
+        "macd": 28,
+        "rsi": 16,
+        "mom": 23
+      },
+      "total": 67
+    },
+    "H_case_semantics": {
+      "pass": 0,
+      "fail": 0
+    },
+    "I_skip_bb": {
+      "pass": 0,
+      "fail": 0,
+      "synthetic_base": "1h",
+      "synthetic_bars": 9600,
+      "unavailable_instances": 31,
+      "case1_hits_with_skip": 694,
+      "case1_hits_without_skip": 0
+    },
+    "J_real_window": {
+      "pass": 0,
+      "fail": 0,
+      "window": {
+        "from": 1693526400000,
+        "to": 1699401600000,
+        "bars": 97920
+      },
+      "matrix_elapsed_s": 4.36,
+      "case_hits": {
+        "macd_case1_all_tfs_positive": 0,
+        "macd_case2_4h_zero_cross_up": 16,
+        "macd_case3_3d_above_1d": 48961,
+        "macd_case4_htf_dominance": 0,
+        "macd_case5_deep_negative_stack": 0,
+        "rsi_case1_1d_over_50": 70561,
+        "rsi_case2_3d_over_40_not_on_top": 12960,
+        "rsi_case3_stack_50_60": 660,
+        "rsi_case4_small_on_top_stack": 0,
+        "rsi_case5_reverse_below_50": 0,
+        "mom_case1_1w_over_3d": 15840,
+        "mom_case2_all_above_zero": 0,
+        "mom_case3_large_on_top_stack": 3780
+      },
+      "macro_hits": {
+        "macd_any": 48971,
+        "rsi_any": 70561,
+        "mom_any": 15840,
+        "master_any_case": 72008,
+        "master_strict": 12960,
+        "early_watch": 0
+      }
+    },
+    "K_presets": {
+      "pass": 0,
+      "fail": 0
+    }
+  },
+  "summary": {
+    "pass": 65,
+    "fail": 0,
+    "elapsed_s": 5.4,
+    "failures": []
+  }
+}

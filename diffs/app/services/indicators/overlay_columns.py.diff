@@ -1,0 +1,273 @@
+--- a/app/services/indicators/overlay_columns.py
++++ b/app/services/indicators/overlay_columns.py
+@@ -120,12 +120,21 @@
+     # 🔥 R69: «الترندية الملتهبة» — الترندية بت-بت + N5/N6 (محرك معزول جديد كلياً)
+     "zigzag_fib_e2e_blazing": "zzfib_e2e_blazing",
+     "zzfib_e2e_blazing": "zzfib_e2e_blazing",
++    # ✅ PRO73: «الترندية الماكدية» — الترندية بت-بت + موشرات متعددة النسخ/
++    # الفريمات + بوابة شروط قابلة للتركيب (محرك معزول جديد كلياً)
++    "zigzag_fib_e2e_trendy_macd": "zzfib_e2e_trendy_macd",
++    "zzfib_e2e_trendy_macd": "zzfib_e2e_trendy_macd",
++    # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت + نفس الموشرات والبوابة
++    "zigzag_fib_e2e_blazing_macd": "zzfib_e2e_blazing_macd",
++    "zzfib_e2e_blazing_macd": "zzfib_e2e_blazing_macd",
+     "trend_fractal": "trend_fractal",
+     "fractal_trendlines": "trend_fractal",
+ }
+ 
+ KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
+-                       "zzfib_e2e_trendy", "zzfib_e2e_blazing", "trend_fractal")  # ✅ ROUND32 + 🔥 R69
++                       "zzfib_e2e_trendy", "zzfib_e2e_blazing",  # ✅ ROUND32 + 🔥 R69
++                       "zzfib_e2e_trendy_macd", "zzfib_e2e_blazing_macd",  # ✅ PRO73
++                       "trend_fractal")
+ 
+ # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
+ CONTRACT_COLUMNS: Dict[str, List[str]] = {
+@@ -207,6 +216,54 @@
+         "ind_zzfb_tr_p7_upper", "ind_zzfb_tr_p7_lower", "ind_zzfb_tr_p7_bias",
+         "ind_zzfb_tr_p15_upper", "ind_zzfb_tr_p15_lower", "ind_zzfb_tr_p15_bias",
+         "ind_zzfb_tr_p25_upper", "ind_zzfb_tr_p25_lower", "ind_zzfb_tr_p25_bias",
++    ],
++    # ✅ PRO73 (ZLF-End-To-End-Trendy-MACD) — عقد «الترندية الماكدية»: مرآة
++    # كاملة لعقد الترندية (zzfetm_* → ind_zzfetm_*) + الشفافية الرباعية
++    # (خام/ترند-ممنوع/موشرات-ممنوع/نهائي) + سلاسل الموشرات والبوابة.
++    # مرايا الفترات وسلاسل الموشرات (osc_<id>_<field>) ديناميكية حسب القالب.
++    "zzfib_e2e_trendy_macd": [
++        "ind_zzfetm_dir", "ind_zzfetm_p1", "ind_zzfetm_p2", "ind_zzfetm_i1", "ind_zzfetm_i2",
++        "ind_zzfetm_anchor", "ind_zzfetm_range_index",
++        "ind_zzfetm_liq_state", "ind_zzfetm_liq_ref_high", "ind_zzfetm_liq_ref_vol",
++        "ind_zzfetm_liq_vol_ok", "ind_zzfetm_signal_s1", "ind_zzfetm_signal_s2",
++        "ind_zzfetm_signal_s3", "ind_zzfetm_signal_any",
++        "ind_zzfetm_entry", "ind_zzfetm_entry_raw", "ind_zzfetm_entry_iblocked",
++        "ind_zzfetm_entry_s1", "ind_zzfetm_entry_s2", "ind_zzfetm_entry_s3",
++        "ind_zzfetm_entry_raw_s1", "ind_zzfetm_entry_raw_s2", "ind_zzfetm_entry_raw_s3",
++        "ind_zzfetm_entry_blocked_s1", "ind_zzfetm_entry_blocked_s2", "ind_zzfetm_entry_blocked_s3",
++        "ind_zzfetm_entry_iblocked_s1", "ind_zzfetm_entry_iblocked_s2", "ind_zzfetm_entry_iblocked_s3",
++        "ind_zzfetm_osc_gate",
++        "ind_zzfetm_trend_ok", "ind_zzfetm_trend_bias",
++        "ind_zzfetm_trend_votes_bull", "ind_zzfetm_trend_votes_bear",
++        "ind_zzfetm_tr_p7_upper", "ind_zzfetm_tr_p7_lower", "ind_zzfetm_tr_p7_bias",
++        "ind_zzfetm_tr_p15_upper", "ind_zzfetm_tr_p15_lower", "ind_zzfetm_tr_p15_bias",
++        "ind_zzfetm_tr_p25_upper", "ind_zzfetm_tr_p25_lower", "ind_zzfetm_tr_p25_bias",
++    ],
++    # 🔥 PRO73 (ZLF-End-To-End-Blazing-MACD) — عقد «الملتهبة الماكدية»: مرآة
++    # كاملة لعقد الملتهبة (zzfbm_* → ind_zzfbm_*) للأنواع الخمسة + الشفافية
++    # الرباعية + سلاسل الموشرات والبوابة — كلها ديناميكية حسب القالب.
++    "zzfib_e2e_blazing_macd": [
++        "ind_zzfbm_dir", "ind_zzfbm_p1", "ind_zzfbm_p2", "ind_zzfbm_i1", "ind_zzfbm_i2",
++        "ind_zzfbm_anchor", "ind_zzfbm_range_index",
++        "ind_zzfbm_liq_state", "ind_zzfbm_liq_ref_high", "ind_zzfbm_liq_ref_vol",
++        "ind_zzfbm_liq_vol_ok", "ind_zzfbm_signal_s1", "ind_zzfbm_signal_s2",
++        "ind_zzfbm_signal_s3", "ind_zzfbm_signal_n5", "ind_zzfbm_signal_n6",
++        "ind_zzfbm_signal_any",
++        "ind_zzfbm_entry", "ind_zzfbm_entry_raw", "ind_zzfbm_entry_iblocked",
++        "ind_zzfbm_entry_s1", "ind_zzfbm_entry_s2", "ind_zzfbm_entry_s3",
++        "ind_zzfbm_entry_n5", "ind_zzfbm_entry_n6",
++        "ind_zzfbm_entry_raw_s1", "ind_zzfbm_entry_raw_s2", "ind_zzfbm_entry_raw_s3",
++        "ind_zzfbm_entry_raw_n5", "ind_zzfbm_entry_raw_n6",
++        "ind_zzfbm_entry_blocked_s1", "ind_zzfbm_entry_blocked_s2", "ind_zzfbm_entry_blocked_s3",
++        "ind_zzfbm_entry_blocked_n5", "ind_zzfbm_entry_blocked_n6",
++        "ind_zzfbm_entry_iblocked_s1", "ind_zzfbm_entry_iblocked_s2", "ind_zzfbm_entry_iblocked_s3",
++        "ind_zzfbm_entry_iblocked_n5", "ind_zzfbm_entry_iblocked_n6",
++        "ind_zzfbm_osc_gate",
++        "ind_zzfbm_trend_ok", "ind_zzfbm_trend_bias",
++        "ind_zzfbm_trend_votes_bull", "ind_zzfbm_trend_votes_bear",
++        "ind_zzfbm_tr_p7_upper", "ind_zzfbm_tr_p7_lower", "ind_zzfbm_tr_p7_bias",
++        "ind_zzfbm_tr_p15_upper", "ind_zzfbm_tr_p15_lower", "ind_zzfbm_tr_p15_bias",
++        "ind_zzfbm_tr_p25_upper", "ind_zzfbm_tr_p25_lower", "ind_zzfbm_tr_p25_bias",
+     ],
+     # ✅ ROUND32 — عقد مؤشر الترند المستقل: قيم الخطوط والانحياز والتقاطعات لكل فترة
+     # (ديناميكية حسب القالب — المذكور للفترات الافتراضية) + المجاميع والبوابة.
+@@ -481,6 +538,97 @@
+         tg = p.get("trend_gate", p.get("gate"))
+         if tg is not None:
+             out["trend_gate"] = tg
++    elif base == "zzfib_e2e_trendy_macd":
++        # ✅ PRO73 — الترندية الماكدية: نفس معاملات الترندية حرفياً + قالبا
++        # الموشرات: osc_instances (نسخ rsi/macd/mom — أي عدد و14 فريماً)
++        # و osc_conditions (شجرة and/or/not قابلة للتركيب) — تُمرّران كما هما.
++        length = _num(("length",), int)
++        if length is not None:
++            out["length"] = max(2, length)
++        if "reverse" in p:
++            out["reverse"] = bool(p["reverse"])
++        lv = p.get("levels", p.get("level_ratios"))
++        if isinstance(lv, (list, tuple)) and lv:
++            try:
++                out["levels"] = [float(x) for x in lv]
++            except (TypeError, ValueError):
++                pass
++        for k in ("extend_right", "extend_leg_to_live"):
++            if k in p:
++                out[k] = bool(p[k])
++        if "mode" in p:
++            out["mode"] = str(p["mode"]).strip().lower()
++        d_ = _num(("depth",), int)
++        if d_ is not None:
++            out["depth"] = max(2, d_)
++        dv_ = _num(("deviation",))
++        if dv_ is not None:
++            out["deviation"] = float(dv_)
++        bs_ = _num(("backstep",), int)
++        if bs_ is not None:
++            out["backstep"] = max(1, bs_)
++        tt_ = _num(("launch_touch_ticks",))
++        if tt_ is not None:
++            out["launch_touch_ticks"] = float(tt_)
++        tp = p.get("trend_periods", p.get("periods"))
++        if tp is not None:
++            out["trend_periods"] = tp
++        if "trend_confirm" in p:
++            out["trend_confirm"] = p["trend_confirm"]
++        tg = p.get("trend_gate", p.get("gate"))
++        if tg is not None:
++            out["trend_gate"] = tg
++        oi = p.get("osc_instances", p.get("instances"))
++        if oi is not None:
++            out["osc_instances"] = oi
++        oc = p.get("osc_conditions", p.get("conditions"))
++        if oc is not None:
++            out["osc_conditions"] = oc
++    elif base == "zzfib_e2e_blazing_macd":
++        # 🔥 PRO73 — الملتهبة الماكدية: نفس معاملات الملتهبة حرفياً + القالبان
++        # نفسيهما (نسخ الموشرات + شجرة الشروط القابلة للتركيب).
++        length = _num(("length",), int)
++        if length is not None:
++            out["length"] = max(2, length)
++        if "reverse" in p:
++            out["reverse"] = bool(p["reverse"])
++        lv = p.get("levels", p.get("level_ratios"))
++        if isinstance(lv, (list, tuple)) and lv:
++            try:
++                out["levels"] = [float(x) for x in lv]
++            except (TypeError, ValueError):
++                pass
++        for k in ("extend_right", "extend_leg_to_live"):
++            if k in p:
++                out[k] = bool(p[k])
++        if "mode" in p:
++            out["mode"] = str(p["mode"]).strip().lower()
++        d_ = _num(("depth",), int)
++        if d_ is not None:
++            out["depth"] = max(2, d_)
++        dv_ = _num(("deviation",))
++        if dv_ is not None:
++            out["deviation"] = float(dv_)
++        bs_ = _num(("backstep",), int)
++        if bs_ is not None:
++            out["backstep"] = max(1, bs_)
++        tt_ = _num(("launch_touch_ticks",))
++        if tt_ is not None:
++            out["launch_touch_ticks"] = float(tt_)
++        tp = p.get("trend_periods", p.get("periods"))
++        if tp is not None:
++            out["trend_periods"] = tp
++        if "trend_confirm" in p:
++            out["trend_confirm"] = p["trend_confirm"]
++        tg = p.get("trend_gate", p.get("gate"))
++        if tg is not None:
++            out["trend_gate"] = tg
++        oi = p.get("osc_instances", p.get("instances"))
++        if oi is not None:
++            out["osc_instances"] = oi
++        oc = p.get("osc_conditions", p.get("conditions"))
++        if oc is not None:
++            out["osc_conditions"] = oc
+     elif base == "trend_fractal":
+         # ✅ ROUND32 — مؤشر الترند المستقل: فترات قالبية بأي طول + صيغة الإجماع.
+         tp = p.get("periods", p.get("trend_periods"))
+@@ -707,7 +855,7 @@
+         k = str(key)
+         if not k.startswith("zzfe_"):
+             continue
+-        out["ind_" + k] = list(vals or [])
++        out["ind_" + k] = vals if vals is not None else []
+     return out
+ 
+ 
+@@ -723,7 +871,7 @@
+         k = str(key)
+         if not k.startswith("zzfet_"):
+             continue
+-        out["ind_" + k] = list(vals or [])
++        out["ind_" + k] = vals if vals is not None else []
+     return out
+ 
+ 
+@@ -739,7 +887,40 @@
+         k = str(key)
+         if not k.startswith("zzfb_"):
+             continue
+-        out["ind_" + k] = list(vals or [])
++        out["ind_" + k] = vals if vals is not None else []
++    return out
++
++
++def _zzfetm_columns(zzfetm: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """✅ PRO73: نتيجة zigzag_fib_e2e_trendy_macd → أعمدة ind_zzfetm_* (zzfetm_X → ind_zzfetm_X).
++
++    «الترندية الماكدية» — عقد تمايز خامس: مرآة كاملة للترندية + الشفافية
++    الرباعية + سلاسل الموشرات (osc_<id>_<field>) والبوابة — كلها ديناميكية
++    حسب القالب (أي عدد نسخ وأي فريمات).
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = zzfetm.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("zzfetm_"):
++            continue
++        out["ind_" + k] = vals if vals is not None else []
++    return out
++
++
++def _zzfbm_columns(zzfbm: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """🔥 PRO73: نتيجة zigzag_fib_e2e_blazing_macd → أعمدة ind_zzfbm_* (zzfbm_X → ind_zzfbm_X).
++
++    «الملتهبة الماكدية» — عقد تمايز سادس: مرآة كاملة للملتهبة للأنواع الخمسة
++    + الشفافية الرباعية + سلاسل الموشرات والبوابة — كلها ديناميكية.
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = zzfbm.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("zzfbm_"):
++            continue
++        out["ind_" + k] = vals if vals is not None else []
+     return out
+ 
+ 
+@@ -754,7 +935,7 @@
+         k = str(key)
+         if not k.startswith("trf_"):
+             continue
+-        out["ind_" + k] = list(vals or [])
++        out["ind_" + k] = vals if vals is not None else []
+     return out
+ 
+ 
+@@ -791,6 +972,16 @@
+     zzfb = ovl.get("zzfib_e2e_blazing")
+     if isinstance(zzfb, dict) and zzfb.get("series"):
+         out.update(_zzfb_columns(zzfb))
++    # ✅ PRO73 — أعمدة الترندية الماكدية zzfetm_* → ind_zzfetm_* (الشفافية
++    # الرباعية + سلاسل الموشرات والبوابة + مرايا الترند كاملة)
++    zzfetm = ovl.get("zzfib_e2e_trendy_macd")
++    if isinstance(zzfetm, dict) and zzfetm.get("series"):
++        out.update(_zzfetm_columns(zzfetm))
++    # 🔥 PRO73 — أعمدة الملتهبة الماكدية zzfbm_* → ind_zzfbm_* (الأنواع الخمسة
++    # بالشفافية الرباعية + سلاسل الموشرات والبوابة)
++    zzfbm = ovl.get("zzfib_e2e_blazing_macd")
++    if isinstance(zzfbm, dict) and zzfbm.get("series"):
++        out.update(_zzfbm_columns(zzfbm))
+     trf = ovl.get("trend_fractal")
+     if isinstance(trf, dict) and trf.get("series"):
+         out.update(_trf_columns(trf))
+@@ -841,5 +1032,7 @@
+         for k, v in cols.items():
+             if len(v) < n:
+                 v = v + [None] * (n - len(v))
+-            cols[k] = v[:n]
++            # PRO73-R3 (ذاكرة): عند تساوي الطول نُحيل بالمرجع — لا نسخة كاملة
++            # لكل عمود (يوفر ~700MB على النوافذ الكبيرة مع نسخ المستند الـ67).
++            cols[k] = v if len(v) == n else v[:n]
+     return cols

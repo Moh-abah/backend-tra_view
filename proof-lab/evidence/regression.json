@@ -1,0 +1,72 @@
+[
+ {
+  "symbol": "RUNEUSDT",
+  "tf": "5m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ },
+ {
+  "symbol": "RUNEUSDT",
+  "tf": "1m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ },
+ {
+  "symbol": "BTCUSDT",
+  "tf": "1m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ },
+ {
+  "symbol": "ETHUSDT",
+  "tf": "1m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ },
+ {
+  "symbol": "SOLUSDT",
+  "tf": "1m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ },
+ {
+  "symbol": "BTCUSDT",
+  "tf": "5m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ },
+ {
+  "symbol": "LINKUSDT",
+  "tf": "5m",
+  "candles": 1,
+  "ranges": 0,
+  "signals": 0,
+  "out_of_range_ref": 0,
+  "signals_missing_ref": 0,
+  "ok": true
+ }
+]

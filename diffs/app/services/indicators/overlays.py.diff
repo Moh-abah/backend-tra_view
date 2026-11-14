@@ -1,0 +1,90 @@
+--- a/app/services/indicators/overlays.py
++++ b/app/services/indicators/overlays.py
+@@ -1143,6 +1143,13 @@
+                  # + إشارتا R68 المُقاستان N5 «إشعال بلا مرجع» وN6 «الاختراق الهادئ» —
+                  # محرك معزول جديد كلياً (أسماء zzfb_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
+                  "zzfib_e2e_blazing",
++                 # ✅ PRO73: «الترندية الماكدية» — الترندية بت-بت + مصفوفة موشرات
++                 # RSI/MACD/Momentum متعددة النسخ/الفريمات (14 فريماً) + بوابة شروط
++                 # قابلة للتركيب (and/or/not بأي عمق) — محرك معزول جديد كلياً.
++                 "zzfib_e2e_trendy_macd",
++                 # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت (S1/S2/S3 + N5/N6)
++                 # + نفس مصفوفة الموشرات والبوابة القابلة للتركيب — محرك معزول جديد كلياً.
++                 "zzfib_e2e_blazing_macd",
+                  "trend_fractal")
+ 
+ 
+@@ -1191,6 +1198,20 @@
+                               "extend_leg_to_live", "mode", "depth", "deviation",
+                               "backstep", "launch_touch_ticks",
+                               "trend_periods", "trend_confirm", "trend_gate"},
++        # ✅ PRO73: الترندية الماكدية — نفس معاملات الترندية + قالبا الموشرات
++        # (osc_instances: نسخ rsi/macd/mom بأي عدد و14 فريماً · osc_conditions:
++        # شجرة and/or/not قابلة للتركيب — كلاهما يُمرّر كما هو للمحرك).
++        "zzfib_e2e_trendy_macd": {"length", "reverse", "levels", "extend_right",
++                                  "extend_leg_to_live", "mode", "depth", "deviation",
++                                  "backstep", "launch_touch_ticks",
++                                  "trend_periods", "trend_confirm", "trend_gate",
++                                  "osc_instances", "osc_conditions"},
++        # 🔥 PRO73: الملتهبة الماكدية — نفس معاملات الملتهبة + القالبان نفسيهما.
++        "zzfib_e2e_blazing_macd": {"length", "reverse", "levels", "extend_right",
++                                   "extend_leg_to_live", "mode", "depth", "deviation",
++                                   "backstep", "launch_touch_ticks",
++                                   "trend_periods", "trend_confirm", "trend_gate",
++                                   "osc_instances", "osc_conditions"},
+         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
+         "trend_fractal": {"periods", "confirm_mode"},
+         "zigzag": {"length", "extend_right"},
+@@ -1213,11 +1234,23 @@
+     types: قائمة من ("zigzag","fib","trendline","zzfib") — الافتراضي الكل.
+     params: {"zigzag": {...}, "fib": {...}, "trendline": {...}, "zzfib": {...}}.
+     """
++    _default_all = types is None
+     if types is None:
+         types = list(OVERLAY_TYPES)
+     wanted = {str(x).strip().lower() for x in types if str(x).strip()}
+     wanted = wanted & set(OVERLAY_TYPES)
+     params = params or {}
++
++    # ✅ PRO73 — حماية أداء مسار «كل الأنواع» الافتراضي: محركات الماكدية
++    # بلا قالب موشرات (osc_instances/osc_conditions) = وضع الهوية (مرآة
++    # الترندية/الملتهبة بت-بت). في طلب «الكل» الافتراضي تكون مجرد مضاعفة
++    # حساب بلا أي بيانات جديدة — نتجاوزها (طلبها الصريح — مع قالب أو بدونه —
++    # يحسبها دائماً).
++    if _default_all:
++        for _b in ("zzfib_e2e_trendy_macd", "zzfib_e2e_blazing_macd"):
++            _p = params.get(_b) or {}
++            if not (_p.get("osc_instances") or _p.get("osc_conditions")):
++                wanted.discard(_b)
+ 
+     t, o, h, l, c = _norm_candles(candles)
+     N = len(c)
+@@ -1260,6 +1293,28 @@
+         from app.services.indicators.overlays_zlf_e2e_blazing import zigzag_fib_e2e_blazing
+         blazing_params = _normalize_overlay_params("zzfib_e2e_blazing", params.get("zzfib_e2e_blazing") or {})
+         out["overlays"]["zzfib_e2e_blazing"] = zigzag_fib_e2e_blazing(candles, **blazing_params)
++    if "zzfib_e2e_trendy_macd" in wanted:
++        # ✅ PRO73: «الترندية الماكدية» — الترندية بت-بت + مصفوفة الموشرات
++        # (RSI/MACD/Momentum متعددة النسخ/الفريمات) + بوابة الشروط القابلة للتركيب.
++        # ✅ PRO73-R4 (لوحات الحي): بلا osc_instances ممرّرة = مكتبة المستند الكاملة
++        # (67 نسخة) افتراضياً — تفعيل الويدجت من الواجهة (types=... بلا params)
++        # يرجع كل سلاسل اللوحات الثلاث للرسم فوراً. البوابة تبقى هوية (بلا شروط).
++        from app.services.indicators.overlays_zlf_e2e_trendy_macd import zigzag_fib_e2e_trendy_macd
++        tmacd_params = _normalize_overlay_params("zzfib_e2e_trendy_macd", params.get("zzfib_e2e_trendy_macd") or {})
++        if "osc_instances" not in tmacd_params:
++            from app.services.indicators.osc_cases import OSC_DOC_INSTANCES
++            tmacd_params["osc_instances"] = OSC_DOC_INSTANCES
++        out["overlays"]["zzfib_e2e_trendy_macd"] = zigzag_fib_e2e_trendy_macd(candles, **tmacd_params)
++    if "zzfib_e2e_blazing_macd" in wanted:
++        # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت (S1/S2/S3 + N5/N6) +
++        # نفس مصفوفة الموشرات والبوابة القابلة للتركيب.
++        # ✅ PRO73-R4 (لوحات الحي): نفس الافتراض — بلا قالب = مكتبة المستند 67.
++        from app.services.indicators.overlays_zlf_e2e_blazing_macd import zigzag_fib_e2e_blazing_macd
++        bmacd_params = _normalize_overlay_params("zzfib_e2e_blazing_macd", params.get("zzfib_e2e_blazing_macd") or {})
++        if "osc_instances" not in bmacd_params:
++            from app.services.indicators.osc_cases import OSC_DOC_INSTANCES
++            bmacd_params["osc_instances"] = OSC_DOC_INSTANCES
++        out["overlays"]["zzfib_e2e_blazing_macd"] = zigzag_fib_e2e_blazing_macd(candles, **bmacd_params)
+     if "trend_fractal" in wanted:
+         # ✅ ROUND32: مؤشر الترند المستقل — إحداثيات الخطوط وسلاسلها (Pine حرفياً).
+         from app.services.indicators.trend_fractals import auto_trendlines_fractal

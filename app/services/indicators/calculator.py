@@ -84,6 +84,11 @@ class IndicatorCalculator:
         "zigzag_fib_e2e_trendy": "zzfib_e2e_trendy", "zzfib_e2e_trendy": "zzfib_e2e_trendy",
         # 🔥 R69: «الترندية الملتهبة» — الترندية بت-بت + N5/N6 (محرك معزول جديد كلياً)
         "zigzag_fib_e2e_blazing": "zzfib_e2e_blazing", "zzfib_e2e_blazing": "zzfib_e2e_blazing",
+        # ✅ PRO73: «الترندية الماكدية» — الترندية بت-بت + موشرات متعددة النسخ/الفريمات
+        # + بوابة شروط قابلة للتركيب (محرك معزول جديد كلياً)
+        "zigzag_fib_e2e_trendy_macd": "zzfib_e2e_trendy_macd", "zzfib_e2e_trendy_macd": "zzfib_e2e_trendy_macd",
+        # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت + نفس الموشرات والبوابة
+        "zigzag_fib_e2e_blazing_macd": "zzfib_e2e_blazing_macd", "zzfib_e2e_blazing_macd": "zzfib_e2e_blazing_macd",
         "trend_fractal": "trend_fractal", "fractal_trendlines": "trend_fractal",
     }
     # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
@@ -98,6 +103,10 @@ class IndicatorCalculator:
         "zzfib_e2e_trendy": "ind_zzfet_entry",
         # 🔥 R69: الملتهبة = عمود الدخول الجامع بعد البوابة (S1/S2/S3 + N5/N6)
         "zzfib_e2e_blazing": "ind_zzfb_entry",
+        # ✅ PRO73: الترندية الماكدية = الدخول الجامع النهائي (ترند ∧ موشرات)
+        "zzfib_e2e_trendy_macd": "ind_zzfetm_entry",
+        # 🔥 PRO73: الملتهبة الماكدية = الدخول الجامع النهائي (ترند ∧ موشرات)
+        "zzfib_e2e_blazing_macd": "ind_zzfbm_entry",
         "trend_fractal": "ind_trf_trend_ok",
     }
     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
@@ -184,6 +193,28 @@ class IndicatorCalculator:
         "zzfb_entry_blocked_n6": "ind_zzfb_entry_blocked_n6",
         "zzfb_trend_ok": "ind_zzfb_trend_ok", "zzfb_trend_bias": "ind_zzfb_trend_bias",
         "zzfb_trend_votes_bull": "ind_zzfb_trend_votes_bull", "zzfb_trend_votes_bear": "ind_zzfb_trend_votes_bear",
+        # ✅ PRO73 (الترندية الماكدية) — أعمدة المحرك المعزول الجديد (أسماء جديدة كلياً):
+        # مرآة عقد الترندية + الشفافية الرباعية + بوابة الموشرات وسلاسلها.
+        "zzfetm_entry": "ind_zzfetm_entry", "zzfetm_entry_raw": "ind_zzfetm_entry_raw",
+        "zzfetm_entry_iblocked": "ind_zzfetm_entry_iblocked",
+        "zzfetm_entry_s1": "ind_zzfetm_entry_s1", "zzfetm_entry_s2": "ind_zzfetm_entry_s2",
+        "zzfetm_entry_s3": "ind_zzfetm_entry_s3",
+        "zzfetm_entry_iblocked_s1": "ind_zzfetm_entry_iblocked_s1",
+        "zzfetm_entry_iblocked_s2": "ind_zzfetm_entry_iblocked_s2",
+        "zzfetm_entry_iblocked_s3": "ind_zzfetm_entry_iblocked_s3",
+        "zzfetm_osc_gate": "ind_zzfetm_osc_gate",
+        # 🔥 PRO73 (الملتهبة الماكدية) — أعمدة المحرك المعزول الجديد:
+        "zzfbm_entry": "ind_zzfbm_entry", "zzfbm_entry_raw": "ind_zzfbm_entry_raw",
+        "zzfbm_entry_iblocked": "ind_zzfbm_entry_iblocked",
+        "zzfbm_entry_s1": "ind_zzfbm_entry_s1", "zzfbm_entry_s2": "ind_zzfbm_entry_s2",
+        "zzfbm_entry_s3": "ind_zzfbm_entry_s3", "zzfbm_entry_n5": "ind_zzfbm_entry_n5",
+        "zzfbm_entry_n6": "ind_zzfbm_entry_n6",
+        "zzfbm_entry_iblocked_s1": "ind_zzfbm_entry_iblocked_s1",
+        "zzfbm_entry_iblocked_s2": "ind_zzfbm_entry_iblocked_s2",
+        "zzfbm_entry_iblocked_s3": "ind_zzfbm_entry_iblocked_s3",
+        "zzfbm_entry_iblocked_n5": "ind_zzfbm_entry_iblocked_n5",
+        "zzfbm_entry_iblocked_n6": "ind_zzfbm_entry_iblocked_n6",
+        "zzfbm_osc_gate": "ind_zzfbm_osc_gate",
         # ✅ ROUND32 (مؤشر الترند المستقل) — المجاميع والبوابة
         "trf_trend_ok": "ind_trf_trend_ok", "trf_bias": "ind_trf_bias",
         "trf_bull_votes": "ind_trf_bull_votes", "trf_bear_votes": "ind_trf_bear_votes",

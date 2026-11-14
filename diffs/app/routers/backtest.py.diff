@@ -1,0 +1,30 @@
+--- a/app/routers/backtest.py
++++ b/app/routers/backtest.py
+@@ -73,18 +73,24 @@
+ def _strategy_family_overlays(indicator_names: Any) -> List[str]:
+     """أعمدة ind_* لاستراتيجية التشغيل → طبقات عائلتها (رسم مطابق لإشاراتها).
+ 
++    ind_zzfbm_*  → zzfib_e2e_blazing_macd (🔥 الملتهبة الماكدية — PRO73)
++    ind_zzfetm_* → zzfib_e2e_trendy_macd  (✅ الترندية الماكدية — PRO73)
+     ind_zzfb_*  → zzfib_e2e_blazing (🔥 الملتهبة — S1/S2/S3 + N5/N6)
+-    ind_zzfet_* → zzfib_e2e_trendy   (✅ الترندية)
+-    ind_zzfe_*  → zzfib_e2e          (✅ E2E الأصل)
++    ind_zzfet_*  → zzfib_e2e_trendy   (✅ الترندية)
++    ind_zzfe_*   → zzfib_e2e           (✅ E2E الأصل)
+     (العائلات مستقلة — استراتيجية تحمل مؤشرين تصلها طبقتاهما معاً.)
+     """
+     names = {str(n) for n in (indicator_names or [])}
+     fams: List[str] = []
++    if any(n.startswith("ind_zzfbm_") for n in names):
++        fams.append("zzfib_e2e_blazing_macd")
++    if any(n.startswith("ind_zzfetm_") for n in names):
++        fams.append("zzfib_e2e_trendy_macd")
+     if any(n.startswith("ind_zzfb_") for n in names):
+         fams.append("zzfib_e2e_blazing")
+     if any(n.startswith("ind_zzfet_") for n in names):
+         fams.append("zzfib_e2e_trendy")
+-    if any(n.startswith("ind_zzfe_") and not n.startswith("ind_zzfeb_") for n in names):
++    if any(n.startswith("ind_zzfe_") and not n.startswith("ind_zzfeb_") and not n.startswith("ind_zzfbm_") and not n.startswith("ind_zzfetm_") for n in names):
+         fams.append("zzfib_e2e")
+     return fams
+ 

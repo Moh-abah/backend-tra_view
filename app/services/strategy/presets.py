@@ -26,7 +26,9 @@
 
 from typing import Any, Dict, List
 
-__all__ = ["CHAMPION_ZIGZAG_HL_V2", "ZLF_TRIPLE_SIGNAL", "get_presets", "PRESET_NOTES"]
+__all__ = ["CHAMPION_ZIGZAG_HL_V2", "ZLF_TRIPLE_SIGNAL", "ZLF_E2E_TRIPLE_SIGNAL",
+           "ZLF_E2E_TRENDY_TRIPLE_SIGNAL", "ZLF_E2E_BLAZING_QUINT_SIGNAL",
+           "TRENDY_MACDIZED", "BLAZING_MACDIZED", "get_presets", "PRESET_NOTES"]
 
 
 CHAMPION_ZIGZAG_HL_V2: Dict[str, Any] = {
@@ -679,6 +681,400 @@ ZLF_E2E_BLAZING_QUINT_SIGNAL: Dict[str, Any] = {
 }
 
 
+# =============================================================================
+# ✅ PRO73 — «الترندية الماكدية» (ZLF-End-To-End-Trendy-MACD)
+# =============================================================================
+# أمر صاحب القرار (2026-11-13): «سوي استراتيجية مستنبطة من الترندية البطل
+#   والملتهبة وادمج عليها الموشرات (RSI/MACD/Momentum — نسخ متعددة فريمات
+#   متعددة: RSI×10 وMACD×10 والمومنتم نسخ متعددة، لكل نسخة فريمها الخاص
+#   وسرعتها وبطيئتها)… وسمّ إصداراً "ترنديه ماكديه"… تكون فيها كل البيانات —
+#   المحرك عباره عن الترندية ولكن مع الدمج والبيانات المرجعة كاملة مع
+#   الجديدة… والشروط قابلة للتركيب (مثلاً S1 AND مع انطباق كل شروط الماكد
+#   والمومنتم والآر إس آي)… وكل الإعدادات مضبوطة وقابلة للتعديل».
+#
+# هذا القالب يعتمد:
+#   - المحرك المعزول الجديد كلياً: zigzag_fib_e2e_trendy_macd
+#     (overlays_zlf_e2e_trendy_macd.py — الترندية بت-بت + طبقة الدمج) على
+#     نواة mtf_oscillator_core.py (الموشرات متعددة النسخ/الفريمات).
+#   - ✅ القالب الافتراضي: 10 نسخ RSI + 10 نسخ MACD + 5 نسخ مومنتم موزعة
+#     على فريمات متعددة (5m/15m/1h/4h/1d/1w) — كل نسخة بمعاملاتها الخاصة
+#     وكلها قابلة للتعديل/الحذف/الإضافة من هنا بلا أي كود (المحرك يقبل أي
+#     عدد نسخ وأي فريم من الـ14: 1s·5s·30s·1m·5m·15m·1h·4h·1d·2d·3d·1w·2w·1M).
+#   - ✅ بوابة الشروط القابلة للتركيب (osc_conditions): شجرة and/or/not بأي
+#     عمق — الافتراضي هنا: S1/S2/S3 AND (RSI 1h و4h فوق 50 ∧ MACD 1h hist
+#     موجب ∧ MACD 1d line موجب ∧ مومنتم 1h موجب). عدّل/وسّع/بدّل بحرية —
+#     مثال: إضافة كل النسخ العشر = روس 10 أوراق AND.
+#   - الشفافية الرباعية: ind_zzfetm_entry_raw_* (خام) / entry_blocked_*
+#     (منعها الترند) / entry_iblocked_* (منعتها الموشرات) / entry_* (النهائي).
+#   - الخروج كما في الترندية حرفياً (انقلاب النطاق zzfetm_dir < 0 + SL قالب).
+# =============================================================================
+
+# 🔥 PRO73-R3 — نسخ المستند الكاملة + بوابة الحالات الافتراضية (2026-11-13):
+#    «ويعمل وبكامل الاعدادات والموشرات كامله هذي الي في المستند» — المستند:
+#    https://docs.google.com/document/d/1NAQOuiniJ6yFBApLmiYruxeJFp3JnMra2Aqs_TwPcvo
+#    القالبان الرسميان (ترنديه ماكديه / ملتهبه ماكديه) يستعملان الآن:
+#      · OSC_INSTANCES_TEMPLATE = مجموعة المستند الكاملة (67 نسخة: 28 MACD
+#        + 16 RSI مع EMA وبولينجر StdDev 2 + 23 Momentum على الفريمات الـ14)
+#        بمعرفات وصفّية (macd_1d_6_13_4 · rsi_1d_10_14 · mom_1w_5 ...).
+#      · OSC_CONDITIONS_TEMPLATE = MASTER_ANY_CASE — «أي حالة لحظية» من
+#        الحالات الخاصة الـ11 المسمّاة بنص المالك (كل حالة تعطي إشارة
+#        ايجابية وفرصة شراء لحظية — OR)، والحالتان 5 (إنذار مبكر) خارجها.
+#        البدائل الجاهزة: MASTER_STRICT (ماكد ∧ آر إس آي ∧ مومنتم) ·
+#        EARLY_WATCH — كلها في app/services/indicators/osc_cases.py والفرونت
+#        إند يبدّل بينها بنقرة.
+from app.services.indicators.osc_cases import (  # noqa: E402
+    OSC_DOC_INSTANCES as OSC_INSTANCES_TEMPLATE,
+    MASTER_ANY_CASE as OSC_CONDITIONS_TEMPLATE,
+    OSC_CASE_LIBRARY,
+    OSC_DOC_URL,
+)
+
+# (النسخة السابقة PRO73-R1 — توزيع متوازن 25 نسخة قبل تبنّي المستند —
+#  محفوظة للرجوع/المقارنة، لا يستعملها أي قالب رسمي)
+_OSC_INSTANCES_R1: List[Dict[str, Any]] = [
+    # — RSI ×10 نسخ (فريمات ومعاملات متنوعة) —
+    {"kind": "rsi", "id": "rsi1", "timeframe": "5m",  "period": 14},
+    {"kind": "rsi", "id": "rsi2", "timeframe": "15m", "period": 14},
+    {"kind": "rsi", "id": "rsi3", "timeframe": "1h",  "period": 14},
+    {"kind": "rsi", "id": "rsi4", "timeframe": "4h",  "period": 14},
+    {"kind": "rsi", "id": "rsi5", "timeframe": "1d",  "period": 14},
+    {"kind": "rsi", "id": "rsi6", "timeframe": "1h",  "period": 7},
+    {"kind": "rsi", "id": "rsi7", "timeframe": "4h",  "period": 21},
+    {"kind": "rsi", "id": "rsi8", "timeframe": "15m", "period": 28},
+    {"kind": "rsi", "id": "rsi9", "timeframe": "1d",  "period": 10},
+    {"kind": "rsi", "id": "rsi10", "timeframe": "1w", "period": 14},
+    # — MACD ×10 نسخ (مجموعات 12/26/9 و 6/13/4 و 5/34/5 عبر الفريمات) —
+    {"kind": "macd", "id": "macd1", "timeframe": "15m", "fast": 12, "slow": 26, "signal": 9},
+    {"kind": "macd", "id": "macd2", "timeframe": "1h",  "fast": 12, "slow": 26, "signal": 9},
+    {"kind": "macd", "id": "macd3", "timeframe": "4h",  "fast": 12, "slow": 26, "signal": 9},
+    {"kind": "macd", "id": "macd4", "timeframe": "1d",  "fast": 12, "slow": 26, "signal": 9},
+    {"kind": "macd", "id": "macd5", "timeframe": "1h",  "fast": 6,  "slow": 13, "signal": 4},
+    {"kind": "macd", "id": "macd6", "timeframe": "4h",  "fast": 6,  "slow": 13, "signal": 4},
+    {"kind": "macd", "id": "macd7", "timeframe": "15m", "fast": 6,  "slow": 13, "signal": 4},
+    {"kind": "macd", "id": "macd8", "timeframe": "1d",  "fast": 5,  "slow": 34, "signal": 5},
+    {"kind": "macd", "id": "macd9", "timeframe": "5m",  "fast": 12, "slow": 26, "signal": 9},
+    {"kind": "macd", "id": "macd10", "timeframe": "1w", "fast": 12, "slow": 26, "signal": 9},
+    # — Momentum ×5 نسخ —
+    {"kind": "mom", "id": "mom1", "timeframe": "15m", "length": 10},
+    {"kind": "mom", "id": "mom2", "timeframe": "1h",  "length": 10},
+    {"kind": "mom", "id": "mom3", "timeframe": "4h",  "length": 14},
+    {"kind": "mom", "id": "mom4", "timeframe": "1d",  "length": 10},
+    {"kind": "mom", "id": "mom5", "timeframe": "1h",  "length": 5},
+]
+
+_OSC_CONDITIONS_R1: Dict[str, Any] = {
+    "logic": "and",
+    "conditions": [
+        {"left": "osc:rsi3.value", "op": ">", "right": 50},
+        {"left": "osc:rsi4.value", "op": ">", "right": 50},
+        {"left": "osc:macd2.hist", "op": ">", "right": 0},
+        {"left": "osc:macd4.line", "op": ">", "right": 0},
+        {"left": "osc:mom2.line", "op": ">", "right": 0},
+    ],
+}
+
+TRENDY_MACDIZED: Dict[str, Any] = {
+    "name": "Trendy-MACDized — الترندية الماكدية (S1/S2/S3 + بوابة الموشرات) — ZERO FEE",
+    "timeframe": "1m",
+    "market": "crypto",
+    "symbols": ["SOLUSDT"],
+    "strategy_config": {
+        "name": "Trendy-MACDized (الترندية الماكدية — S1/S2/S3 + نسخ المستند الكاملة 67 + الحالات الـ13 المسمّاة)",
+        "base_timeframe": "1m",
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_trendy_macd",
+                "type": "support_resistance",
+                "params": {
+                    # نفس معاملات الترندية حرفياً (المحرك يمرّرها إليها كما هي)
+                    "mode": "luxalgo",
+                    "length": 100,
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3"],
+                    # ✅ PRO73 — قالبا الموشرات (كل سطر قابل للتعديل بلا كود):
+                    "osc_instances": OSC_INSTANCES_TEMPLATE,
+                    "osc_conditions": OSC_CONDITIONS_TEMPLATE,
+                },
+                "enabled": True,
+                "timeframe": "1m",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "Trendy-MACD S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_entry_s1",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.34,
+                "enabled": True,
+            },
+            {
+                "name": "Trendy-MACD S2 · الاختراق بدون هيمنة الحجم + الترند + بوابة الحالات الخاصة",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_entry_s2",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+            {
+                "name": "Trendy-MACD S3 · الامتصاص قبل الاختراق + الترند + بوابة الحالات الخاصة",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_entry_s3",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "Trendy-MACD · تأكيد قمة — انقلاب النطاق إلى هابطة (نفس روح الترندية)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": "<",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_macd:zzfetm_dir",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 10000,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
+    "max_positions": 1,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "leverage": 1,
+}
+
+
+# =============================================================================
+# 🔥 PRO73 — «الملتهبة الماكدية» (ZLF-End-To-End-Blazing-MACD)
+# =============================================================================
+# أمر صاحب القرار: «وسوي إصداراً سمّه "ملتهبه ماكديه" — وهذا يكون فيه كل
+#   البيانات… المحرك عباره عن الملتهبة ولكن مع الدمج والبيانات المرجعة
+#   كاملة مع الجديدة». نفس هندسة الترندية الماكدية لكن فوق الملتهبة:
+#   الأنواع الخمسة s1/s2/s3/n5/n6 (كلها عبر بوابة الترند ثم بوابة الموشرات).
+# =============================================================================
+BLAZING_MACDIZED: Dict[str, Any] = {
+    "name": "Blazing-MACDized — الملتهبة الماكدية (S1/S2/S3 + N5/N6 + بوابة الموشرات) — ZERO FEE",
+    "timeframe": "1m",
+    "market": "crypto",
+    "symbols": ["SOLUSDT"],
+    "strategy_config": {
+        "name": "Blazing-MACDized (الملتهبة الماكدية — S1/S2/S3 + N5/N6 + نسخ المستند الكاملة 67 + الحالات الـ13 المسمّاة)",
+        "base_timeframe": "1m",
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_blazing_macd",
+                "type": "support_resistance",
+                "params": {
+                    # نفس معاملات الملتهبة حرفياً (المحرك يمرّرها إليها كما هي)
+                    "mode": "luxalgo",
+                    "length": 100,
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3", "n5", "n6"],
+                    # ✅ PRO73 — نفس قالبا الموشرات (مشتركان — عدّل بحرية)
+                    "osc_instances": OSC_INSTANCES_TEMPLATE,
+                    "osc_conditions": OSC_CONDITIONS_TEMPLATE,
+                },
+                "enabled": True,
+                "timeframe": "1m",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "Blazing-MACD S1 · الاختراق الكامل المؤكد + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_entry_s1",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "Blazing-MACD S2 · الاختراق بدون هيمنة الحجم + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_entry_s2",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "Blazing-MACD S3 · الامتصاص قبل الاختراق + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_entry_s3",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "Blazing-MACD N5 🔥 · إشعال بلا مرجع (نطاق بلا أي حمراء + صرخة فوق قمة الجبل) + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_entry_n5",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+            {
+                "name": "Blazing-MACD N6 🤫 · الاختراق الهادئ (اختراق سقف المرجع بلا هيمنة الخضراء) + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+                "condition": {
+                    "type": "and",
+                    "conditions": [
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_entry_n6",
+                            "right_value": 0,
+                        },
+                        {
+                            "type": "indicator_value",
+                            "operator": ">",
+                            "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_trend_ok",
+                            "right_value": 0,
+                        },
+                    ],
+                },
+                "position_side": "long",
+                "weight": 0.20,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "Blazing-MACD · تأكيد قمة — انقلاب النطاق إلى هابطة (نفس روح الملتهبة)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": "<",
+                    "left_value": "indicator:zigzag_fib_e2e_blazing_macd:zzfbm_dir",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 10000,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
+    "max_positions": 1,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "leverage": 1,
+}
+
+
 PRESET_NOTES: List[str] = [
     "✅ R58 — وضع percentage: القيمة نسبة مئوية حقيقية (1 = 1%، 100 = رأس مال كامل). الوضع fixed يبقى كسراً تاريخياً (1.0 = 100%).",
     "الشكل الصحيح للدمج المنطقي: {\"type\": \"and\", \"conditions\": [...]} — وليس {\"type\":\"composite\",\"logic\":\"and\"}؛ "
@@ -800,6 +1196,44 @@ def get_presets() -> List[Dict[str, Any]]:
             "reference_result": "نافذة البطل #10000233 (SOLUSDT · 1m): الأرضية 63 صفقة · +1560.14% → "
                                 "الملتهبة 64 صفقة · +1638.16% — يُعاد التحقق منه حياً بعد الدمج",
             "payload": ZLF_E2E_BLAZING_QUINT_SIGNAL,
+            "notes": PRESET_NOTES,
+        },
+        # ✅ PRO73 — «الترندية الماكدية» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "trendy_macdized_zero_fee",
+            "title": "Trendy-MACDized — الترندية الماكدية (S1/S2/S3 + بوابة الموشرات) — ZERO FEE",
+            "description": "المحرك المعزول الجديد كلياً (PRO73): الترندية بت-بت (S1/S2/S3 + بوابة الترند "
+                           "القالبية 7/15/25 majority) + **نسخ المستند الكاملة** (Google Doc — 67 نسخة: "
+                           "28 MACD + 16 RSI مع EMA وبولينجر StdDev 2 + 23 Momentum على الفريمات الـ14) "
+                           "+ **الحالات الخاصة الثلاث عشرة المسمّاة بنص المالك** (ماكد 1-5 · آر إس آي 1-5 · "
+                           "مومنتم 1-3) كأشجار شروط جاهزة قابلة للتركيب (and/or/not) والتعديل الكامل من "
+                           "الفرونت إند — البوابة الافتراضية «أي حالة لحظية» (OR) والبدائل: انطباق العائلات "
+                           "الثلاث / الإنذار المبكر. الشفافية الرباعية: entry_raw (خام) / entry_blocked (منعها "
+                           "الترند) / entry_iblocked (منعتها الموشرات) / entry (النهائي) — وإيقاف البوابة = "
+                           "هوية الترندية بت-بت.",
+            "source": "PRO73 — أمر صاحب القرار (2026-11-13): استراتيجية مستنبطة من الترندية البطل "
+                      "مع دمج الموشرات الثلاثة متعددة النسخ/الفريمات وشروط قابلة للتركيب",
+            "reference_result": "يُعاد التحقق منه حياً بعد النشر — عقد Zero-Fee/الدقة لم يُلمس",
+            "payload": TRENDY_MACDIZED,
+            "notes": PRESET_NOTES,
+        },
+        # 🔥 PRO73 — «الملتهبة الماكدية» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "blazing_macdized_zero_fee",
+            "title": "Blazing-MACDized — الملتهبة الماكدية (S1/S2/S3 + N5/N6 + بوابة الموشرات) — ZERO FEE",
+            "description": "المحرك المعزول الجديد كلياً (PRO73): الملتهبة بت-بت (S1/S2/S3 + N5 «إشعال بلا "
+                           "مرجع» + N6 «الاختراق الهادئ» + بوابة الترند القالبية) + **نسخ المستند "
+                           "الكاملة** (Google Doc — 67 نسخة على الفريمات الـ14) + **الحالات الخاصة الـ13 "
+                           "المسمّاة** بنص المالك كأشجار شروط قابلة للتركيب والتعديل من الفرونت إند — "
+                           "الدخول النهائي لكل نوع من الخمسة = إشارته المبوّبة ∧ انطباق بوابة الحالات "
+                           "(الافتراض: أي حالة لحظية OR). الحمولة كاملة: كل بيانات الملتهبة المرجعة "
+                           "(نطاقات/أرجل/محاور/ترند/سيولة/current) + سلاسل الموشرات كلها — الشفافية "
+                           "الرباعية لكل نوع، وإيقاف البوابة = هوية الملتهبة بت-بت.",
+            "source": "PRO73 — أمر صاحب القرار (2026-11-13): «وسوي إصداراً سمّه ملتهبه ماكديه — وهذا "
+                      "يكون فيه كل البيانات… المحرك عباره عن الملتهبة ولكن مع الدمج والبيانات "
+                      "المرجعة كاملة مع الجديدة»",
+            "reference_result": "يُعاد التحقق منه حياً بعد النشر — عقد Zero-Fee/الدقة لم يُلمس",
+            "payload": BLAZING_MACDIZED,
             "notes": PRESET_NOTES,
         },
     ]

@@ -1,0 +1,113 @@
+{
+  "A_snapshot_trendy": {
+    "label": "A · الترندية (لقطة البطل المصادَقة)",
+    "total_pnl_percent": 1651.2531087256748,
+    "final_capital": 1751.2531087256746,
+    "n_trades": 63,
+    "wins": 63,
+    "win_rate_pct": 100.0,
+    "avg_trade_pnl_pct": 4.6499,
+    "avg_duration_min": 10375.5,
+    "median_duration_min": 887.0,
+    "min_duration_min": 26.0,
+    "max_duration_min": 321814.0,
+    "exit_reasons": {
+      "Take Profit Hit": 62,
+      "End of Data": 1
+    },
+    "duration_buckets": {
+      "<1h": 7,
+      "1-6h": 10,
+      "6-24h": 21,
+      "1-3d": 10,
+      ">3d": 15
+    }
+  },
+  "B_current_trendy": {
+    "label": "B · الترندية (كود حالي — خط الأساس)",
+    "total_pnl_percent": 1560.1369220073775,
+    "final_capital": 1660.1369220073773,
+    "n_trades": 63,
+    "wins": 62,
+    "win_rate_pct": 98.41,
+    "avg_trade_pnl_pct": 4.566,
+    "avg_duration_min": 10384.5,
+    "median_duration_min": 887.0,
+    "min_duration_min": 26.0,
+    "max_duration_min": 321814.0,
+    "exit_reasons": {
+      "Take Profit Hit": 62,
+      "End of Data": 1
+    },
+    "duration_buckets": {
+      "<1h": 6,
+      "1-6h": 10,
+      "6-24h": 22,
+      "1-3d": 10,
+      ">3d": 15
+    }
+  },
+  "C_current_macdized": {
+    "label": "C · الترندية الماكدية (كود حالي + بوابة الماكد)",
+    "total_pnl_percent": 998.054189856173,
+    "final_capital": 1098.054189856173,
+    "n_trades": 54,
+    "wins": 53,
+    "win_rate_pct": 98.15,
+    "avg_trade_pnl_pct": 4.5437,
+    "avg_duration_min": 11838.9,
+    "median_duration_min": 887.0,
+    "min_duration_min": 26.0,
+    "max_duration_min": 321814.0,
+    "exit_reasons": {
+      "Take Profit Hit": 53,
+      "End of Data": 1
+    },
+    "duration_buckets": {
+      "<1h": 5,
+      "1-6h": 9,
+      "6-24h": 19,
+      "1-3d": 7,
+      ">3d": 14
+    }
+  },
+  "D_snapshot_macdized": {
+    "label": "D · الترندية الماكدية (لقطة البطل + بوابة الماكد)",
+    "total_pnl_percent": 1058.3206108142513,
+    "final_capital": 1158.3206108142513,
+    "n_trades": 54,
+    "wins": 54,
+    "win_rate_pct": 100.0,
+    "avg_trade_pnl_pct": 4.6416,
+    "avg_duration_min": 11828.3,
+    "median_duration_min": 887.0,
+    "min_duration_min": 26.0,
+    "max_duration_min": 321814.0,
+    "exit_reasons": {
+      "Take Profit Hit": 53,
+      "End of Data": 1
+    },
+    "duration_buckets": {
+      "<1h": 6,
+      "1-6h": 9,
+      "6-24h": 18,
+      "1-3d": 7,
+      ">3d": 14
+    }
+  },
+  "hero_trades_gate_pass": {
+    "trades": 63,
+    "gate_passed": 53
+  },
+  "signals": {
+    "snapshot_signals": 4215,
+    "current_signals": 4584,
+    "current_gated_signals": 4313,
+    "signal_reduction_pct": 5.91,
+    "gate_open_pct": 93.51
+  },
+  "anchors_ok": {
+    "snapshot": true,
+    "current": true
+  }
+}

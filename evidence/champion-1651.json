@@ -1,0 +1,129 @@
+{
+  "phases": {
+    "bitbit_columns": {
+      "elapsed_s": 69.4,
+      "vs_current_ref_equal": {
+        "ind_zzfet_entry_s1": true,
+        "ind_zzfet_entry_s2": true,
+        "ind_zzfet_entry_s3": true,
+        "ind_zzfet_trend_ok": true,
+        "ind_zzfet_dir": true
+      },
+      "vs_champion_snapshot_drift": {
+        "ind_zzfet_entry_s1": 54,
+        "ind_zzfet_entry_s2": 303,
+        "ind_zzfet_entry_s3": 12,
+        "ind_zzfet_trend_ok": 0,
+        "ind_zzfet_dir": 0
+      }
+    },
+    "champion_sim": {
+      "with_snapshot_signals": {
+        "pnl": 1651.2531087256748,
+        "trades": 63,
+        "diff_vs_ref": 0.0
+      },
+      "with_current_signals": {
+        "pnl": 1560.1369220073775,
+        "trades": 63,
+        "wins": 62,
+        "signals": 4584,
+        "final_capital": 1660.1369220073773
+      },
+      "ref_pnl": 1651.2531087256748,
+      "first_trades": [
+        {
+          "entry_time": 301,
+          "entry": 22.18,
+          "exit": 23.222459999999998,
+          "pnl_pct": 4.699999999999992,
+          "reason": "Take Profit Hit"
+        },
+        {
+          "entry_time": 755,
+          "entry": 23.34,
+          "exit": 24.43698,
+          "pnl_pct": 4.699999999999993,
+          "reason": "Take Profit Hit"
+        },
+        {
+          "entry_time": 811,
+          "entry": 24.52,
+          "exit": 25.672439999999998,
+          "pnl_pct": 4.699999999999995,
+          "reason": "Take Profit Hit"
+        },
+        {
+          "entry_time": 5297,
+          "entry": 25.42,
+          "exit": 26.61474,
+          "pnl_pct": 4.6999999999999975,
+          "reason": "Take Profit Hit"
+        },
+        {
+          "entry_time": 6305,
+          "entry": 27.38,
+          "exit": 28.66686,
+          "pnl_pct": 4.700000000000004,
+          "reason": "Take Profit Hit"
+        }
+      ]
+    },
+    "macdized_subwindow": {
+      "window": {
+        "from_ms": 1732136280000,
+        "to_ms": 1737320280000,
+        "bars": 86400
+      },
+      "trendy_identity": {
+        "osc_columns": 52,
+        "buys": 328,
+        "trades": 328,
+        "wins": 167,
+        "total_return_pct": 7.5372,
+        "prep_s": 27.73,
+        "loop_s": 1.65,
+        "sample_reasons": [
+          "Trendy-MACD S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+          "Trendy-MACD S2 · الاختراق بدون هيمنة الحجم + الترند + بوابة الحالات الخاصة",
+          "Trendy-MACD S3 · الامتصاص قبل الاختراق + الترند + بوابة الحالات الخاصة"
+        ]
+      },
+      "trendy_gated": {
+        "osc_columns": 246,
+        "buys": 95,
+        "trades": 95,
+        "wins": 46,
+        "total_return_pct": 5.7433,
+        "prep_s": 31.98,
+        "loop_s": 1.59,
+        "sample_reasons": [
+          "Trendy-MACD S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+          "Trendy-MACD S2 · الاختراق بدون هيمنة الحجم + الترند + بوابة الحالات الخاصة",
+          "Trendy-MACD S3 · الامتصاص قبل الاختراق + الترند + بوابة الحالات الخاصة"
+        ]
+      },
+      "blazing_gated": {
+        "osc_columns": 256,
+        "buys": 626,
+        "trades": 626,
+        "wins": 279,
+        "total_return_pct": 2.368,
+        "prep_s": 33.14,
+        "loop_s": 2.46,
+        "sample_reasons": [
+          "Blazing-MACD N5 🔥 · إشعال بلا مرجع (نطاق بلا أي حمراء + صرخة فوق قمة الجبل) + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+          "Blazing-MACD N6 🤫 · الاختراق الهادئ (اختراق سقف المرجع بلا هيمنة الخضراء) + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+          "Blazing-MACD S1 · الاختراق الكامل المؤكد + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)",
+          "Blazing-MACD S2 · الاختراق بدون هيمنة الحجم + الترند + بوابة الحالات الخاصة (أي حالة لحظية — OR)"
+        ]
+      },
+      "note": "ذاكرة الجهاز (4GB) تمنع تشغيل النسخ الـ67 على نافذة البطل كاملة (~4.3GB) — المقارنة على آخر 60 يوماً من نافذة البطل عبر المسار الإنتاجي نفسه؛ البطل نفسه مُتحقق بت-بت على النافذة كاملة (المرحلتان 1-2)."
+    }
+  },
+  "summary": {
+    "pass": 10,
+    "fail": 0,
+    "failures": []
+  }
+}

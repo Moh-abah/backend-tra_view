@@ -7,7 +7,7 @@ import time
 import importlib.util
 from datetime import datetime, timezone, timedelta
 
-OUT = "/home/z/my-project/download/ROUND26-RANGE-LIFE-REF/evidence"
+OUT = "C:/Users/MohAbh/Desktop/TR_platform/backend/proof-lab/evidence"
 K3 = timezone(timedelta(hours=3))
 
 
@@ -16,11 +16,11 @@ def t3(ms):
 
 
 spec = importlib.util.spec_from_file_location(
-    "eng_new", "/home/z/my-project/download/ROUND26-RANGE-LIFE-REF/app/services/indicators/overlays_zlf_e2e.py")
+    "eng_new", "C:/Users/MohAbh/Desktop/TR_platform/backend/proof-lab/app/indicators/overlays_zlf_e2e.py")
 NEW = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(NEW)
 
-sys.path.insert(0, "/home/z/my-project/download/ROUND23-REAL-TEST")
+sys.path.insert(0, "C:/Users/MohAbh/Desktop/TR_platform/backend/scripts")
 from zlf_fetch import fetch_klines, klines_to_df, TF_MS  # noqa: E402
 
 CASES = [
@@ -57,7 +57,7 @@ for sym, tf, need in CASES:
     ok = bad == 0 and missing_ref == 0
     results.append({"symbol": sym, "tf": tf, "candles": len(candles), "ranges": len(eng["ranges"]),
                     "signals": len(sigs), "out_of_range_ref": bad, "signals_missing_ref": missing_ref, "ok": ok})
-    print(f"  {sym} {tf}: شموع={len(candles)} نطاقات={len(eng['ranges'])} إشارات={len(sigs)} · "
+    print(f"  {sym} {tf}: Candles={len(candles)} نطاقات={len(eng['ranges'])} إشارات={len(sigs)} · "
           f"مرجع-خارج-العمر={bad} · إشارة-بلا-مرجع={missing_ref} {'✅' if ok else '❌'}")
 
 json.dump(results, open(f"{OUT}/regression.json", "w"), ensure_ascii=False, indent=1)
