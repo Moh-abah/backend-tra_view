@@ -733,6 +733,198 @@ async def _get_or_build_base(db: AsyncSession, backtest_id: str,
     return base
 
 
+# ==========================================
+# ✅ R74.1 — استكمال capital_deployed للسجلات القديمة عند فتحها (عرض فقط)
+# ==========================================
+
+def _bf_ts_key(v):
+    """مفتاح زمني قابل للمقارنة من طابع ISO/epoch المخزّن، أو None إن تعذّر.
+
+    الترتيب فقط هو المطلوب (لا القيمة المطلقة) — طوابع نفس التشغيل تُعالَج
+    جميعها بالطريقة نفسها فيبقى الترتيب النسبي صحيحاً تماماً.
+    """
+    if v is None:
+        return None
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        f = float(v)
+        return (f / 1000.0) if f > 1e12 else f
+    s = str(v).strip()
+    if not s:
+        return None
+    try:
+        txt = s[:-1] + "+00:00" if s.endswith(("Z", "z")) else s
+        from datetime import datetime as _dt
+        return _dt.fromisoformat(txt).timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def _backfill_capital_deployed(summary, trade_points_raw, full_config=None):
+    """✅ R74.1 — إظهار capital_deployed للسجلات المخزّنة قبل R74 عند فتحها.
+
+    الطلب الحرفي (صاحب القرار): «كم اجمالي المبالغ للصفقات التي دخل فيها
+    في الباك تست 10000422 وكم ارباحها النقديه بدون نسبه؟» — السجلات القديمة
+    حُسبت قبل R74 فلا تحمل capital_deployed في summary المخزّن. بدل إعادة
+    التشغيل، يُحسب هنا من trade_points المخزّنة نفسها لكل صفقة:
+        المبلغ = entry_price × position_size
+    بنفس دلالات محرك R74 حرفياً:
+      • total_invested_usd — إجمالي المبالغ التي دخلت في الصفقات (كل الدخول)
+      • peak_deployed_usd  — أقصى رأس مال في صفقات متزامنة (خروج قبل دخول
+        داخل نفس اللحظة — نفس ترتيب أحداث المحرك)؛ الدخول غير المغلق
+        (إن وجد) يظل منشوراً حتى نهاية البيانات
+      • percent_basis_usd = min(peak, initial) — أساس النسبة R74
+    ثم تُعاد النسبة على هذا الأساس (total_pnl_percent) وتُحفظ القديمة في
+    total_pnl_percent_on_initial — نفس عقد R74 للمحرك.
+
+    عقد الأمان:
+      • لا يُعدَّل السجل في قاعدة البيانات — عرض فقط (GET /get).
+      • السجلات R74+ (تحمل الحقل أصلاً) تُعاد كما هي بت-بت.
+      • أي استثناء داخل الاستكمال يُرجع summary كما كان — لا يكسر الفتح أبداً.
+    """
+    try:
+        if not isinstance(summary, dict):
+            return summary
+        _existing = summary.get("capital_deployed")
+        if isinstance(_existing, dict) and _existing.get("total_invested_usd") is not None:
+            return summary  # سجل R74+ — الحقل محسوب من المحرك أصلاً
+        if not isinstance(trade_points_raw, list) or not trade_points_raw:
+            return summary
+
+        pts = [tp for tp in trade_points_raw if isinstance(tp, dict)]
+        if not pts:
+            return summary
+
+        # المفتاح الزمني: الطوابع الحقيقية إن أمكن فكّها كلها، وإلا ترتيب
+        # القائمة الخام (نقاط التداول تُسجَّل زمنياً داخل المحاكاة — نفس الترتيب).
+        real_ts = [_bf_ts_key(tp.get("timestamp")) for tp in pts]
+        use_real = all(t is not None for t in real_ts)
+
+        def _t(i: int) -> float:
+            return float(real_ts[i]) if use_real else float(i)
+
+        entries = {}          # trade_id -> (t_in, invested) — كل صفقة مرة واحدة
+        exits = {}            # trade_id -> t_out
+        exit_rows = []        # [(trade_id, t_out, inv)] بترتيب القائمة
+        phantom_entries = []  # طوابع «علامات دخول وهمية» (انظر أدناه)
+        seq = 0
+        for i, tp in enumerate(pts):
+            ptype = str(tp.get("type") or "").lower()
+            try:
+                ep = float(tp.get("entry_price") or 0.0)
+                ps = float(tp.get("position_size") or 0.0)
+            except (TypeError, ValueError):
+                continue
+            inv = abs(ep * ps)
+            tid = tp.get("trade_id")
+            key = tid if tid is not None else f"_seq{seq}"
+            seq += 1
+            if ptype == "entry":
+                if inv > 0 and key not in entries:
+                    entries[key] = (_t(i), inv)
+                elif inv <= 0:
+                    # ✅ R74.1 (ظاهرة المحرك): مسار دخول معيّن يسجّل علامة
+                    # الدخول بطابع الزمن الصحيح لكن بأسعار مصفّرة (trade_id=None
+                    # · entry_price=0 · position_size=0). المبلغ الحقيقي للصفقة
+                    # نفسها يظهر في نقطة إغلاقها — نقترنهما أدناه بالترتيب.
+                    phantom_entries.append(_t(i))
+            elif ptype == "exit":
+                if tid is None or tid in exits:
+                    continue
+                exits[tid] = _t(i)
+                exit_rows.append((tid, _t(i), inv))
+
+        # ✅ R74.1 — اقتران الإغلاقات اليتيمة (لا نقطة دخول حقيقية لها) بعلامات
+        # الدخول الوهمية بالترتيب الزمني: يعيد بناء فترة الصفقة [دخول → إغلاق]
+        # بمبلغها الحقيقي من نقطة الإغلاق. الترتيب التسلسلي مطابق تماماً؛ وفي
+        # حالة تعدد المراكز المتزامنة الوهمية (نادرة جداً) يبقى تقريباً قريباً
+        # جداً لأن الاقتران المتقاطع يغطي نفس الفترة الزمنية الإجمالية.
+        orphans = [(tid, t_out, inv) for (tid, t_out, inv) in exit_rows
+                   if tid not in entries and inv > 0]
+        paired = 0
+        for (tid, t_out, inv) in orphans:
+            if paired < len(phantom_entries):
+                entries[tid] = (phantom_entries[paired], inv)
+                paired += 1
+            else:
+                # دخول مجهول الطابع (سجل مبتور): نشر لحظي محافظ — يُحسب
+                # المبلغ في الإجمالي دون تضخيم الذروة المتزامنة
+                entries[tid] = (t_out, inv)
+
+        total_invested = sum(v[1] for v in entries.values())
+        sized_trades = len(entries)
+
+        # أحداث فتح/إغلاق — نفس ترتيب محرك R74: (t, phase) والإغلاق (0) قبل الفتح (1)
+        events = []
+        for key, (t_in, inv) in entries.items():
+            events.append((t_in, 1, inv))
+            t_out = exits.get(key)
+            events.append((float("inf") if t_out is None else t_out, 0, -inv))
+        events.sort(key=lambda e: (e[0], e[1]))
+        running = 0.0
+        peak = 0.0
+        for _te, _ph, delta in events:
+            running += delta
+            if running > peak:
+                peak = running
+
+        # رأس المال الابتدائي: summary ثم full_config، ثم استنتاج احتياطي
+        initial = None
+        for src in (summary, full_config if isinstance(full_config, dict) else {}):
+            v = src.get("initial_capital") if isinstance(src, dict) else None
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                initial = float(v)
+                break
+        if initial is None:
+            try:
+                fc = summary.get("final_capital")
+                pnl = summary.get("total_pnl")
+                if isinstance(fc, (int, float)) and isinstance(pnl, (int, float)):
+                    initial = float(fc) - float(pnl)
+            except (TypeError, ValueError):
+                initial = None
+
+        basis = min(peak, initial) if (peak > 0 and initial and initial > 0) else None
+        view = {
+            "peak_deployed_usd": round(peak, 6),
+            "total_invested_usd": round(total_invested, 6),
+            "sized_trades": sized_trades,
+            "initial_capital_usd": (round(initial, 6) if initial is not None else None),
+            "percent_basis_usd": (round(basis, 6) if basis else None),
+            "idle_capital_usd": (
+                round(max(0.0, initial - basis), 6)
+                if (initial is not None and basis) else None
+            ),
+            "percent_basis": (
+                "min(peak_deployed_usd, initial_capital) — R74"
+                if basis else "initial_capital (لا صفقات بحجم > 0)"
+            ),
+            "source": (
+                "backfill R74.1 — محسوبة عند الفتح من trade_points المخزّنة "
+                "(السجل أقدم من R74؛ قاعدة البيانات لم تُمس)"
+            ),
+        }
+
+        out = dict(summary)
+        out["capital_deployed"] = view
+
+        # ✅ نفس عقد R74: النسبة على المُنشر فعلاً، والقديمة تبقى مرجعاً صريحاً
+        try:
+            pnl = summary.get("total_pnl")
+            if basis and isinstance(pnl, (int, float)):
+                out.setdefault("total_pnl_percent_on_initial",
+                               summary.get("total_pnl_percent"))
+                out["total_pnl_percent"] = (float(pnl) / basis) * 100.0
+                out["percent_basis_note"] = (
+                    "R74.1 backfill: النسبة على min(peak_deployed_usd, initial_capital)؛ "
+                    "القيمة القديمة محفوظة في total_pnl_percent_on_initial"
+                )
+        except (TypeError, ValueError):
+            pass
+        return out
+    except Exception:  # noqa: BLE001 — لا يكسر فتح السجل أبداً
+        return summary
+
+
 def _build_get_payload(base: Dict[str, Any], backtest) -> Dict[str, Any]:
     """(خفيف — عقد GET /backtest/get حرفيًا كما كان قبل R49)
 
@@ -768,7 +960,10 @@ def _build_get_payload(base: Dict[str, Any], backtest) -> Dict[str, Any]:
         "backtest_id": backtest.id,
         "name": backtest.name,
         "created_at": backtest.created_at.isoformat() if backtest.created_at else None,
-        "summary": backtest.summary,
+        # ✅ R74.1 — استكمال capital_deployed للسجلات الأقدم من R74 (عرض فقط)
+        "summary": _backfill_capital_deployed(
+            backtest.summary, base["trade_points_raw"], backtest.full_config
+        ),
         "chart_data": chart_data,
         "config": backtest.full_config,
     }

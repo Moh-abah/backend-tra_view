@@ -201,6 +201,45 @@ def run_unified_exit_backtest(
     unrealized = float(exsum["pnl"]["unrealized_usd_open_at_end"])
     total_pnl = realized + unrealized
 
+    # ✅ R74 — أساس النسبة الدقيق (رأس المال المُنشر فعلاً): النسبة الرئيسية
+    # على أقصى رأس مال دخل صفقات متزامنة (peak deployed — من ملخص محرك
+    # الخروج) **بسقف رأس المال الابتدائي** — طلب صاحب القرار: «المال الذي لم
+    # يدخل صفقات قط (بلا إشارات له) لا يجوز أن يُخفّف النسبة». إن بلغت
+    # الذروة الحساب أو تجاوزته (أوضاع التراكم الكاملة) فالأساس = initial
+    # بت-بت (أرقام الأبطال التاريخية محفوظة). القيمة القديمة تبقى مرجعاً
+    # صريحاً، والذروة/الإجمالي/الخامل موثقة في كتلة capital_deployed أدناه.
+    peak_deployed_r74 = float(
+        (exsum.get("capital") or {}).get("peak_deployed_usd") or 0.0
+    )
+    total_invested_r74 = float(
+        (exsum.get("capital") or {}).get("total_invested_usd") or 0.0
+    )
+    deployed_basis_r74 = (
+        min(peak_deployed_r74, initial_capital)
+        if peak_deployed_r74 > 0 and initial_capital > 0 else 0.0
+    )
+    pnl_pct_on_initial = (
+        round(total_pnl / initial_capital * 100.0, 6) if initial_capital else 0.0
+    )
+    pnl_pct_deployed = (
+        round(total_pnl / deployed_basis_r74 * 100.0, 6) if deployed_basis_r74 > 0 else 0.0
+    )
+    capital_deployed_view = {
+        "peak_deployed_usd": round(peak_deployed_r74, 6),
+        "total_invested_usd": round(total_invested_r74, 6),
+        "initial_capital_usd": initial_capital,
+        "percent_basis_usd": round(deployed_basis_r74, 6),
+        "idle_capital_usd": round(max(0.0, initial_capital - min(peak_deployed_r74, initial_capital)), 6),
+        "percent_basis": (
+            "min(peak_deployed_usd, initial_capital) — R74"
+            if deployed_basis_r74 > 0 else "initial_capital"
+        ),
+    }
+    if trades:
+        notes.append(_basis_note_r74(
+            deployed_basis_r74, initial_capital, pnl_pct_deployed, pnl_pct_on_initial,
+        ))
+
     # 5) التشكيل الفعّال لاستراتيجية الخروج — يُعاد للفرونت ليمثّله على الشاشة
     trailing_on = bool(exit_cfg["use_trailing"]) and exit_cfg["trailing_giveback_pct"] > 0
     exit_strategy_view: Dict[str, Any] = {
@@ -258,7 +297,9 @@ def run_unified_exit_backtest(
         "initial_capital": initial_capital,
         "final_capital": round(initial_capital + total_pnl, 6),
         "total_pnl": round(total_pnl, 6),
-        "total_pnl_percent": round(total_pnl / initial_capital * 100.0, 6) if initial_capital else 0.0,
+        "total_pnl_percent": pnl_pct_deployed,  # ✅ R74 — على رأس المال المُنشر فعلاً (بسقف الحساب)
+        "total_pnl_percent_on_initial": pnl_pct_on_initial,  # ✅ R74 — الأساس القديم مرجعاً
+        "capital_deployed": capital_deployed_view,
         "total_trades": int(exsum["trades_total"]),
         "winning_trades": int(exsum["wins"]),
         "losing_trades": int(exsum["losses"]),
@@ -312,6 +353,22 @@ def run_unified_exit_backtest(
     }
 
     return {"summary": summary, "chart_data": chart_data, "notes": notes}
+
+
+# ---------------------------------------------------------------------------
+# ✅ R74 — ملاحظة أساس النسبة للمسار الموحد (تُرفق بـ notes عند وجود صفقات)
+# ---------------------------------------------------------------------------
+def _basis_note_r74(
+    deployed_basis: float, initial_capital: float,
+    pnl_pct_deployed: float, pnl_pct_on_initial: float,
+) -> str:
+    idle = max(0.0, initial_capital - deployed_basis)
+    return (
+        f"R74: النسبة على رأس المال المُنشر فعلاً — الأساس {deployed_basis:g}$ من أصل "
+        f"{initial_capital:g}$ (الخامل {idle:g}$ ما دخل صفقات قط) ⇒ "
+        f"{pnl_pct_deployed:+.2f}% على المُنشر مقابل {pnl_pct_on_initial:+.2f}% "
+        f"على initial القديمة (محفوظة في total_pnl_percent_on_initial)."
+    )
 
 
 # ---------------------------------------------------------------------------

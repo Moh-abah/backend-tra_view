@@ -1,0 +1,27 @@
+{
+  "metrics": {
+    "project_root": "/home/z/drive-download/backend_PRO95_extracted",
+    "zone_exit_resolution": "60",
+    "zone_exit_length": "50",
+    "arm_after_gain_pct": 2.5,
+    "total_trades": 83,
+    "win_rate_pct": 50.6024,
+    "total_pnl_percent": 10022.383044,
+    "final_capital": 30367.149131,
+    "total_pnl": 30067.149131,
+    "profit_factor": 2.536225,
+    "sharpe": 5.1876,
+    "sortino": 19.0742,
+    "calmar": 2536.0975,
+    "max_drawdown_pct": 43.612,
+    "avg_trade_duration_hours": 569.9006,
+    "expectancy": 362.254809,
+    "execution_seconds": 117.19
+  },
+  "trades_hash": "22113f3cd3a2bbec",
+  "n_trades_listed": 83,
+  "exit_reasons": {
+    "Exit Signal: Exit Condition: ALMIGHTY · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج · الباب الوحيد)": 30,
+    "Exit Signal: Exit Condition: ALMIGHTY · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج · الباب الوحيد) (additional position)": 53
+  }
+}

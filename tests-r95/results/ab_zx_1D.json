@@ -1,0 +1,25 @@
+{
+  "metrics": {
+    "project_root": "/home/z/drive-download/backend_PRO95_extracted",
+    "zone_exit_resolution": "1D",
+    "zone_exit_length": null,
+    "total_trades": 3,
+    "win_rate_pct": 100.0,
+    "total_pnl_percent": 2936.548401,
+    "final_capital": 9109.645204,
+    "total_pnl": 8809.645204,
+    "profit_factor": null,
+    "sharpe": 8.2358,
+    "sortino": 0.0,
+    "calmar": 0.0,
+    "max_drawdown_pct": 0.0,
+    "avg_trade_duration_hours": 52487.75,
+    "expectancy": 2936.548401,
+    "execution_seconds": 112.32
+  },
+  "trades_hash": "14877463845d0e1f",
+  "n_trades_listed": 3,
+  "exit_reasons": {
+    "End of Data": 3
+  }
+}

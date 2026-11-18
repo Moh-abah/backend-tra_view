@@ -1,0 +1,117 @@
+{
+ "name": "QUANTUM-LIVE-VERIFY · QUANTUM (zone ON) · نافذة القاعدة 10000374 (SOL 15m)",
+ "description": "التحقق الحي من الدمج — الاستراتيجية الترندية الكمومية على نافذة القاعدة #10000374 (SOLUSDT · 15m · 2020-10-01→2021-03-09) — منطقة الشراء HH+HL مفعّلة (zone_gate: s1,s2,s3)",
+ "mode": "standard",
+ "start_date": "2020-10-01T00:00:00Z",
+ "end_date": "2021-03-09T20:59:59Z",
+ "timeframe": "15m",
+ "market": "crypto",
+ "symbols": [
+  "SOLUSDT"
+ ],
+ "initial_capital": 100.0,
+ "position_sizing": "percentage",
+ "position_size_percent": 1.0,
+ "max_positions": 1,
+ "compounding": true,
+ "multi_position_compounding": true,
+ "commission_rate": 0.0,
+ "slippage_percent": 0.0,
+ "fill_model": "next_open",
+ "stop_loss_percent": 49.0,
+ "take_profit_percent": 4.7,
+ "max_daily_loss_percent": 5.0,
+ "enable_short_selling": false,
+ "enable_margin": false,
+ "leverage": 1.0,
+ "require_confirmation": false,
+ "strategy_config": {
+  "name": "ZLF-End-To-End-Trendy-Quantum (3 Entry Signals — Trend+Zone gated)",
+  "base_timeframe": "15m",
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "zigzag_fib_e2e_trendy_quantum",
+    "type": "support_resistance",
+    "params": {
+     "mode": "luxalgo",
+     "length": 100,
+     "touch_level": 0.618,
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ]
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "ZLF-E2E-Trendy-Quantum S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s1",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.34,
+    "enabled": true
+   },
+   {
+    "name": "ZLF-E2E-Trendy-Quantum S2 · الاختراق بدون هيمنة الحجم + الترند + المنطقة الكمومية (HH+HL)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s2",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   },
+   {
+    "name": "ZLF-E2E-Trendy-Quantum S3 · الامتصاص قبل الاختراق + الترند + المنطقة الكمومية (HH+HL)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s3",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "ZLF-E2E-Trendy-Quantum · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_zone_exit",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   }
+  ],
+  "risk_management": {
+   "stop_loss_percentage": 2.0,
+   "take_profit_percentage": 99.0
+  }
+ }
+}

@@ -124,9 +124,24 @@ OVERLAY_ALIASES: Dict[str, str] = {
     # الفريمات + بوابة شروط قابلة للتركيب (محرك معزول جديد كلياً)
     "zigzag_fib_e2e_trendy_macd": "zzfib_e2e_trendy_macd",
     "zzfib_e2e_trendy_macd": "zzfib_e2e_trendy_macd",
-    # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت + نفس الموشرات والبوابة
+    # ✅ PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت + نفس الموشرات والبوابة
     "zigzag_fib_e2e_blazing_macd": "zzfib_e2e_blazing_macd",
     "zzfib_e2e_blazing_macd": "zzfib_e2e_blazing_macd",
+    # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» — الترندية بحذافيرها +
+    # بوابة المنطقة الكمومية (HH+HL يفتح · LL+LH يغلق ويخرج next_open).
+    "zigzag_fib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum",
+    "zzfib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum",
+    # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» —
+    # الكمومية بحذافيرها + بوابة رصة EMA الستة على فريم الساعة (EMA 21/50/
+    # 100/200/350/500 تنازلياً تحت السعر — MTF EMA بلا استشراف).
+    "zigzag_fib_e2e_trendy_quantum_ema": "zzfib_e2e_trendy_quantum_ema",
+    "zzfib_e2e_trendy_quantum_ema": "zzfib_e2e_trendy_quantum_ema",
+    # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (Pine بحذافيره
+    # بلا استشراف — قابل للتخصيص من الواجهة، رسم الآن وشروط لاحقاً).
+    "mtf_ema": "mtf_ema",
+    "mtfema": "mtf_ema",
+    "multi_timeframe_ema": "mtf_ema",
+    "multi_timeframe_exponential_moving_average": "mtf_ema",
     "trend_fractal": "trend_fractal",
     "fractal_trendlines": "trend_fractal",
 }
@@ -134,6 +149,9 @@ OVERLAY_ALIASES: Dict[str, str] = {
 KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
                        "zzfib_e2e_trendy", "zzfib_e2e_blazing",  # ✅ ROUND32 + 🔥 R69
                        "zzfib_e2e_trendy_macd", "zzfib_e2e_blazing_macd",  # ✅ PRO73
+                       "zzfib_e2e_trendy_quantum",  # ✅ QUANTUM1 — الاستراتيجية الترندية الكمومية
+                       "zzfib_e2e_trendy_quantum_ema",  # ✅ QUANTUMEMA1 — الكمومية المتوسطة المتحركة الأسية
+                       "mtf_ema",  # ✅ MTFEMA1 — MTF EMA متعدد الفريمات
                        "trend_fractal")
 
 # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
@@ -193,7 +211,138 @@ CONTRACT_COLUMNS: Dict[str, List[str]] = {
         "ind_zzfet_tr_p15_upper", "ind_zzfet_tr_p15_lower", "ind_zzfet_tr_p15_bias",
         "ind_zzfet_tr_p25_upper", "ind_zzfet_tr_p25_lower", "ind_zzfet_tr_p25_bias",
     ],
-    # 🔥 R69 (ZLF-End-To-End-Blazing) — عقد «الترندية الملتهبة» — كل الأسماء جديدة كلياً
+    # ✅ QUANTUM1 (ZLF-End-To-End-Trendy-Quantum) — عقد «الاستراتيجية الترندية
+    # الكمومية»: مرآة كاملة لعقد الترندية (zzfetq_* → ind_zzfetq_*) + أعمدة
+    # المنطقة (zone_on/enter/exit/struct/hh/hl/lh/ll/last/prev — 12) + الشفافية
+    # الرباعية (entry_raw/entry_blocked ترند/entry_zblocked منطقة/entry نهائي)
+    # + ✅ التمرير الكامل: أعمدة الترندية الأصلية zzfet_* (47) تُرجع أيضاً
+    # (ind_zzfet_* — بيانات الرسم: زقزاق/فيبو/خطوط ترند/سيولة/إشارات/ترند)
+    # كما كانت الترندية ترجعها بحذافيرها بالقيم نفسها بت-بت.
+    "zzfib_e2e_trendy_quantum": [
+        "ind_zzfetq_dir", "ind_zzfetq_p1", "ind_zzfetq_p2", "ind_zzfetq_i1", "ind_zzfetq_i2",
+        "ind_zzfetq_anchor", "ind_zzfetq_range_index",
+        "ind_zzfetq_liq_state", "ind_zzfetq_liq_ref_high", "ind_zzfetq_liq_ref_vol",
+        "ind_zzfetq_liq_vol_ok", "ind_zzfetq_signal_s1", "ind_zzfetq_signal_s2",
+        "ind_zzfetq_signal_s3", "ind_zzfetq_signal_any",
+        "ind_zzfetq_entry", "ind_zzfetq_entry_raw",
+        "ind_zzfetq_entry_s1", "ind_zzfetq_entry_s2", "ind_zzfetq_entry_s3",
+        "ind_zzfetq_entry_raw_s1", "ind_zzfetq_entry_raw_s2", "ind_zzfetq_entry_raw_s3",
+        "ind_zzfetq_entry_blocked_s1", "ind_zzfetq_entry_blocked_s2", "ind_zzfetq_entry_blocked_s3",
+        "ind_zzfetq_entry_zblocked_s1", "ind_zzfetq_entry_zblocked_s2", "ind_zzfetq_entry_zblocked_s3",
+        "ind_zzfetq_trend_ok", "ind_zzfetq_trend_bias",
+        "ind_zzfetq_trend_votes_bull", "ind_zzfetq_trend_votes_bear",
+        "ind_zzfetq_tr_p7_upper", "ind_zzfetq_tr_p7_lower", "ind_zzfetq_tr_p7_bias",
+        "ind_zzfetq_tr_p15_upper", "ind_zzfetq_tr_p15_lower", "ind_zzfetq_tr_p15_bias",
+        "ind_zzfetq_tr_p25_upper", "ind_zzfetq_tr_p25_lower", "ind_zzfetq_tr_p25_bias",
+        "ind_zzfetq_zone_last_high", "ind_zzfetq_zone_prev_high",
+        "ind_zzfetq_zone_last_low", "ind_zzfetq_zone_prev_low",
+        "ind_zzfetq_zone_hh", "ind_zzfetq_zone_hl",
+        "ind_zzfetq_zone_lh", "ind_zzfetq_zone_ll",
+        "ind_zzfetq_zone_on", "ind_zzfetq_zone_struct",
+        "ind_zzfetq_zone_enter", "ind_zzfetq_zone_exit",
+        # ✅ ZONE-EXIT-TF1 — أعمدة فريم هيكل الخروج (CHoCH على أي فريم)
+        "ind_zzfetq_zone_exit_base", "ind_zzfetq_zone_exit_htf_enter",
+        "ind_zzfetq_zone_exit_htf_on",
+        # ✅ التمرير — عقد الترندية الأصلي مُرجع أيضاً (بيانات الرسم الكاملة):
+        "ind_zzfet_dir", "ind_zzfet_p1", "ind_zzfet_p2", "ind_zzfet_i1", "ind_zzfet_i2",
+        "ind_zzfet_anchor", "ind_zzfet_range_index",
+        "ind_zzfet_level_0", "ind_zzfet_level_0236", "ind_zzfet_level_0382",
+        "ind_zzfet_level_05", "ind_zzfet_level_0618", "ind_zzfet_level_0786",
+        "ind_zzfet_level_085415", "ind_zzfet_level_1",
+        "ind_zzfet_liq_state", "ind_zzfet_liq_ref_high", "ind_zzfet_liq_ref_vol",
+        "ind_zzfet_liq_vol_ok", "ind_zzfet_signal_s1", "ind_zzfet_signal_s2",
+        "ind_zzfet_signal_s3", "ind_zzfet_signal_any",
+        "ind_zzfet_entry", "ind_zzfet_entry_raw",
+        "ind_zzfet_entry_s1", "ind_zzfet_entry_s2", "ind_zzfet_entry_s3",
+        "ind_zzfet_entry_raw_s1", "ind_zzfet_entry_raw_s2", "ind_zzfet_entry_raw_s3",
+        "ind_zzfet_entry_blocked_s1", "ind_zzfet_entry_blocked_s2", "ind_zzfet_entry_blocked_s3",
+        "ind_zzfet_trend_ok", "ind_zzfet_trend_bias",
+        "ind_zzfet_trend_votes_bull", "ind_zzfet_trend_votes_bear",
+        "ind_zzfet_tr_p7_upper", "ind_zzfet_tr_p7_lower", "ind_zzfet_tr_p7_bias",
+        "ind_zzfet_tr_p15_upper", "ind_zzfet_tr_p15_lower", "ind_zzfet_tr_p15_bias",
+        "ind_zzfet_tr_p25_upper", "ind_zzfet_tr_p25_lower", "ind_zzfet_tr_p25_bias",
+    ],
+    # ✅ QUANTUMEMA1 (ZLF-End-To-End-Trendy-Quantum-EMA) — عقد «الاستراتيجية
+    # الترندية الكمومية المتوسطة المتحركة الأسية»: مرآة كاملة لعقد الكمومية
+    # (zzfetqe_* → ind_zzfetqe_*) + ✅ التمرير الكامل لعقدَي الكمومية نفسها
+    # (ind_zzfetq_* + ind_zzfet_* — بيانات الرسم الكاملة بت-بت) + الخطوط
+    # الستة ind_zzfetqe_ema_{21,50,100,200,350,500} (رسم على فريم الشارت —
+    # محسوبة على فريم الساعة 60) + حالة الرصة (stack_ok/ready/enter/exit)
+    # + الشفافية الخماسية (entry_raw خام / entry_blocked ترند /
+    # entry_zblocked منطقة / entry_eblocked رصة EMA / entry النهائي).
+    "zzfib_e2e_trendy_quantum_ema": [
+        "ind_zzfetqe_dir", "ind_zzfetqe_p1", "ind_zzfetqe_p2", "ind_zzfetqe_i1", "ind_zzfetqe_i2",
+        "ind_zzfetqe_anchor", "ind_zzfetqe_range_index",
+        "ind_zzfetqe_liq_state", "ind_zzfetqe_liq_ref_high", "ind_zzfetqe_liq_ref_vol",
+        "ind_zzfetqe_liq_vol_ok", "ind_zzfetqe_signal_s1", "ind_zzfetqe_signal_s2",
+        "ind_zzfetqe_signal_s3", "ind_zzfetqe_signal_any",
+        "ind_zzfetqe_entry", "ind_zzfetqe_entry_raw",
+        "ind_zzfetqe_entry_s1", "ind_zzfetqe_entry_s2", "ind_zzfetqe_entry_s3",
+        "ind_zzfetqe_entry_raw_s1", "ind_zzfetqe_entry_raw_s2", "ind_zzfetqe_entry_raw_s3",
+        "ind_zzfetqe_entry_blocked_s1", "ind_zzfetqe_entry_blocked_s2", "ind_zzfetqe_entry_blocked_s3",
+        "ind_zzfetqe_entry_zblocked_s1", "ind_zzfetqe_entry_zblocked_s2", "ind_zzfetqe_entry_zblocked_s3",
+        "ind_zzfetqe_entry_eblocked_s1", "ind_zzfetqe_entry_eblocked_s2", "ind_zzfetqe_entry_eblocked_s3",
+        "ind_zzfetqe_trend_ok", "ind_zzfetqe_trend_bias",
+        "ind_zzfetqe_trend_votes_bull", "ind_zzfetqe_trend_votes_bear",
+        "ind_zzfetqe_tr_p7_upper", "ind_zzfetqe_tr_p7_lower", "ind_zzfetqe_tr_p7_bias",
+        "ind_zzfetqe_tr_p15_upper", "ind_zzfetqe_tr_p15_lower", "ind_zzfetqe_tr_p15_bias",
+        "ind_zzfetqe_tr_p25_upper", "ind_zzfetqe_tr_p25_lower", "ind_zzfetqe_tr_p25_bias",
+        "ind_zzfetqe_zone_last_high", "ind_zzfetqe_zone_prev_high",
+        "ind_zzfetqe_zone_last_low", "ind_zzfetqe_zone_prev_low",
+        "ind_zzfetqe_zone_hh", "ind_zzfetqe_zone_hl",
+        "ind_zzfetqe_zone_lh", "ind_zzfetqe_zone_ll",
+        "ind_zzfetqe_zone_on", "ind_zzfetqe_zone_struct",
+        "ind_zzfetqe_zone_enter", "ind_zzfetqe_zone_exit",
+        # ✅ ZONE-EXIT-TF1 — أعمدة فريم هيكل الخروج (CHoCH على أي فريم):
+        # النسخة الأصلية على فريم الشارت + أحداث/حالة HTF المسقطة سببياً.
+        "ind_zzfetqe_zone_exit_base", "ind_zzfetqe_zone_exit_htf_enter",
+        "ind_zzfetqe_zone_exit_htf_on",
+        # الخطوط الستة (رصة EMA — محسوبة على فريم الساعة «60» افتراضياً)
+        "ind_zzfetqe_ema_21", "ind_zzfetqe_ema_50", "ind_zzfetqe_ema_100",
+        "ind_zzfetqe_ema_200", "ind_zzfetqe_ema_350", "ind_zzfetqe_ema_500",
+        # حالة الرصة وأحداثها وجاهزيتها
+        "ind_zzfetqe_ema_stack_ok", "ind_zzfetqe_ema_stack_ready",
+        "ind_zzfetqe_ema_stack_enter", "ind_zzfetqe_ema_stack_exit",
+        # ✅ التمرير — عقد الكمومية الكامل مُرجع أيضاً (بيانات الرسم الكاملة):
+        "ind_zzfetq_dir", "ind_zzfetq_p1", "ind_zzfetq_p2", "ind_zzfetq_i1", "ind_zzfetq_i2",
+        "ind_zzfetq_anchor", "ind_zzfetq_range_index",
+        "ind_zzfetq_liq_state", "ind_zzfetq_liq_ref_high", "ind_zzfetq_liq_ref_vol",
+        "ind_zzfetq_liq_vol_ok", "ind_zzfetq_signal_s1", "ind_zzfetq_signal_s2",
+        "ind_zzfetq_signal_s3", "ind_zzfetq_signal_any",
+        "ind_zzfetq_entry", "ind_zzfetq_entry_raw",
+        "ind_zzfetq_entry_s1", "ind_zzfetq_entry_s2", "ind_zzfetq_entry_s3",
+        "ind_zzfetq_entry_raw_s1", "ind_zzfetq_entry_raw_s2", "ind_zzfetq_entry_raw_s3",
+        "ind_zzfetq_entry_blocked_s1", "ind_zzfetq_entry_blocked_s2", "ind_zzfetq_entry_blocked_s3",
+        "ind_zzfetq_entry_zblocked_s1", "ind_zzfetq_entry_zblocked_s2", "ind_zzfetq_entry_zblocked_s3",
+        "ind_zzfetq_trend_ok", "ind_zzfetq_trend_bias",
+        "ind_zzfetq_trend_votes_bull", "ind_zzfetq_trend_votes_bear",
+        "ind_zzfetq_tr_p7_upper", "ind_zzfetq_tr_p7_lower", "ind_zzfetq_tr_p7_bias",
+        "ind_zzfetq_tr_p15_upper", "ind_zzfetq_tr_p15_lower", "ind_zzfetq_tr_p15_bias",
+        "ind_zzfetq_tr_p25_upper", "ind_zzfetq_tr_p25_lower", "ind_zzfetq_tr_p25_bias",
+        "ind_zzfetq_zone_last_high", "ind_zzfetq_zone_prev_high",
+        "ind_zzfetq_zone_last_low", "ind_zzfetq_zone_prev_low",
+        "ind_zzfetq_zone_hh", "ind_zzfetq_zone_hl",
+        "ind_zzfetq_zone_lh", "ind_zzfetq_zone_ll",
+        "ind_zzfetq_zone_on", "ind_zzfetq_zone_struct",
+        "ind_zzfetq_zone_enter", "ind_zzfetq_zone_exit",
+        "ind_zzfet_dir", "ind_zzfet_p1", "ind_zzfet_p2", "ind_zzfet_i1", "ind_zzfet_i2",
+        "ind_zzfet_anchor", "ind_zzfet_range_index",
+        "ind_zzfet_level_0", "ind_zzfet_level_0236", "ind_zzfet_level_0382",
+        "ind_zzfet_level_05", "ind_zzfet_level_0618", "ind_zzfet_level_0786",
+        "ind_zzfet_level_085415", "ind_zzfet_level_1",
+        "ind_zzfet_liq_state", "ind_zzfet_liq_ref_high", "ind_zzfet_liq_ref_vol",
+        "ind_zzfet_liq_vol_ok", "ind_zzfet_signal_s1", "ind_zzfet_signal_s2",
+        "ind_zzfet_signal_s3", "ind_zzfet_signal_any",
+        "ind_zzfet_entry", "ind_zzfet_entry_raw",
+        "ind_zzfet_entry_s1", "ind_zzfet_entry_s2", "ind_zzfet_entry_s3",
+        "ind_zzfet_entry_raw_s1", "ind_zzfet_entry_raw_s2", "ind_zzfet_entry_raw_s3",
+        "ind_zzfet_entry_blocked_s1", "ind_zzfet_entry_blocked_s2", "ind_zzfet_entry_blocked_s3",
+        "ind_zzfet_trend_ok", "ind_zzfet_trend_bias",
+        "ind_zzfet_trend_votes_bull", "ind_zzfet_trend_votes_bear",
+        "ind_zzfet_tr_p7_upper", "ind_zzfet_tr_p7_lower", "ind_zzfet_tr_p7_bias",
+        "ind_zzfet_tr_p15_upper", "ind_zzfet_tr_p15_lower", "ind_zzfet_tr_p15_bias",
+        "ind_zzfet_tr_p25_upper", "ind_zzfet_tr_p25_lower", "ind_zzfet_tr_p25_bias",
+    ],
     # (zzfb_* → ind_zzfb_*): الترندية بت-بت + N5/N6 + ثلاثية البوابة الشفافة
     # (الخام/المبوّب/الممنوع) لكل الأنواع الخمسة. مرايا الفترات ديناميكية حسب
     # قالب الفترات — المذكور هنا للفترات الافتراضية [7,15,25].
@@ -264,6 +413,14 @@ CONTRACT_COLUMNS: Dict[str, List[str]] = {
         "ind_zzfbm_tr_p7_upper", "ind_zzfbm_tr_p7_lower", "ind_zzfbm_tr_p7_bias",
         "ind_zzfbm_tr_p15_upper", "ind_zzfbm_tr_p15_lower", "ind_zzfbm_tr_p15_bias",
         "ind_zzfbm_tr_p25_upper", "ind_zzfbm_tr_p25_lower", "ind_zzfbm_tr_p25_bias",
+    ],
+    # ✅ MTFEMA1 — عقد «MTF EMA»: خط النسخة الأساسية + خط كل نسخة (ديناميكي
+    # حسب معرفات instances — البسيطة بلا instances معرفها "main").
+    # ملاحظة رسم: القيمة null أثناء الإحماء (أول length شرائط HTF) — عقد
+    # شموع الباك-تست: null لا مفقود.
+    "mtf_ema": [
+        "ind_mtfema_value",
+        # الديناميكية: ind_mtfema_<id> لكل نسخة (البسيطة: ind_mtfema_main)
     ],
     # ✅ ROUND32 — عقد مؤشر الترند المستقل: قيم الخطوط والانحياز والتقاطعات لكل فترة
     # (ديناميكية حسب القالب — المذكور للفترات الافتراضية) + المجاميع والبوابة.
@@ -498,6 +655,147 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         tg = p.get("trend_gate", p.get("gate"))
         if tg is not None:
             out["trend_gate"] = tg
+    elif base == "zzfib_e2e_trendy_quantum":
+        # ✅ QUANTUM1 — الكمومية: نفس معاملات الترندية حرفياً + قالب المنطقة
+        # (zone_gate: s1/s2/s3 أو "none" لتعطيل بوابة الدخول — بيانات المنطقة
+        # تبقى محسوبة ومُرجعة في الحالتين — شفافية بنائية مثل trend_gate=none).
+        length = _num(("length",), int)
+        if length is not None:
+            out["length"] = max(2, length)
+        if "reverse" in p:
+            out["reverse"] = bool(p["reverse"])
+        lv = p.get("levels", p.get("level_ratios"))
+        if isinstance(lv, (list, tuple)) and lv:
+            try:
+                out["levels"] = [float(x) for x in lv]
+            except (TypeError, ValueError):
+                pass
+        for k in ("extend_right", "extend_leg_to_live"):
+            if k in p:
+                out[k] = bool(p[k])
+        if "mode" in p:
+            out["mode"] = str(p["mode"]).strip().lower()
+        d_ = _num(("depth",), int)
+        if d_ is not None:
+            out["depth"] = max(2, d_)
+        dv_ = _num(("deviation",))
+        if dv_ is not None:
+            out["deviation"] = float(dv_)
+        bs_ = _num(("backstep",), int)
+        if bs_ is not None:
+            out["backstep"] = max(1, bs_)
+        tt_ = _num(("launch_touch_ticks",))
+        if tt_ is not None:
+            out["launch_touch_ticks"] = float(tt_)
+        # القوالب الترندية — كما هي
+        tp = p.get("trend_periods", p.get("periods"))
+        if tp is not None:
+            out["trend_periods"] = tp
+        if "trend_confirm" in p:
+            out["trend_confirm"] = p["trend_confirm"]
+        tg = p.get("trend_gate", p.get("gate"))
+        if tg is not None:
+            out["trend_gate"] = tg
+        # قالب المنطقة — كما هو (المحرك يطبّعه)
+        zg = p.get("zone_gate")
+        if zg is not None:
+            out["zone_gate"] = zg
+        # ✅ ZONE-EXIT-TF1 — فريم هيكل الخروج (CHoCH LL+LH على أي فريم)
+        zxr = p.get("zone_exit_resolution",
+                    p.get("exit_resolution", p.get("zone_exit_tf")))
+        if zxr is not None:
+            out["zone_exit_resolution"] = zxr
+        zxl_ = _num(("zone_exit_length", "exit_length"), int)
+        if zxl_ is not None:
+            out["zone_exit_length"] = max(2, zxl_)
+    elif base == "zzfib_e2e_trendy_quantum_ema":
+        # ✅ QUANTUMEMA1 — الكمومية المتوسطة المتحركة الأسية: نفس معاملات
+        # الكمومية حرفياً + قالب EMA (الأطوال الستة/فريم الساعة/المصدر/
+        # الإزافة/بوابة الرصة ema_gate: s1/s2/s3 أو "none" لتعطيل بوابة
+        # الدخول — بيانات الرصة والخطوط تبقى محسوبة ومُرجعة في الحالتين).
+        length = _num(("length",), int)
+        if length is not None:
+            out["length"] = max(2, length)
+        if "reverse" in p:
+            out["reverse"] = bool(p["reverse"])
+        lv = p.get("levels", p.get("level_ratios"))
+        if isinstance(lv, (list, tuple)) and lv:
+            try:
+                out["levels"] = [float(x) for x in lv]
+            except (TypeError, ValueError):
+                pass
+        for k in ("extend_right", "extend_leg_to_live"):
+            if k in p:
+                out[k] = bool(p[k])
+        if "mode" in p:
+            out["mode"] = str(p["mode"]).strip().lower()
+        d_ = _num(("depth",), int)
+        if d_ is not None:
+            out["depth"] = max(2, d_)
+        dv_ = _num(("deviation",))
+        if dv_ is not None:
+            out["deviation"] = float(dv_)
+        bs_ = _num(("backstep",), int)
+        if bs_ is not None:
+            out["backstep"] = max(1, bs_)
+        tt_ = _num(("launch_touch_ticks",))
+        if tt_ is not None:
+            out["launch_touch_ticks"] = float(tt_)
+        # القوالب الترندية — كما هي
+        tp = p.get("trend_periods", p.get("periods"))
+        if tp is not None:
+            out["trend_periods"] = tp
+        if "trend_confirm" in p:
+            out["trend_confirm"] = p["trend_confirm"]
+        tg = p.get("trend_gate", p.get("gate"))
+        if tg is not None:
+            out["trend_gate"] = tg
+        # قالب المنطقة — كما هو (المحرك يطبّعه)
+        zg = p.get("zone_gate")
+        if zg is not None:
+            out["zone_gate"] = zg
+        # ✅ قالب EMA — الأطوال/الفريم/المصدر/الإزاحة/بوابة الرصة
+        el = p.get("ema_lengths", p.get("ema_length", p.get("lengths")))
+        if el is not None:
+            out["ema_lengths"] = el
+        if "ema_resolution" in p or "res" in p or "htf" in p:
+            out["ema_resolution"] = p.get(
+                "ema_resolution", p.get("res", p.get("htf")))
+        if "ema_source" in p or "src" in p:
+            out["ema_source"] = p.get("ema_source", p.get("src"))
+        eo_ = _num(("ema_offset", "offset", "ma_offset"), int)
+        if eo_ is not None:
+            out["ema_offset"] = eo_
+        eg = p.get("ema_gate")
+        if eg is not None:
+            out["ema_gate"] = eg
+        # ✅ ZONE-EXIT-TF1 — فريم هيكل الخروج (CHoCH LL+LH على أي فريم):
+        # الدخول والمنطقة المسموحة يبقيان على فريم الشارت دائماً.
+        zxr = p.get("zone_exit_resolution",
+                    p.get("exit_resolution", p.get("zone_exit_tf")))
+        if zxr is not None:
+            out["zone_exit_resolution"] = zxr
+        zxl_ = _num(("zone_exit_length", "exit_length"), int)
+        if zxl_ is not None:
+            out["zone_exit_length"] = max(2, zxl_)
+    elif base == "mtf_ema":
+        # ✅ MTFEMA1 — MTF EMA: معاملات Pine بحذافيرها + النسخ المتعددة
+        # (instances — أي عدد نسخ لكل نسخة معاملاتها؛ البسيطة بلا instances
+        # = نسخة واحدة من المعاملات العلوية — نفس نمط osc_instances في PRO73).
+        ln_ = _num(("length", "ma_len", "len"), int)
+        if ln_ is not None:
+            out["length"] = max(1, ln_)
+        if "source" in p or "src" in p:
+            out["source"] = str(p.get("source", p.get("src")))
+        off_ = _num(("offset", "ma_offset", "plot_offset"), int)
+        if off_ is not None:
+            out["offset"] = off_
+        if "resolution" in p or "res" in p or "tf" in p or "timeframe" in p:
+            out["resolution"] = p.get(
+                "resolution", p.get("res", p.get("tf", p.get("timeframe"))))
+        ins_ = p.get("instances", p.get("mtf_instances"))
+        if ins_ is not None:
+            out["instances"] = ins_
     elif base == "zzfib_e2e_blazing":
         # 🔥 R69 — الملتهبة: نفس معاملات الترندية حرفياً (بوابة ترند على
         # s1/s2/s3/n5/n6 — المحرك يطبّعها ويقبل n5/n6 إضافة إلى s1/s2/s3).
@@ -875,6 +1173,48 @@ def _zzfet_columns(zzfet: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     return out
 
 
+def _zzfetq_columns(zzfetq: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+    """✅ QUANTUM1: نتيجة zigzag_fib_e2e_trendy_quantum → أعمدة ind_*.
+
+    «الاستراتيجية الترندية الكمومية» — عقد تمايز سابع (zzfetq_X → ind_zzfetq_X)
+    + ✅ التمرير الكامل: أعمدة الترندية الأصلية zzfet_X (47) تُرجع أيضاً كما هي
+    (ind_zzfet_X — بيانات الرسم الكاملة: زقزاق/فيبو/خطوط ترند/سيولة/إشارات/
+    ترند — نفس ما كانت الترندية ترجع بحذافيرها، بت-بت من المحرك نفسه).
+    مرايا الفترات zzfetq_tr_p{n}_* وzzfet_tr_p{n}_* تمر تلقائياً بنفس القاعدة.
+    """
+    out: Dict[str, List[Optional[float]]] = {}
+    s = zzfetq.get("series") or {}
+    for key, vals in s.items():
+        k = str(key)
+        if k.startswith("zzfetq_") or k.startswith("zzfet_"):
+            out["ind_" + k] = vals if vals is not None else []
+    return out
+
+
+def _zzfetqe_columns(zzfetqe: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+    """✅ QUANTUMEMA1: نتيجة zigzag_fib_e2e_trendy_quantum_ema → أعمدة ind_*.
+
+    «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» — عقد تمايز
+    تاسع (zzfetqe_X → ind_zzfetqe_X): مرآة كاملة للكمومية + الشفافية الخماسية
+    (entry_raw خام / entry_blocked ترند / entry_zblocked منطقة / entry_eblocked
+    رصة EMA / entry النهائي) + الخطوط الستة zzfetqe_ema_{21,50,100,200,350,500}
+    (رسم على فريم الشارت — محسوبة على فريم الساعة «60») + حالة الرصة
+    (stack_ok/ready/enter/exit).
+    + ✅ التمرير الكامل: أعمدة الكمومية zzfetq_X (62) والترندية zzfet_X (47)
+    تُرجع أيضاً كما هي (ind_zzfetq_X + ind_zzfet_X — بيانات الرسم الكاملة
+    بت-بت من المحرك الكمي الواحد نفسه).
+    مرايا الفترات zzfetqe_tr_p{n}_* وzzfetq_tr_p{n}_* وzzfet_tr_p{n}_* تمر
+    تلقائياً بنفس القاعدة العامة.
+    """
+    out: Dict[str, List[Optional[float]]] = {}
+    s = zzfetqe.get("series") or {}
+    for key, vals in s.items():
+        k = str(key)
+        if k.startswith("zzfetqe_") or k.startswith("zzfetq_") or k.startswith("zzfet_"):
+            out["ind_" + k] = vals if vals is not None else []
+    return out
+
+
 def _zzfb_columns(zzfb: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     """🔥 R69: نتيجة zigzag_fib_e2e_blazing → أعمدة ind_zzfb_* (zzfb_X → ind_zzfb_X).
 
@@ -939,6 +1279,22 @@ def _trf_columns(trf: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     return out
 
 
+def _mtfema_columns(mte: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+    """✅ MTFEMA1: نتيجة mtf_ema_engine → أعمدة ind_mtfema_* (mtfema_X → ind_mtfema_X).
+
+    «MTF EMA» — عقد تمايز ثامن: خط النسخة الأساسية ind_mtfema_value + خط كل
+    نسخة ind_mtfema_<id> (ديناميكي حسب معرفات instances — البسيطة "main").
+    """
+    out: Dict[str, List[Optional[float]]] = {}
+    s = mte.get("series") or {}
+    for key, vals in s.items():
+        k = str(key)
+        if not k.startswith("mtfema_"):
+            continue
+        out["ind_" + k] = vals if vals is not None else []
+    return out
+
+
 def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     """نتيجة compute_overlays → أعمدة ind_* التعاقدية (فقط للأنواع المحسوبة)."""
     out: Dict[str, List[Optional[float]]] = {}
@@ -968,6 +1324,19 @@ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional
     zzfet = ovl.get("zzfib_e2e_trendy")
     if isinstance(zzfet, dict) and zzfet.get("series"):
         out.update(_zzfet_columns(zzfet))
+    # ✅ QUANTUM1 — أعمدة الكمومية zzfetq_* → ind_zzfetq_* + التمرير الكامل
+    # لأعمدة الترندية zzfet_* → ind_zzfet_* (بيانات الرسم كما كانت الترندية
+    # ترجعها + بيانات الكمومية نفسها — من نتيجة المحرك الكمي الواحدة).
+    zzfetq = ovl.get("zzfib_e2e_trendy_quantum")
+    if isinstance(zzfetq, dict) and zzfetq.get("series"):
+        out.update(_zzfetq_columns(zzfetq))
+    # ✅ QUANTUMEMA1 — أعمدة الكمومية المتوسطة المتحركة الأسية zzfetqe_* →
+    # ind_zzfetqe_* + التمرير الكامل لعقدَي الكمومية نفسها (ind_zzfetq_* +
+    # ind_zzfet_* — بيانات الرسم كما كانت الكمومية ترجعها + الخطوط الستة
+    # وحالة الرصة — من نتيجة المحرك الواحدة).
+    zzfetqe = ovl.get("zzfib_e2e_trendy_quantum_ema")
+    if isinstance(zzfetqe, dict) and zzfetqe.get("series"):
+        out.update(_zzfetqe_columns(zzfetqe))
     # 🔥 R69 — أعمدة الملتهبة zzfb_* → ind_zzfb_* (بما فيها n5/n6 ومرايا الفترات)
     zzfb = ovl.get("zzfib_e2e_blazing")
     if isinstance(zzfb, dict) and zzfb.get("series"):
@@ -985,6 +1354,11 @@ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional
     trf = ovl.get("trend_fractal")
     if isinstance(trf, dict) and trf.get("series"):
         out.update(_trf_columns(trf))
+    # ✅ MTFEMA1 — أعمدة MTF EMA (mtfema_X → ind_mtfema_X — خط النسخة
+    # الأساسية + خط كل نسخة)
+    mte = ovl.get("mtf_ema")
+    if isinstance(mte, dict) and mte.get("series"):
+        out.update(_mtfema_columns(mte))
     return out
 
 

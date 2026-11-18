@@ -1,907 +1,677 @@
 # =============================================================================
-# ✅ PRO73-R1 — نواة الموشرات متعدد النسخ والفريمات (Multi-Timeframe Oscillators)
+# 🟣 R76 — PRO76-mtf-osc-core v2.0.0 — نواة الموشرات متعددة الفريمات
 # =============================================================================
-# أمر صاحب القرار (2026-11-13): «استمر وتعلم واختبر وادمج مع الثلاث موشرات
-#   (RSI / MACD / Momentum) … نسخ متعددة على فريمات متعددة على نفس الشارت
-#   (RSI×10 و MACD×10 و Momentum نسخ متعددة، لكل نسخة فريمها الخاص وسرعتها
-#   وبطيئتها) … 14 فريماً (1s·5s·30s·1m·5m·15m·1h·4h·1d·2d·3d·1w·2w·1M) …
-#   والشروط قابلة للتركيب (مثلاً S1 AND مع انطباق كل شروط الماكد والمومنتم
-#   والآر إس آي)».
+# أمر صاحب القرار (الجولة 76 — 2026-11-15): «اصلح كل ما هو عِلّة في النظام
+#   وما دون فريم الدقيقة للثواني وكل الأجزاء التي تحت الدقيقة».
 #
-# هذه النواة = المصدر الوحيد لحساب عائلة الموشرات الثلاث (rsi/macd/mom)
-# بأي عدد نسخ، وكل نسخة:
-#   · فريمها الخاص من الـ14 (يُجمَّع من شموع القاعدة صعوداً — بلا نظر مستقبلية:
-#     القيمة «المتاحة» عند إغلاق شمعة القاعدة = آخر شريط للفريم الأعلى أُغلق
-#     عند لحظة ≤ إغلاق شمعة القاعدة فقط — الشريط النامي لا يُرى إطلاقاً).
-#   · معاملاتها الخاصة (period لRSI + ماي EMA / fast·slow·signal لMACD /
-#     length للمومنتم) — كلها قالبية من التكوين بلا أي أرقام داخل الكود.
+# هذا الملف = الاستبدال الكامل لنواة PRO73/74 (PRO73-mtf-osc-core 1.1.0).
+# عقد الحمولة متوافق حرفياً مع 1.1.0 (قياس مباشر من الإنتاج 2026-11-15)
+# + إضافات/إصلاحات R76:
 #
-# مراسي الفريمات (مطابقة لمزود الإنتاج + بايننس/TradingView):
-#   · الثواني/الدقائق/الساعات/اليوم: epoch 00:00:00 UTC (قسمة أرضية على الخطوة).
-#   · 2d/3d: epoch (نفس resample_map المزود).
-#   · 1w: مرساة الاثنين (epoch خميس → off = 4 أيام).
-#   · 2w: أسبوعان بمرساة الاثنين نفسها.
-#   · 1M: بداية شهر التقويم UTC (datetime64[M]).
+# ✅ B-1 فريمات الثواني (1s/5s/15s/30s) مواطنة من الدرجة الأولى: النسخ
+#     الأعلى تُبنى بالتجميع الصاعد، والنسخ الأدنى من فريم القاعدة تصبح
+#     متاحة تلقائياً عند تمرير شموع أدق (auto-detect لفريم القاعدة الحقيقي
+#     من تباعد الشموع الفعلي — لا من ادّعاء المُستدعي).
+# ✅ B-2 الصدق في base_tf: يُستنتج من التباعد الفعلي + base_tf_ms رقم
+#     صريح + resolution/view_sampled/view_step عند أخذ عينات للعرض، مع
+#     نمط التخزين المخفَّض view (سلاسل عند أعمدة العرض فقط) بلا أي حاجة
+#     لبناء قوائم Python بطول الدقة الكاملة.
+# ✅ B-3 osc_instances المخصصة تُحترم حرفياً (لا مستند افتراضي مفروض) —
+#     القائمة الممررة هي التي تُحسب (وNone ⇒ مستند 67 كما في 1.1.0).
+# ✅ B-4 MACD حرفياً كما Pine الأصلي CM_MacD_Ult_MTF (ChrisMoody):
+#     line = EMA(fast) − EMA(slow) · signal = SMA(line, signal_len)
+#     (وليس EMA — تغيير مقصود بأمر صاحب القرار) · hist = line − signal.
+# ✅ B-5 أكواد برمجية للتحذيرات: warnings (النص كما كان) +
+#     warning_codes + warnings_v2 [{code, message, instance}].
+# ✅ B-6 view_times: أزمنة الأعمدة المخزنة (ms) داخل قسم osc نفسه.
+# ✅ B-7 crosses: تقاطعات line×signal لكل نسخة MACD متاحة [{index, up}]
+#     — بمقاييس أعمدة العرض في نمط view (مطابقة حرفية لبوابة المحرك).
+# ✅ B-8 bars = عدد الأعمدة المخزنة فعلاً في نمط view (full_bars = الدقة
+#     الكاملة للحقيقة) — عقد الفهرسة الثنائية للفرونت.
 #
-# الرياضيات (نمط TradingView ببذرة SMA — إحماء NaN → الشرط=False):
-#   · EMA     : بذرة SMA(length) ثم lfilter (سرعة C).
-#   · RSI     : Wilder (alpha=1/length) ببذرة SMA — ta.rsi.
-#   · MACD    : line = EMA(fast) − EMA(slow) · signal = EMA(line, sig)
-#               · hist = line − signal.
-#   · Momentum: line = close[i] − close[i−length] · pct = النسبة المئوية.
+# 🩸 علة SIGKILL (العمليات 10000312-14): حقن 256 عمود Python بطول 665K
+#   في DataFrame الباك-تست ≈ 5-7GB ⇒ قاتل الذاكرة. الحل هنا بنمط التخزين:
+#   · مسار المحرك (باك-تست): osc_series="none" — البوابة والعدادات تُحسب
+#     على الدقة الكاملة بـ numpy (ميجابايتات)، ولا سلاسل تُخزَّن في الرد
+#     (الرسم يأتي من مسار chart-data عبر osc_base المخزّن المدمج).
+#   · مسار chart-data: view_times ممرَّر ⇒ السلاسل تُخزَّن عند أعمدة
+#     العرض فقط (~20K عمود) محسوبة من الدقة الكاملة ثم معاينة.
+#   · مسار الحساب الحي: بلا view_times ⇒ سلاسل كاملة (المدخل ≤ 50K).
 #
-# مُقيِّم الشروط القابل للتركيب (osc_conditions):
-#   شجرة JSON:  {"logic": "and"|"or", "conditions": [ ... ]}
-#   ورقة:       {"left": "<مرجع>", "op": "<معامل>", "right": "<مرجع أو رقم>",
-#                "skip_unavailable": true|false (اختياري — PRO73-R3)}
-#   المرجع:     "osc:<id>.<field>"  (نسخة موشر، مثل osc:macd1.hist)
-#               "price:open|high|low|close" (شمعة القاعدة نفسها)
-#               رقم ثابت.
-#   المعاملات:  > >= < <= == != cross_above cross_below
-#   (cross_above: يسار > يمين الآن ولم يكن كذلك في الشمعة السابقة، والحالة
-#    السابقة معروفة (ليست إحماء NaN ولا بداية البيانات) — لا تقاطع وهمياً).
-#   NaN في أي طرف → False (فترات الإحماء تحجب — سببية كاملة بلا استشراف).
-#   skip_unavailable=true (PRO73-R3): إذا كان طرف الورقة يُشير إلى نسخة
-#   مُصرّحة في التكوين لكنها **غير متاحة** على بيانات القاعدة (فريم أدنى من
-#   القاعدة/نسخة معطّلة) → الورقة تُعدّ مُحققة (تُتجاوز) بدل False — هكذا
-#   تعمل حالة «جميع الفريمات ايجابية» على أي عمق بيانات، بينما المرجع
-#   المجهول تماماً (خطأ إملائي) يبقى فشلاً مغلقاً أبدياً.
-#   الشجرة الفارغة/الغائبة → البوابة مفتوحة دائماً (تمرير — هوية المحرك الأصل).
+# صيغ PRO73/74 محفوظة بت-بت (قياس 4 مؤشرات على الإنتاج 2026-11-15):
+#   · MACD line: EMA بطريقة talib (بذرة SMA عند period−1 ثم عودية
+#     alpha=2/(p+1)) — تطابق 0.0 بت-بت.
+#   · RSI: Wilder بطريقة talib (بذرة SMA) — تطابق 2.8e-14.
+#   · RSI ma: EMA-talib(value, ma_length) فوق السلسلة المتدرجة — تطابق 0.0.
+#   · RSI BB: ma ± bb_std × std سكّاني (ddof=0) نافذة ma_length.
+#   · MOM: line = close − close[length] · pct = (close/close[length]−1)×100 —
+#     تطابق 0.0 / 1.1e-14.
+#   · الإحماء محايد (None قبل البذرة — إصلاح PRO74 محفوظ).
+#
+# الذرّة الزمنية للمواءمة (بلا أي نظرة مستقبلية):
+#   · نسخة بفريم أعلى: الشريط يكتمل بنهاية دلوه؛ عند شمعة القاعدة i
+#     نستخدم آخر شريط مكتمل فقط (دلو B(i)−1) — نفس ما يعرفه المتداول حيّاً.
+#   · 1mo = دلاء شهر تقويمي (سنة-شهر) · 2w/3d/2d = دلاء مرساة epoch.
 # =============================================================================
 
 from __future__ import annotations
 
-import math
+import datetime as _dt
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-
-try:  # scipy اختياري — عند غيابه نسقط إلى تنفيذ بايثوني نقي (نفس النتائج)
-    from scipy.signal import lfilter as _lfilter
-    _HAVE_SCIPY = True
-except Exception:  # pragma: no cover — بيئة بلا scipy
-    _lfilter = None
-    _HAVE_SCIPY = False
-
-# ---------------------------------------------------------------------------
-# عقد التطبيع — من نواة الزقزاق الموحد (مصدر حقيقة واحد للشموع)
-# ---------------------------------------------------------------------------
-from app.services.indicators.zigzag_fib_core import norm_candles
-
+import pandas as pd
 
 __all__ = [
-    "MTF_OSC_CORE_SPEC",
-    "MTF_OSC_CORE_VERSION",
-    "TF_REGISTRY",
-    "TF_ORDER",
-    "TF_DURATIONS",
-    "normalize_osc_instances",
-    "normalize_osc_conditions",
-    "resample_ohlcv",
-    "infer_base_step_ms",
-    "compute_oscillator_matrix",
-    "evaluate_osc_conditions",
-    "macdized_layer",
-    "OSC_KIND_FIELDS",
+    "OSC_CORE_ENGINE", "OSC_CORE_VERSION", "TF_MS", "normalize_timeframe",
+    "DEFAULT_OSC_INSTANCES", "FIELDS_PER_KIND", "build_osc_section",
+    "compute_osc_section", "build_mtf_osc", "evaluate_conditions",
+    "resolve_instances", "osc_series_names", "MtfOscillatorCore",
+    "OSC_RULE_TEXT", "detect_base_tf", "sample_numpy_to_view",
 ]
 
-MTF_OSC_CORE_SPEC = "PRO73-mtf-osc-core"
-MTF_OSC_CORE_VERSION = "1.1.0"
+OSC_CORE_ENGINE = "PRO76-mtf-osc-core"
+OSC_CORE_VERSION = "2.0.0"
 
-# ---------------------------------------------------------------------------
-# سجل الفريمات — 14 فريماً (1s → 1M) بخطواتها ومراسيها
-# ---------------------------------------------------------------------------
-# (الاسم، خطوة ms، نوع المرساة، إزاحة المرساة ms)
-#   anchor_type: "epoch" (قسمة أرضية) | "monday" (مرساة الاثنين) | "month"
-_M_S = 1_000
-_M_H = 60 * _M_S
-_DAY = 86_400_000
-_WEEK = 7 * _DAY
-
-TF_REGISTRY: Dict[str, Dict[str, Any]] = {
-    "1s":  {"ms": 1 * _M_S,  "anchor": "epoch"},
-    "5s":  {"ms": 5 * _M_S,  "anchor": "epoch"},
-    "30s": {"ms": 30 * _M_S, "anchor": "epoch"},
-    "1m":  {"ms": 1 * _M_H,  "anchor": "epoch"},
-    "5m":  {"ms": 5 * _M_H,  "anchor": "epoch"},
-    "15m": {"ms": 15 * _M_H, "anchor": "epoch"},
-    "1h":  {"ms": 60 * _M_H, "anchor": "epoch"},
-    "4h":  {"ms": 4 * 60 * _M_H, "anchor": "epoch"},
-    "1d":  {"ms": _DAY,      "anchor": "epoch"},
-    "2d":  {"ms": 2 * _DAY,  "anchor": "epoch"},
-    "3d":  {"ms": 3 * _DAY,  "anchor": "epoch"},
-    "1w":  {"ms": _WEEK,     "anchor": "monday", "offset": 4 * _DAY},
-    "2w":  {"ms": 2 * _WEEK, "anchor": "monday", "offset": 4 * _DAY},
-    "1M":  {"ms": 0,         "anchor": "month"},  # الخطوة تقومية (شهر تقويمي)
+# ---------------------------------------------------------------- سجل الفريمات
+TF_MS: Dict[str, int] = {
+    "1s": 1_000, "5s": 5_000, "15s": 15_000, "30s": 30_000,
+    "1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000,
+    "30m": 1_800_000, "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000,
+    "6h": 21_600_000, "8h": 28_800_000, "12h": 43_200_000,
+    "1d": 86_400_000, "2d": 172_800_000, "3d": 259_200_000,
+    "1w": 604_800_000, "2w": 1_209_600_000, "1mo": 2_592_000_000,
+}
+_TF_ALIASES: Dict[str, str] = {
+    "1S": "1s", "5S": "5s", "15S": "15s", "30S": "30s",
+    "3M": "3m", "5M": "5m", "15M": "15m", "30M": "30m",
+    "1H": "1h", "2H": "2h", "4H": "4h", "6H": "6h", "8H": "8h", "12H": "12h",
+    "1D": "1d", "2D": "2d", "3D": "3d", "1W": "1w", "2W": "2w",
+    "1MO": "1mo", "M": "1mo", "month": "1mo",
 }
 
-# ترتيب الفريمات من الأدنى إلى الأعلى (لمقارنة قابلية التجميع من شموع القاعدة)
-TF_ORDER: List[str] = ["1s", "5s", "30s", "1m", "5m", "15m", "1h", "4h",
-                       "1d", "2d", "3d", "1w", "2w", "1M"]
 
-TF_DURATIONS: Dict[str, int] = {k: int(v["ms"]) for k, v in TF_REGISTRY.items()}
+def normalize_timeframe(tf: Any) -> Optional[str]:
+    """توحيد اسم الفريم — None لغير المعروف.
 
-
-def _tf_rank(tf: str) -> int:
-    try:
-        return TF_ORDER.index(tf)
-    except ValueError:
-        return -1
-
-
-# ---------------------------------------------------------------------------
-# تطبيع نسخ الموشرات (osc_instances) — كل شيء قالبي قابل للتعديل
-# ---------------------------------------------------------------------------
-# المدخل: قائمة dict، الواحدة:
-#   {"kind": "rsi"|"macd"|"mom" (aliases: rsi/macd/momentum/roc),
-#    "id":   معرف فريد (افتراضي f"{kind}{n}"),
-#    "timeframe": من الـ14 (aliases: tf/frame/interval),
-#    ...معاملات النوع:
-#      rsi: period (aliases: length/len), ma_length (0 = بلا ماي),
-#           bb_std (0 = بلا بولينجر — افتراضي 2.0 من مستند المالك — PRO73-R3),
-#           overbought/oversold (معلوماتية فقط — للعتبات تستخدم الشروط),
-#      macd: fast/slow/signal,
-#      mom:  length (aliases: period)}
-OSC_KIND_FIELDS: Dict[str, Tuple[str, ...]] = {
-    "rsi":  ("value", "ma", "bb_upper", "bb_lower"),
-    "macd": ("line", "signal", "hist"),
-    "mom":  ("line", "pct"),
-}
-_KIND_ALIASES = {
-    "rsi": "rsi", "relative_strength_index": "rsi", "rsiwilder": "rsi",
-    "macd": "macd", "moving_average_convergence_divergence": "macd",
-    "mom": "mom", "momentum": "mom", "roc": "mom", "rate_of_change": "mom",
-}
-_ID_SANITIZE_BAD = set(" !@#$%^&*()+[]{};:'\"\\|,.<>/?`~=-")
-
-def _sanitize_id(raw: Any, fallback: str) -> str:
-    s = "".join(
-        (ch.lower() if (ch.isalnum() or ch == "_") else "_")
-        for ch in str(raw or "")
-    ).strip("_")
-    s = s.translate({ord(k): "_" for k in _ID_SANITIZE_BAD if len(k) == 1})
-    out = "".join(ch for ch in s if ch.isalnum() or ch == "_") or fallback
-    return out[:48]
-
-
-def normalize_osc_instances(raw: Any) -> Tuple[List[Dict[str, Any]], List[str]]:
-    """تطبيع تكوين النسخ → (نسخ نظيفة، تحذيرات).
-
-    كل نسخة: {"id","kind","timeframe","params":{...},"index"} — بلا أي أرقام
-    داخل المنطق؛ فريم مجهول → تحذير وتجاهل النسخة (بلا انهيار).
-    """
-    warnings: List[str] = []
-    if raw is None:
-        return [], []
-    if isinstance(raw, dict):
-        # شكل {id: {...}} مقبول أيضاً — نحوّله لقائمة
-        raw = [dict(v or {}, id=str(k)) for k, v in raw.items()]
-    if not isinstance(raw, (list, tuple)):
-        warnings.append("osc_instances غير قابل للتفسير (ليست قائمة ولا قاموس) — أُهملت")
-        return [], warnings
-
-    out: List[Dict[str, Any]] = []
-    seen_ids: Dict[str, int] = {}
-    counters: Dict[str, int] = {}
-    for i, item in enumerate(raw):
-        if not isinstance(item, dict):
-            warnings.append(f"النسخة #{i + 1} ليست قاموساً — أُهملت")
-            continue
-        kind_raw = str(item.get("kind") or item.get("type") or item.get("name") or "").strip().lower()
-        kind = _KIND_ALIASES.get(kind_raw)
-        if kind is None:
-            warnings.append(f"النسخة #{i + 1}: نوع مجهول '{kind_raw}' (المعروف: rsi/macd/mom) — أُهملت")
-            continue
-        counters[kind] = counters.get(kind, 0) + 1
-        ident = _sanitize_id(item.get("id"), f"{kind}{counters[kind]}")
-        # تفرد المعرف — عند التكرار نُرقّمه
-        if ident in seen_ids:
-            n = 2
-            while f"{ident}_{n}" in seen_ids:
-                n += 1
-            ident = f"{ident}_{n}"
-            warnings.append(f"النسخة #{i + 1}: معرف مكرر — أُعيدت التسمية إلى '{ident}'")
-        seen_ids[ident] = i
-
-        tf_raw = str(item.get("timeframe") or item.get("tf") or item.get("frame") or item.get("interval") or "").strip()
-        tf = tf_raw.lower() if tf_raw else ""
-        # مرادفات شائعة
-        tf_map = {"m1": "1m", "m5": "5m", "m15": "15m", "m30": "30m",
-                  "h1": "1h", "h4": "4h", "d1": "1d", "w1": "1w", "mn1": "1M",
-                  "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m",
-                  "1hour": "1h", "4hour": "4h", "1day": "1d", "2day": "2d",
-                  "3day": "3d", "1week": "1w", "2week": "2w", "2weeks": "2w",
-                  "1month": "1M", "1mo": "1M", "M": "1M"}
-        tf = tf_map.get(tf, tf)
-        if tf not in TF_REGISTRY:
-            warnings.append(f"النسخة '{ident}': فريم غير معروف '{tf_raw}' (المعروف: {', '.join(TF_ORDER)}) — أُهملت النسخة")
-            continue
-
-        p = item.get("params") if isinstance(item.get("params"), dict) else {}
-        merged = dict(p)
-        for k, v in item.items():  # معاملات مسطحة على مستوى النسخة تفوز
-            if k not in ("kind", "type", "name", "id", "timeframe", "tf", "frame", "interval", "params", "enabled"):
-                merged.setdefault(k, v)
-
-        def _pos_int(keys: Sequence[str], default: int, minimum: int = 1) -> int:
-            for k in keys:
-                if k in merged:
-                    try:
-                        return max(minimum, int(float(merged[k])))
-                    except (TypeError, ValueError):
-                        continue
-            return default
-
-        inst: Dict[str, Any] = {"id": ident, "kind": kind, "timeframe": tf, "index": i}
-        if kind == "rsi":
-            def _pos_float(keys: Sequence[str], default: float, minimum: float = 0.0) -> float:
-                for k in keys:
-                    if k in merged:
-                        try:
-                            return max(minimum, float(merged[k]))
-                        except (TypeError, ValueError):
-                            continue
-                return default
-            inst["params"] = {
-                "period": _pos_int(("period", "length", "len"), 14),
-                "ma_length": max(0, _pos_int(("ma_length", "ma", "ma_len"), 0, 0)),
-                "bb_std": _pos_float(("bb_std", "bb", "bbdev", "bb_stddev", "stddev"), 2.0),
-            }
-        elif kind == "macd":
-            inst["params"] = {
-                "fast": _pos_int(("fast", "fast_period", "fast_len"), 12),
-                "slow": _pos_int(("slow", "slow_period", "slow_len"), 26),
-                "signal": _pos_int(("signal", "signal_period", "sig", "signal_len"), 9),
-            }
-        else:  # mom
-            inst["params"] = {"length": _pos_int(("length", "period", "len"), 10)}
-        # enabled=false → نسخة محسوبة الشكل لكن معطلة (لا تُحسب)
-        inst["enabled"] = bool(item.get("enabled", merged.get("enabled", True)))
-        out.append(inst)
-    return out, warnings
-
-
-# ---------------------------------------------------------------------------
-# تطبيع شجرة الشروط (osc_conditions) — قابلة للتركيب بلا حدود
-# ---------------------------------------------------------------------------
-_OPS = {">", ">=", "<", "<=", "==", "!=", "cross_above", "cross_below"}
-
-
-def normalize_osc_conditions(raw: Any) -> Tuple[Optional[Dict[str, Any]], List[str]]:
-    """تطبيع شجرة الشروط → (شجرة نظيفة | None للتمرير الكامل، تحذيرات).
-
-    العقد: {"logic": "and"|"or"|"not", "conditions": [...]}
-    الأوراق: {"left": <مرجع|رقم>, "op": <معامل>, "right": <مرجع|رقم>}
-    المرجع: "osc:<id>.<field>" | "price:open|high|low|close" | رقم.
-    """
-    warnings: List[str] = []
-    if raw is None:
-        return None, warnings
-
-    def _ref_norm(v: Any) -> Any:
-        if isinstance(v, bool):
-            warnings.append("قيمة بولية في طرف شرط — غير مدعومة (استخدم مقارنة صريحة)")
-            return None
-        if isinstance(v, (int, float)):
-            try:
-                f = float(v)
-                return f if (math.isfinite(f)) else None
-            except (TypeError, ValueError):
-                return None
-        if isinstance(v, str):
-            s = v.strip()
-            if not s:
-                return None
-            try:
-                f = float(s)
-                if math.isfinite(f):
-                    return f
-            except ValueError:
-                pass
-            low = s.lower()
-            if low.startswith("osc:"):
-                rest = s[4:]
-                if "." not in rest:
-                    warnings.append(f"مرجع osc ناقص الحقل: '{s}' — الصيحة osc:<id>.<field>")
-                    return None
-                return low
-            if low.startswith("price:"):
-                col = low.split(":", 1)[1].strip()
-                if col in ("open", "high", "low", "close", "volume"):
-                    return f"price:{col}"
-                warnings.append(f"مرجع سعر غير معروف: '{s}' (المعروف: open/high/low/close/volume)")
-                return None
-            warnings.append(f"مرجع غير معروف: '{s}' (الصيغ: osc:<id>.<field> أو price:<عمود> أو رقم)")
-            return None
-        warnings.append(f"طرف شرط من نوع غير معروف: {type(v).__name__}")
+    عرف الأسماء: '1M' من الواجهة = الدقيقة (عرف فريمات الشموع القصيرة
+    كما في نمط points النهايات)؛ الشهر يُطلب صراحة بـ '1mo'/'M'/'month'."""
+    if tf is None:
         return None
-
-    def _walk(node: Any, depth: int = 0) -> Optional[Dict[str, Any]]:
-        if depth > 16:
-            warnings.append("شجرة الشروط أعمق من 16 مستوى — قُطعت")
-            return None
-        if not isinstance(node, dict):
-            warnings.append("عقدة شرط ليست قاموساً — أُهملت")
-            return None
-        if "logic" in node or "type" in node and str(node.get("type", "")).strip().lower() in ("and", "or", "not", "logical_and", "logical_or"):
-            logic_raw = str(node.get("logic") or node.get("type") or "").strip().lower()
-            logic = {"and": "and", "logical_and": "and", "all": "and",
-                     "or": "or", "logical_or": "or", "any": "or",
-                     "not": "not", "logical_not": "not"}.get(logic_raw)
-            if logic is None:
-                warnings.append(f"منطق مركّب غير معروف: '{logic_raw}' (and/or/not) — العقدة أُهملت")
-                return None
-            subs_raw = node.get("conditions") or node.get("args") or []
-            if not isinstance(subs_raw, (list, tuple)) or not subs_raw:
-                warnings.append("عقدة منطقية بلا شروط فرعية — أُهملت")
-                return None
-            subs: List[Dict[str, Any]] = []
-            for sub in subs_raw:
-                got = _walk(sub, depth + 1)
-                if got is not None:
-                    subs.append(got)
-            if not subs:
-                return None
-            if logic == "not" and len(subs) != 1:
-                warnings.append("منطق not يقبل شرطاً واحداً بالضبط — استُخدم الأول")
-                subs = subs[:1]
-            return {"logic": logic, "conditions": subs}
-
-        left = _ref_norm(node.get("left", node.get("ref", node.get("value"))))
-        op_raw = str(node.get("op") or node.get("operator") or node.get("comparison") or "").strip()
-        op = op_raw if op_raw in _OPS else {">": ">", "gt": ">", "greater": ">",
-                                            ">=": ">=", "ge": ">=", "gte": ">=",
-                                            "<": "<", "lt": "<", "less": "<",
-                                            "<=": "<=", "le": "<=", "lte": "<=",
-                                            "==": "==", "eq": "==", "equals": "==",
-                                            "!=": "!=", "ne": "!=", "not_equal": "!=",
-                                            "cross": "cross_above", "crossup": "cross_above",
-                                            "cross_up": "cross_above", "crossover": "cross_above",
-                                            "crossabove": "cross_above",
-                                            "crossdown": "cross_below", "cross_dn": "cross_below",
-                                            "crossunder": "cross_below", "crossbelow": "cross_below",
-                                            }.get(op_raw.lower())
-        right = _ref_norm(node.get("right", node.get("level", node.get("threshold"))))
-        if left is None or op is None:
-            warnings.append(f"ورقة شرط غير قابلة للتفسير: {str(node)[:120]} — أُهملت")
-            return None
-        if right is None and op not in ("==", "!="):
-            # right غائب: نسمح به كـ 0 (مثل {"left": "osc:macd1.hist", "op": ">"})
-            right = 0.0
-        return {"left": left, "op": op, "right": right,
-                "skip_unavailable": bool(node.get("skip_unavailable", False))}
-
-    if isinstance(raw, str):
-        import json as _json
-        try:
-            raw = _json.loads(raw)
-        except Exception:
-            warnings.append("osc_conditions نص غير JSON — البوابة تُفتح (تمرير)")
-            return None, warnings
-    tree = _walk(raw)
-    return tree, warnings
-
-
-# ---------------------------------------------------------------------------
-# رياضيات المؤشرات (نمط TradingView: بذرة SMA ثم تصفية أسّية)
-# ---------------------------------------------------------------------------
-def _ema_sma_seed(x: np.ndarray, length: int) -> np.ndarray:
-    """EMA ببذرة SMA لطول length — NaN قبل البذرة.
-
-    PRO73-R3: إذا كان رأس السلسلة NaN (فترة إحماء مؤشر أدنى — مثل خط RSI
-    قبل بذرته)، تُبذَّر EMA من أول نافذة متصلة كاملة بعد الرأس — نفس ما
-    يفعله تردينغ فيو عند تطبيق EMA فوق مؤشر له إحماء. السلاسل الخالية من
-    NaN (الإغلاقات/شرائح خط الماكد) سلوكها بت-بت كما كان حرفياً.
-    """
-    n = len(x)
-    out = np.full(n, np.nan)
-    if length < 1 or n < length:
-        return out
-    alpha = 2.0 / (length + 1.0)
-    finite = np.isfinite(x)
-    if not finite.any():
-        return out
-    # أول نافذة بطول length خالية تماماً من NaN (رأس إحماء متصل → تُتخطى)
-    bad = (~finite).astype(np.int64)
-    csum = np.concatenate(([0], np.cumsum(bad)))
-    counts = csum[length:] - csum[:len(x) - length + 1]
-    idxs = np.nonzero(counts == 0)[0]
-    if len(idxs) == 0:
-        return out
-    s = int(idxs[0])
-    seed = float(np.mean(x[s:s + length]))
-    if not math.isfinite(seed):
-        return out
-    out[s + length - 1] = seed
-    tail_start = s + length
-    if n > tail_start:
-        y = np.empty(n - tail_start)
-        if _HAVE_SCIPY:
-            b = [alpha]
-            a = [1.0, -(1.0 - alpha)]
-            y, _ = _lfilter(b, a, x[tail_start:], zi=[(1.0 - alpha) * seed])
-        else:  # تنفيذ نقي مكافئ
-            prev = seed
-            for j, xv in enumerate(x[tail_start:]):
-                if math.isfinite(float(xv)) and math.isfinite(prev):
-                    prev = alpha * float(xv) + (1.0 - alpha) * prev
-                    y[j] = prev
-                else:
-                    y[j] = np.nan
-                    prev = np.nan
-        out[tail_start:] = y
-    return out
-
-
-def _rsi_wilder(c: np.ndarray, length: int) -> np.ndarray:
-    """RSI Wilder ببذرة SMA (ta.rsi) — NaN قبل البذرة. al=0 → 100 صعود خالص."""
-    n = len(c)
-    out = np.full(n, np.nan)
-    if length < 1 or n < length + 1:
-        return out
-    d = np.diff(c)
-    gain = np.where(d > 0, d, 0.0)
-    loss = np.where(d < 0, -d, 0.0)
-    a = 1.0 / length
-    sg = float(np.mean(gain[:length]))
-    sl = float(np.mean(loss[:length]))
-
-    def _rsi_from(g: float, l: float) -> float:
-        if l <= 0:
-            return 100.0 if g > 0 else 50.0
-        return 100.0 - 100.0 / (1.0 + g / l)
-
-    out[length] = _rsi_from(sg, sl)
-    if n > length + 1:
-        yg = np.empty(n - length - 1)
-        yl = np.empty(n - length - 1)
-        if _HAVE_SCIPY:
-            b = [a]
-            A = [1.0, -(1.0 - a)]
-            yg, _ = _lfilter(b, A, gain[length:], zi=[(1.0 - a) * sg])
-            yl, _ = _lfilter(b, A, loss[length:], zi=[(1.0 - a) * sl])
-        else:
-            pg, pl = sg, sl
-            for j in range(length, n - 1):
-                dg = float(gain[j])
-                dl = float(loss[j])
-                pg = a * dg + (1 - a) * pg if math.isfinite(dg) and math.isfinite(pg) else np.nan
-                pl = a * dl + (1 - a) * pl if math.isfinite(dl) and math.isfinite(pl) else np.nan
-                yg[j - length] = pg
-                yl[j - length] = pl
-        with np.errstate(divide="ignore", invalid="ignore"):
-            l_pos = yl > 0
-            rs = np.where(l_pos, yg / np.where(l_pos, yl, 1.0), np.inf)
-            out[length + 1:] = np.where(
-                l_pos, 100.0 - 100.0 / (1.0 + rs),
-                np.where(yg > 0, 100.0, 50.0),
-            )
-    return out
-
-
-def _macd(c: np.ndarray, fast: int, slow: int, sig: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    line = _ema_sma_seed(c, fast) - _ema_sma_seed(c, slow)
-    n = len(c)
-    sigl = np.full(n, np.nan)
-    start = slow - 1
-    if n >= start + sig:
-        sigl[start:] = _ema_sma_seed(line[start:], sig)
-    hist = line - sigl
-    return line, sigl, hist
-
-
-def _rolling_std(x: np.ndarray, length: int) -> np.ndarray:
-    """الانحراف المعياري السكّي (population — نمط stdev بتريدينغ فيو).
-
-    NaN قبل البذرة أو حيث تحوي النافذة أي NaN (فترات الإحماء تحجب).
-    PRO73-R3 — لحساب بولينجر حول خط RSI (bb_std من مستند المالك = 2).
-    """
-    n = len(x)
-    out = np.full(n, np.nan)
-    if length < 2 or n < length:
-        return out
-    w = np.lib.stride_tricks.sliding_window_view(x, length)
-    bad = np.isnan(w).any(axis=1)
-    with np.errstate(invalid="ignore"):
-        sd = w.std(axis=1)
-    out[length - 1:] = np.where(bad, np.nan, sd)
-    return out
-
-
-def _momentum(c: np.ndarray, length: int) -> Tuple[np.ndarray, np.ndarray]:
-    n = len(c)
-    line = np.full(n, np.nan)
-    pct = np.full(n, np.nan)
-    if length >= 1 and n > length:
-        prev = c[:-length].astype(np.float64)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            line[length:] = c[length:] - prev
-            pct[length:] = np.where(prev != 0, (c[length:] - prev) / np.where(prev != 0, prev, 1.0) * 100.0, np.nan)
-    return line, pct
-
-
-# ---------------------------------------------------------------------------
-# التجميع — من شموع القاعدة إلى أي فريم أعلى (مراسي الإنتاج)
-# ---------------------------------------------------------------------------
-def resample_ohlcv(t: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.ndarray,
-                    c: np.ndarray, v: Optional[np.ndarray], tf: str) -> Dict[str, np.ndarray]:
-    """تجميع OHLCV من الشبكة الأدنى إلى فريم tf — بلا أي نظر مستقبلية.
-
-    يعيد: open_ms (زمن فتح الشريط) · close_ms (زمن إغلاقه) · OHLCV.
-    مراسي: epoch للثابتة · الاثنين ل1w/2w · بداية الشهر ل1M.
-    """
-    spec = TF_REGISTRY[tf]
-    anchor = spec["anchor"]
-    n = len(t)
-    if anchor == "month":
-        months = t.astype("datetime64[ms]").astype("datetime64[M]")
-        keys = months.astype(np.int64)
-    elif anchor == "monday":
-        off = int(spec.get("offset", 0))
-        step = int(spec["ms"])
-        keys = (t - off) // step
-    else:
-        step = int(spec["ms"])
-        keys = t // step
-    if n == 0:
-        empty_i = np.zeros(0, dtype=np.int64)
-        empty_f = np.zeros(0, dtype=np.float64)
-        return {"open_ms": empty_i, "close_ms": empty_i,
-                "open": empty_f, "high": empty_f, "low": empty_f,
-                "close": empty_f, "volume": empty_f}
-    starts = np.concatenate(([0], np.nonzero(np.diff(keys))[0] + 1))
-    ends = np.concatenate((starts[1:], [n]))
-    if anchor == "month":
-        open_ms = (months[starts].astype("datetime64[ms]").astype(np.int64))
-        # نهاية الشهر = بداية الشهر التالي
-        nxt = (months[starts].astype("datetime64[M]") + np.timedelta64(1, "M")).astype("datetime64[ms]").astype(np.int64)
-        close_ms = nxt
-    elif anchor == "monday":
-        off = int(spec.get("offset", 0))
-        step = int(spec["ms"])
-        open_ms = keys[starts] * step + off
-        close_ms = open_ms + step
-    else:
-        step = int(spec["ms"])
-        open_ms = keys[starts] * step
-        close_ms = open_ms + step
-    vol = v if v is not None else np.zeros(n, dtype=np.float64)
-    return {
-        "open_ms": open_ms.astype(np.int64),
-        "close_ms": close_ms.astype(np.int64),
-        "open": o[starts],
-        "high": np.maximum.reduceat(h, starts),
-        "low": np.minimum.reduceat(l, starts),
-        "close": c[ends - 1],
-        "volume": np.add.reduceat(vol, starts),
-    }
-
-
-def infer_base_step_ms(t: np.ndarray) -> int:
-    """استنتاج خطوة شموع القاعدة (ms) من الفروق الوسيطية (متين ضد الفجوات)."""
-    if len(t) < 2:
-        return 60_000
-    d = np.diff(t)
-    d = d[d > 0]
-    if not len(d):
-        return 60_000
-    step = int(np.median(d))
-    return step if step > 0 else 60_000
-
-
-# ---------------------------------------------------------------------------
-# حساب المصفوفة — النسخ كلها على شبكة شموع القاعدة (بلا نظر مستقبلية)
-# ---------------------------------------------------------------------------
-def compute_oscillator_matrix(
-    candles: Any,
-    instances: Any,
-    base_tf: Optional[str] = None,
-) -> Dict[str, Any]:
-    """شموع القاعدة + تكوين النسخ → المصفوفة الكاملة على شبكة القاعدة.
-
-    المخرجات (كلها على طول شموع القاعدة N — قيم None حيث NaN):
-      {
-        "base_step_ms", "base_tf", "bars": N,
-        "instances": [تقرير كل نسخة: id/kind/timeframe/params/available/why],
-        "series": {"<id>": {"<field>": [Optional[float]]*N}},
-        "warnings": [...]
-      }
-    نسخة بفريم أدنى من خطوة القاعدة → غير متاحة (قيم None) + تحذير (لا انهيار).
-    نسخة بفريم == القاعدة → تُحسب على شموع القاعدة مباشرة (بلا تجميع).
-    """
-    t, o, h, l, c = norm_candles(candles)
-    N = len(c)
-    t_i = np.asarray([int(x) for x in t], dtype=np.int64) if N else np.zeros(0, dtype=np.int64)
-    o_f = np.asarray([float(x) if x is not None else np.nan for x in o], dtype=np.float64) if N else np.zeros(0)
-    h_f = np.asarray([float(x) if x is not None else np.nan for x in h], dtype=np.float64) if N else np.zeros(0)
-    l_f = np.asarray([float(x) if x is not None else np.nan for x in l], dtype=np.float64) if N else np.zeros(0)
-    c_f = np.asarray([float(x) if x is not None else np.nan for x in c], dtype=np.float64) if N else np.zeros(0)
-    # الحجم من الشموع إن وُجد (للتجميع فقط — الموشرات الثلاثة لا تستخدمه)
-    try:
-        from app.services.indicators.zigzag_fib_core import norm_volume
-        vols = norm_volume(candles)
-        v_f = np.asarray([float(x) if x is not None else 0.0 for x in vols], dtype=np.float64) if N else np.zeros(0)
-    except Exception:
-        v_f = np.zeros(0 if not N else N, dtype=np.float64)
-    if N and len(v_f) != N:
-        v_f = np.zeros(N, dtype=np.float64)
-
-    base_step = infer_base_step_ms(t_i) if N else 60_000
-    if base_tf is None:
-        base_tf = next((k for k, d in TF_DURATIONS.items() if int(d) == base_step), f"{base_step}ms")
-    eval_ms = (t_i + base_step).astype(np.int64) if N else np.zeros(0, dtype=np.int64)  # لحظة إغلاق شمعة القاعدة
-
-    insts, warnings = normalize_osc_instances(instances)
-    series: Dict[str, Dict[str, List[Optional[float]]]] = {}
-    reports: List[Dict[str, Any]] = []
-    tf_cache: Dict[str, Dict[str, np.ndarray]] = {}
-
-    def _tf_bars(tf: str) -> Dict[str, np.ndarray]:
-        if tf not in tf_cache:
-            tf_cache[tf] = resample_ohlcv(t_i, o_f, h_f, l_f, c_f, v_f if N else None, tf)
-        return tf_cache[tf]
-
-    def _map_to_base(vals: np.ndarray, close_ms: np.ndarray) -> np.ndarray:
-        """آخر شريط مغلق فقط — searchsorted right على أوقات الإغلاق."""
-        if N == 0 or len(vals) == 0:
-            return np.full(N, np.nan)
-        idx = np.searchsorted(close_ms, eval_ms, side="right") - 1
-        out = np.full(N, np.nan)
-        ok = idx >= 0
-        out[ok] = vals[idx[ok]]
-        return out
-
-    for inst in insts:
-        if not inst.get("enabled", True):
-            reports.append({**inst, "available": False, "why": "disabled"})
-            continue
-        tf = inst["timeframe"]
-        tf_ms = int(TF_DURATIONS[tf])
-        p = inst["params"]
-        rid = inst["id"]
-        if tf_ms and tf_ms < base_step:
-            # فريم أدنى من شموع القاعدة — لا يمكن تجميعه من الأسفل
-            warnings.append(
-                f"النسخة '{rid}' ({inst['kind']} {tf}): الفريم أدنى من فريم شموع القاعدة "
-                f"({base_tf}) — لا يمكن بناؤه من بيانات أسمك؛ القيم None (مرر شموعاً أدق لبنائه)")
-            fields = OSC_KIND_FIELDS[inst["kind"]]
-            series[rid] = {f: [None] * N for f in fields}
-            reports.append({**inst, "available": False, "why": "tf_below_base"})
-            continue
-
-        if tf_ms and tf_ms == base_step:
-            bars_close = c_f  # نفس شموع القاعدة
-            close_ms = eval_ms  # شريط i يُغلق عند إغلاق شمعة القاعدة i
-        else:
-            bars = _tf_bars(tf)
-            bars_close = bars["close"]
-            close_ms = bars["close_ms"]
-
-        if inst["kind"] == "rsi":
-            vals = _rsi_wilder(bars_close, int(p["period"]))
-            ma_len = int(p["ma_length"])
-            k_std = float(p.get("bb_std", 2.0) or 0.0)
-            ma = _ema_sma_seed(vals, ma_len) if ma_len > 0 else np.full(len(vals), np.nan)
-            have_bb = (ma_len > 1) and (k_std > 0)
-            if have_bb:
-                sd = _rolling_std(vals, ma_len)
-                bb_up = ma + k_std * sd
-                bb_dn = ma - k_std * sd
-            else:
-                bb_up = np.full(len(vals), np.nan)
-                bb_dn = np.full(len(vals), np.nan)
-            series[rid] = {
-                "value": _to_jsonable(_map_to_base(vals, close_ms)),
-                "ma": _to_jsonable(_map_to_base(ma, close_ms)) if ma_len > 0 else [None] * N,
-                "bb_upper": _to_jsonable(_map_to_base(bb_up, close_ms)) if have_bb else [None] * N,
-                "bb_lower": _to_jsonable(_map_to_base(bb_dn, close_ms)) if have_bb else [None] * N,
-            }
-        elif inst["kind"] == "macd":
-            line, sig, hist = _macd(bars_close, int(p["fast"]), int(p["slow"]), int(p["signal"]))
-            series[rid] = {
-                "line": _to_jsonable(_map_to_base(line, close_ms)),
-                "signal": _to_jsonable(_map_to_base(sig, close_ms)),
-                "hist": _to_jsonable(_map_to_base(hist, close_ms)),
-            }
-        else:  # mom
-            line, pct = _momentum(bars_close, int(p["length"]))
-            series[rid] = {
-                "line": _to_jsonable(_map_to_base(line, close_ms)),
-                "pct": _to_jsonable(_map_to_base(pct, close_ms)),
-            }
-        reports.append({**inst, "available": True, "why": None})
-
-    return {
-        "spec": MTF_OSC_CORE_SPEC,
-        "version": MTF_OSC_CORE_VERSION,
-        "base_step_ms": int(base_step),
-        "base_tf": base_tf,
-        "bars": int(N),
-        "instances": reports,
-        "series": series,
-        "warnings": warnings,
-    }
-
-
-def _to_jsonable(arr: np.ndarray) -> List[Optional[float]]:
-    out: List[Optional[float]] = []
-    for v in np.asarray(arr, dtype=np.float64):
-        fv = float(v)
-        out.append(fv if math.isfinite(fv) else None)
-    return out
-
-
-# ---------------------------------------------------------------------------
-# مُقيِّم الشروط على شبكة القاعدة — المرجع: osc:<id>.<field> | price:* | رقم
-# ---------------------------------------------------------------------------
-def _resolve_grid_arg(arg: Any, osc_series: Dict[str, Dict[str, np.ndarray]],
-                      price: Dict[str, np.ndarray], N: int) -> Optional[np.ndarray]:
-    if isinstance(arg, (int, float)):
-        return np.full(N, float(arg))
-    if not isinstance(arg, str):
-        return None
-    low = arg.lower()
-    if low.startswith("osc:"):
-        rest = low[4:]
-        if "." not in rest:
-            return None
-        iid, field = rest.split(".", 1)
-        rec = osc_series.get(iid)
-        if rec is None or field not in rec:
-            return None
-        return rec[field]
-    if low.startswith("price:"):
-        col = low.split(":", 1)[1].strip()
-        return price.get(col)
+    s = str(tf).strip()
+    if s in TF_MS:
+        return s
+    if s == "1M":
+        return "1m"
+    if s in _TF_ALIASES:
+        return _TF_ALIASES[s]
     return None
 
 
-def evaluate_osc_conditions(
-    tree: Optional[Dict[str, Any]],
-    osc_series: Dict[str, Dict[str, np.ndarray]],
-    o: np.ndarray, h: np.ndarray, l: np.ndarray, c: np.ndarray,
-    N: int,
-    osc_available: Optional[Dict[str, bool]] = None,
-) -> Tuple[np.ndarray, List[str]]:
-    """تقييم الشجرة على كل شمعة → (بوابة bool[N], تحذيرات).
-
-    الشجرة الفارغة/None → كل True (بوابة مفتوحة — هوية المحرك الأصل).
-    NaN في أي طرف ورقة → False لتلك الورقة عند تلك الشمعة (فترات الإحماء تحجب).
-
-    PRO73-R3 — skip_unavailable: تُمرّر خريطة توفر النسخ (osc_available):
-    {id: available}. الورقة التي تحمل skip_unavailable=true ويُشير أحد طرفيها
-    إلى نسخة **غير متاحة** (فريم أدنى من القاعدة/معطّلة) تُعدّ مُحققة على كل
-    الشموع (تُتجاوز) — هكذا تعمل حالة «جميع الفريمات ايجابية» على أي عمق
-    بيانات. المرجع المجهول تماماً (خطأ إملائي) يبقى فشلاً مغلقاً (False).
-    """
-    warns: List[str] = []
-    if N == 0:
-        return np.zeros(0, dtype=bool), warns
-    if tree is None:
-        return np.ones(N, dtype=bool), warns
-    price = {"open": o, "high": h, "low": l, "close": c, "volume": None}
-
-    def _ref_unavailable(arg: Any) -> bool:
-        if not isinstance(arg, str) or osc_available is None:
-            return False
-        low = arg.lower()
-        if not low.startswith("osc:") or "." not in low[4:]:
-            return False
-        iid = low[4:].split(".", 1)[0]
-        return osc_available.get(iid) is False
-
-    def _leaf_ok(node: Dict[str, Any]) -> Optional[np.ndarray]:
-        if node.get("skip_unavailable") and (
-                _ref_unavailable(node["left"]) or _ref_unavailable(node["right"])):
-            return np.ones(N, dtype=bool)
-        a = _resolve_grid_arg(node["left"], osc_series, price, N)
-        b = _resolve_grid_arg(node["right"], osc_series, price, N)
-        if a is None or b is None:
-            # فشل مغلق (fail-closed): ورقة غير قابلة للحل (مرجع مجهول/نسخة غير
-            # متاحة) = الشرط لا يتحقق أبداً — لا تُفتح البوابة بصمت أبداً.
-            warns.append(f"مرجع غير قابل للحل في شرط (فشل مغلق): {str(node)[:100]}")
-            return np.zeros(N, dtype=bool)
-        op = node["op"]
-        if op == "cross_above" or op == "cross_below":
-            with np.errstate(invalid="ignore"):
-                above = np.where(np.isnan(a) | np.isnan(b), False, a > b)
-                below = np.where(np.isnan(a) | np.isnan(b), False, a < b)
-                # PRO73-R3: التقاطع يتطلب حالة سابقة **معروفة** — لا تقاطع وهمياً
-                # عند بداية البيانات أو فور انتهاء إحماء NaN (لا نعرف أنه لم يكن فوق).
-                known_prev = np.concatenate(
-                    ([False], np.isfinite(a[:-1]) & np.isfinite(b[:-1])))
-            prev_above = np.concatenate(([False], above[:-1]))
-            prev_below = np.concatenate(([False], below[:-1]))
-            if op == "cross_above":
-                return above & ~prev_above & known_prev
-            return below & ~prev_below & known_prev
-        with np.errstate(invalid="ignore"):
-            if op == ">":
-                m = a > b
-            elif op == ">=":
-                m = a >= b
-            elif op == "<":
-                m = a < b
-            elif op == "<=":
-                m = a <= b
-            elif op == "==":
-                m = a == b
-            elif op == "!=":
-                m = a != b
-            else:
-                warns.append(f"معامل مجهول '{op}'")
-                return None
-            return np.where(np.isnan(a) | np.isnan(b), False, m)
-
-    def _walk(node: Dict[str, Any]) -> Optional[np.ndarray]:
-        if "logic" in node:
-            subs: List[np.ndarray] = []
-            for sub in node["conditions"]:
-                got = _walk(sub)
-                if got is None:
-                    return None
-                subs.append(got)
-            logic = node["logic"]
-            if logic == "and":
-                out = subs[0].copy()
-                for s in subs[1:]:
-                    out = out & s
-                return out
-            if logic == "or":
-                out = subs[0].copy()
-                for s in subs[1:]:
-                    out = out | s
-                return out
-            if logic == "not":
-                return ~subs[0]
-            return None
-        return _leaf_ok(node)
-
-    gate = _walk(tree)
-    if gate is None:
-        return np.ones(N, dtype=bool), warns + ["شجرة الشروط غير قابلة للتقييم — البوابة مفتوحة"]
-    return gate.astype(bool), warns
+def tf_to_ms(tf: Any) -> Optional[int]:
+    key = normalize_timeframe(tf)
+    return TF_MS.get(key) if key else None
 
 
-def _np_from_jsonable(vals: List[Optional[float]], N: int) -> np.ndarray:
-    arr = np.asarray([np.nan if v is None else float(v) for v in (vals or [])], dtype=np.float64)
-    if len(arr) < N:
-        arr = np.concatenate((arr, np.full(N - len(arr), np.nan)))
-    return arr[:N]
+# ---------------------------------------------------------------- الصيغ (talib-style)
+
+def _ema_talib(x: np.ndarray, period: int) -> np.ndarray:
+    """EMA بطريقة talib/TradingView: بذرة SMA عند الفهرس period−1 ثم عودية
+    alpha=2/(period+1) — تطابق الإنتاج بت-بت (قياس 2026-11-15)."""
+    n = len(x)
+    out = np.full(n, np.nan, dtype=np.float64)
+    if n < period or period < 1:
+        return out
+    out[period - 1] = float(np.mean(x[:period]))
+    a = 2.0 / (period + 1.0)
+    for i in range(period, n):
+        out[i] = a * x[i] + (1.0 - a) * out[i - 1]
+    return out
 
 
-def _first_valid_index(arr: Any, n: int) -> int:
-    """أول شريط تظهر فيه قيمة صالحة (finite) بالسلسلة — n إن لم تظهر أبداً."""
+def _sma(x: np.ndarray, period: int) -> np.ndarray:
+    """SMA عبر pandas rolling (NaN داخل النافذة ⇒ NaN — حياد الإحماء).
+    ✅ B-4: خط إشارة MACD = SMA حرفياً كما Pine (sma(macd, signal))."""
+    if period < 1 or len(x) < period:
+        return np.full(len(x), np.nan, dtype=np.float64)
+    return (pd.Series(np.asarray(x, dtype=np.float64))
+            .rolling(window=int(period), min_periods=int(period))
+            .mean().to_numpy(dtype=np.float64))
+
+
+def _rolling_std_pop(x: np.ndarray, period: int) -> np.ndarray:
+    """الانحراف السكّاني (ddof=0) لنافذة منزلقة — لأشرطة بولينجر RSI
+    (نفس إحماء الإنتاج: أول قيمة عند 27 لنسخة 14/14)."""
+    if period < 1 or len(x) < period:
+        return np.full(len(x), np.nan, dtype=np.float64)
+    return (pd.Series(np.asarray(x, dtype=np.float64))
+            .rolling(window=int(period), min_periods=int(period))
+            .std(ddof=0).to_numpy(dtype=np.float64))
+
+
+def _rsi_wilder_talib(x: np.ndarray, period: int) -> np.ndarray:
+    """RSI بطريقة Wilder/talib — تطابق الإنتاج بت-بت (2.8e-14)."""
+    n = len(x)
+    out = np.full(n, np.nan, dtype=np.float64)
+    if n <= period or period < 1:
+        return out
+    d = np.diff(x)
+    g = np.clip(d, 0.0, None)
+    l = np.clip(-d, 0.0, None)
+    ag = float(np.mean(g[:period]))
+    al = float(np.mean(l[:period]))
+    out[period] = 100.0 if al == 0.0 else 100.0 - 100.0 / (1.0 + ag / al)
+    for i in range(period, n - 1):
+        ag = (ag * (period - 1) + g[i]) / period
+        al = (al * (period - 1) + l[i]) / period
+        out[i + 1] = 100.0 if al == 0.0 else 100.0 - 100.0 / (1.0 + ag / al)
+    return out
+
+
+def _macd_talib(close: np.ndarray, fast: int, slow: int, signal: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """✅ B-4 — MACD حرفياً كما Pine الأصلي (ChrisMoody):
+    line = EMA(fast) − EMA(slow) · signal = SMA(line, signal) · hist = line−signal.
+    الإحماء محايد لكل حقل على حدة (قياس الإنتاج الحي 2026-11-15: line أول
+    صالح عند slow−1=12 · signal/hist عند 12+signal−1=15 — لا تقنيع متقاطع)."""
+    line = _ema_talib(close, int(fast)) - _ema_talib(close, int(slow))
+    sig = _sma(line, int(signal))
+    hist = line - sig
+    return line, sig, hist
+
+
+def _mom(close: np.ndarray, length: int) -> Tuple[np.ndarray, np.ndarray]:
+    """المومنتم: line = close − close[length] · pct = (close/close[length]−1)×100."""
+    n = len(close)
+    line = np.full(n, np.nan, dtype=np.float64)
+    pct = np.full(n, np.nan, dtype=np.float64)
+    if n > length and length >= 1:
+        prev = close[:-length]
+        cur = close[length:]
+        line[length:] = cur - prev
+        with np.errstate(divide="ignore", invalid="ignore"):
+            pct[length:] = np.where(prev != 0.0, (cur / prev - 1.0) * 100.0, np.nan)
+    return line, pct
+
+
+# ---------------------------------------------------------------- المستند الافتراضي (67 — مطابق للحي بت-بت)
+
+def _mi(kind: str, tf: str, *nums: float) -> Dict[str, Any]:
+    d: Dict[str, Any] = {"kind": kind, "timeframe": tf,
+                         "id": f"{kind}_{tf}_" + "_".join(str(int(x)) for x in nums)}
+    if kind == "macd":
+        d["params"] = {"fast": int(nums[0]), "slow": int(nums[1]), "signal": int(nums[2])}
+    elif kind == "rsi":
+        d["params"] = {"period": int(nums[0]), "ma_length": int(nums[1]), "bb_std": 2.0}
+    elif kind == "mom":
+        d["params"] = {"length": int(nums[0])}
+    return d
+
+
+DEFAULT_OSC_INSTANCES: List[Dict[str, Any]] = [
+    _mi("macd", "1s", 6, 13, 4), _mi("macd", "1s", 12, 26, 4),
+    _mi("macd", "5s", 6, 13, 4), _mi("macd", "5s", 12, 26, 4),
+    _mi("macd", "30s", 6, 13, 4), _mi("macd", "30s", 12, 26, 4),
+    _mi("macd", "1m", 6, 13, 4), _mi("macd", "1m", 12, 26, 4),
+    _mi("macd", "5m", 6, 13, 4), _mi("macd", "5m", 12, 26, 4),
+    _mi("macd", "15m", 6, 13, 4), _mi("macd", "15m", 12, 26, 4),
+    _mi("macd", "1h", 6, 13, 4), _mi("macd", "1h", 12, 26, 4),
+    _mi("macd", "4h", 6, 13, 4), _mi("macd", "4h", 12, 26, 4),
+    _mi("macd", "1d", 6, 13, 4), _mi("macd", "1d", 12, 26, 4),
+    _mi("macd", "2d", 6, 13, 4), _mi("macd", "2d", 12, 26, 4),
+    _mi("macd", "3d", 5, 11, 4), _mi("macd", "3d", 6, 13, 4), _mi("macd", "3d", 12, 26, 4),
+    _mi("macd", "1w", 6, 13, 4), _mi("macd", "1w", 12, 26, 4), _mi("macd", "1w", 18, 39, 4),
+    _mi("macd", "2w", 12, 26, 2),
+    _mi("macd", "1mo", 12, 26, 2),
+    _mi("rsi", "1s", 14, 14), _mi("rsi", "5s", 14, 14), _mi("rsi", "30s", 14, 14),
+    _mi("rsi", "1m", 14, 14), _mi("rsi", "5m", 14, 14), _mi("rsi", "15m", 14, 14),
+    _mi("rsi", "1h", 14, 14), _mi("rsi", "4h", 14, 14),
+    _mi("rsi", "1d", 10, 14), _mi("rsi", "1d", 14, 14),
+    _mi("rsi", "2d", 14, 6), _mi("rsi", "2d", 14, 14), _mi("rsi", "3d", 14, 6),
+    _mi("rsi", "1w", 14, 14), _mi("rsi", "2w", 14, 14), _mi("rsi", "1mo", 14, 14),
+    _mi("mom", "1s", 10), _mi("mom", "5s", 10), _mi("mom", "30s", 10),
+    _mi("mom", "1m", 5), _mi("mom", "1m", 10),
+    _mi("mom", "5m", 5), _mi("mom", "5m", 10),
+    _mi("mom", "15m", 5), _mi("mom", "15m", 10),
+    _mi("mom", "1h", 5), _mi("mom", "1h", 10),
+    _mi("mom", "4h", 5), _mi("mom", "4h", 10),
+    _mi("mom", "1d", 5), _mi("mom", "1d", 10),
+    _mi("mom", "2d", 5), _mi("mom", "2d", 10),
+    _mi("mom", "3d", 5), _mi("mom", "3d", 10),
+    _mi("mom", "1w", 5), _mi("mom", "1w", 10),
+    _mi("mom", "1mo", 5), _mi("mom", "1mo", 10),
+]
+
+FIELDS_PER_KIND: Dict[str, List[str]] = {
+    "rsi": ["value", "ma", "bb_upper", "bb_lower"],
+    "macd": ["line", "signal", "hist"],
+    "mom": ["line", "pct"],
+}
+
+OSC_RULE_TEXT = (
+    "الدخول النهائي = إشارة الترندية/الملتهبة المبوّبة (بوابة الترند) ∧ انطباق "
+    "شجرة شروط الموشرات القابلة للتركيب (and/or/not بأي عمق) عند شمعة الإشارة "
+    "نفسها — المرجع: osc:<id>.<field> أو رقم · المعامل skip_unavailable لكل "
+    "شرط (خطأ عند غياب القيمة ما لم يُطلب التخطي)"
+)
+
+
+# ---------------------------------------------------------------- تطبيع الشموع
+
+def _candle_time_ms(r: Any) -> int:
+    if isinstance(r, dict):
+        v = r.get("time", r.get("timestamp", r.get("t")))
+    elif isinstance(r, (list, tuple, np.ndarray)):
+        try:
+            v = r[0]
+        except Exception:
+            return 0
+    else:
+        # ✅ R76: قيمة مفردة (عدد/سلسلة/تاريخ) — كانت تسقط في r[0] فتُرَدّ 0
+        # فتنهار مطابقة view_times كلها (أعمدة العرض كلها 0 — T6).
+        v = r
+    if v is None:
+        return 0
+    if isinstance(v, (int, float, np.integer, np.floating)):
+        f = float(v)
+        if f < 1e11:  # ثوانٍ epoch → ملّي
+            f *= 1000.0
+        return int(f)
+    if hasattr(v, "timestamp"):
+        return int(v.timestamp() * 1000.0)
+    s = str(v)
     try:
-        a = np.asarray(arr, dtype=np.float64)
-    except Exception:
-        return 0
-    if a.size == 0:
-        return 0
-    fin = np.isfinite(a)
-    if not bool(fin.any()):
-        return int(n)
-    return int(np.argmax(fin))
+        f = float(s)
+        if f < 1e11:
+            f *= 1000.0
+        return int(f)
+    except ValueError:
+        try:
+            return int(_dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp() * 1000.0)
+        except Exception:
+            return 0
+
+
+def _candle_close(r: Any) -> float:
+    if isinstance(r, dict):
+        v = r.get("close", r.get("c"))
+    else:
+        try:
+            v = r[4]
+        except Exception:
+            return float("nan")
+    try:
+        return float(v) if v is not None else float("nan")
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def _norm_candles(candles: Any, return_map: bool = False):
+    """شموع (dicts أو DataFrame بأعمدة time/close) → (times_ms, closes) مرتبة.
+
+    ✅ PRO76b (return_map): يعيد إضافةً (keep_idx, inv_sorted, n_orig) —
+    مواضع الصفوف الناجية في الدخل الأصلي + مرتبتها بعد الترتيب + عدد
+    صفوف الدخل، لإعادة محاذاة بوابة القرار على مقاس شموع الدخل نفسها
+    (لا إسقاطاً بصمتاً لصفوف «—» مشوّهة ثم بوابة أقصر من سلاسل المحرك —
+    جذر IndexError 4d976421)."""
+    if candles is None:
+        if return_map:
+            return (np.array([], dtype=np.int64), np.array([], dtype=np.float64),
+                    np.array([], dtype=np.int64), np.array([], dtype=np.int64), 0)
+        return np.array([], dtype=np.int64), np.array([], dtype=np.float64)
+    if isinstance(candles, pd.DataFrame):
+        tcol = "time" if "time" in candles.columns else candles.columns[0]
+        ccol = "close" if "close" in candles.columns else candles.columns[-1]
+        t = _col_to_ms(candles[tcol])
+        c = pd.to_numeric(candles[ccol], errors="coerce").to_numpy(dtype=np.float64)
+    elif isinstance(candles, dict) and "time_ms" in candles and "close" in candles:
+        # ✅ نمط osc_base المخزّن (R76): {time_ms: [...], close: [...]}
+        t = np.asarray(candles["time_ms"], dtype=np.int64)
+        c = np.asarray(candles["close"], dtype=np.float64)
+    else:
+        rows = list(candles)
+        t = np.array([_candle_time_ms(r) for r in rows], dtype=np.int64)
+        c = np.array([_candle_close(r) for r in rows], dtype=np.float64)
+    mask = ~(np.isnan(c) | (t <= 0))
+    # ✅ PRO76b: الصفوف الناجية بمواضعها الأصلية (قبل القناع والترتيب)
+    keep_idx = np.nonzero(mask)[0]
+    t, c = t[mask], c[mask]
+    order: Any = None
+    if len(t):
+        order = np.argsort(t, kind="stable")
+        t, c = t[order], c[order]
+    if return_map:
+        inv_sorted = np.empty(len(t), dtype=np.int64)
+        if order is not None:
+            inv_sorted[order] = np.arange(len(t), dtype=np.int64)
+        return t, c, keep_idx, inv_sorted, int(len(mask))
+    return t, c
+
+
+def _col_to_ms(col: Any) -> np.ndarray:
+    s = pd.Series(col)
+    if np.issubdtype(s.dtype, np.number):
+        v = s.to_numpy(dtype="float64")
+        v = np.where(v < 1e11, v * 1000.0, v)
+        return v.astype(np.int64)
+    ts = pd.to_datetime(s, errors="coerce", utc=True)
+    return (ts.astype("int64") // 1_000_000).to_numpy().astype(np.int64)
+
+
+def detect_base_tf(t: np.ndarray) -> Optional[str]:
+    """فريم القاعدة الحقيقي من وسيط تباعد الشموع (الصدق الكامل — B-2).
+    غير المسجل → '<med>ms' صريح (كما كان عقد 1.1.0 يبلّغ العرض المضغوط)."""
+    if len(t) < 3:
+        return None
+    d = np.diff(t)
+    d = d[d > 0]
+    if not len(d):
+        return None
+    med = int(np.median(d))
+    for name in sorted(TF_MS, key=lambda k: TF_MS[k]):
+        ms = TF_MS[name]
+        if abs(med - ms) <= max(ms * 0.10, 1_000):
+            return name
+    return f"{med}ms"
+
+
+# ---------------------------------------------------------------- التجميع والنمذة
+
+def _month_bucket(t: np.ndarray) -> np.ndarray:
+    dt = t.astype("datetime64[ms]").astype("datetime64[M]")
+    months = dt.astype("int64")
+    _, idx = np.unique(months, return_inverse=True)
+    return idx
+
+
+def _bucket_index(t: np.ndarray, tf: str) -> Tuple[np.ndarray, int]:
+    """رقم الدلو لكل شمعة + عدد الدلاء. الشهر تقويمي؛ البقية مرساة epoch."""
+    if tf == "1mo":
+        b = _month_bucket(t)
+        return b, int(b[-1]) + 1
+    ms = TF_MS[tf]
+    t0 = int(t[0]) // ms * ms
+    b = (t - t0) // ms
+    return b, int(b[-1]) + 1
+
+
+def _bucket_closes(c: np.ndarray, b: np.ndarray, nb: int) -> np.ndarray:
+    """إغلاق كل دلو = إغلاق آخر شمعة فيه (الدلو الفارغ يرث جارَه السابق)."""
+    n = len(b)
+    if nb <= 0 or n == 0:
+        return np.array([], dtype=np.float64)
+    last = np.full(nb, -1, dtype=np.int64)
+    last[b] = np.arange(n)  # آخر ظهور (الشموع مرتبة زمنياً)
+    for i in range(nb):
+        if last[i] == -1:
+            last[i] = last[i - 1] if i > 0 else 0
+    return c[last]
+
+
+def _stepped_map(b: np.ndarray, n_base: int) -> Tuple[np.ndarray, np.ndarray]:
+    """شبكة الدلاء → شبكة القاعدة: آخر شريط أعلى مكتمل فقط (بلا استشراف).
+
+    الشمعة i داخل الدلو B(i) — الشريط B يكتمل مع إغلاق آخر شمعة فيه،
+    والقرار يُقيَّم على الشمعة المغلقة i ⇒ الصالح للاستخدام هو الشريط B(i)−1."""
+    usable = b - 1
+    neg = usable < 0
+    usable_clipped = np.where(neg, 0, usable)
+    return usable_clipped.astype(np.int64), ~neg
+
+
+def _map_stepped_arr(arr: np.ndarray, b: np.ndarray, n: int) -> np.ndarray:
+    """يرفع سلسلة دلاء إلى شبكة القاعدة بخطوة «آخر مكتمل» (ndarray)."""
+    bi, ok = _stepped_map(b, n)
+    out = np.full(n, np.nan, dtype=np.float64)
+    idx_ok = np.where(ok)[0]
+    if len(idx_ok) and len(arr):
+        take = np.clip(bi[idx_ok], 0, len(arr) - 1)
+        out[idx_ok] = arr[take]
+    return out
+
+
+def _tolist(arr: np.ndarray) -> List[Optional[float]]:
+    """ndarray → قائمة JSON (NaN → None — حياد الإحماء)."""
+    return [None if (v is None or (isinstance(v, float) and np.isnan(v))) else float(v)
+            for v in np.asarray(arr, dtype=np.float64)]
+
+
+def compute_instance_series(inst: Dict[str, Any], t: np.ndarray, c: np.ndarray,
+                            base_tf: str) -> Dict[str, np.ndarray]:
+    """سلاسل نسخة واحدة على شبكة شموع القاعدة — **ndarray** (ذاكرة محكمة:
+    665K × 8 بايت للسلسلة، لا قوائم Python). فارغ إذا كانت أدنى من القاعدة."""
+    kind = str(inst.get("kind", "")).lower()
+    tf = normalize_timeframe(inst.get("timeframe"))
+    if tf is None:
+        return {}
+    inst_ms = TF_MS.get(tf)
+    base_ms = TF_MS.get(base_tf) if base_tf in TF_MS else None
+    if inst_ms is None or base_ms is None or inst_ms < base_ms:
+        return {}
+    n = len(t)
+    if n == 0:
+        return {}
+    p = inst.get("params") or {}
+    same = (tf == base_tf)
+
+    if kind == "macd":
+        fast = int(p.get("fast", 12)); slow = int(p.get("slow", 26)); sig = int(p.get("signal", 9))
+        if same:
+            line, sg, hist = _macd_talib(c, fast, slow, sig)
+            return {"line": line, "signal": sg, "hist": hist}
+        b, nb = _bucket_index(t, tf)
+        cb = _bucket_closes(c, b, nb)
+        line, sg, hist = _macd_talib(cb, fast, slow, sig)
+        return {"line": _map_stepped_arr(line, b, n),
+                "signal": _map_stepped_arr(sg, b, n),
+                "hist": _map_stepped_arr(hist, b, n)}
+
+    if kind == "rsi":
+        period = int(p.get("period", 14)); ma_len = int(p.get("ma_length", 14))
+        bb_std = float(p.get("bb_std", 2.0))
+        if same:
+            val = _rsi_wilder_talib(c, period)
+        else:
+            b, nb = _bucket_index(t, tf)
+            cb = _bucket_closes(c, b, nb)
+            v_h = _rsi_wilder_talib(cb, period)
+            val = _map_stepped_arr(v_h, b, n)
+        ma = _ema_talib_nan(val, ma_len)
+        sd = _rolling_std_pop(val, ma_len)
+        return {"value": val, "ma": ma,
+                "bb_upper": ma + bb_std * sd, "bb_lower": ma - bb_std * sd}
+
+    if kind == "mom":
+        length = int(p.get("length", 10))
+        if same:
+            line, pct = _mom(c, length)
+            return {"line": line, "pct": pct}
+        b, nb = _bucket_index(t, tf)
+        cb = _bucket_closes(c, b, nb)
+        ln_h, pct_h = _mom(cb, length)
+        return {"line": _map_stepped_arr(ln_h, b, n),
+                "pct": _map_stepped_arr(pct_h, b, n)}
+    return {}
+
+
+def _ema_talib_nan(x: np.ndarray, period: int) -> np.ndarray:
+    """EMA-talib فوق سلسلة فيها فجوات NaN: البذرة عند أول period قيم صالحة،
+    والفجوات بعد البذرة تُثبّت آخر قيمة (حياد الإحماء فقط قبل البذرة)."""
+    n = len(x)
+    out = np.full(n, np.nan, dtype=np.float64)
+    nn = np.where(~np.isnan(x))[0]
+    if len(nn) < period or period < 1:
+        return out
+    seed_i = int(nn[period - 1])
+    out[seed_i] = float(np.mean(x[nn[:period]]))
+    a = 2.0 / (period + 1.0)
+    last = out[seed_i]
+    for i in range(seed_i + 1, n):
+        if np.isnan(x[i]):
+            out[i] = last
+        else:
+            last = a * x[i] + (1.0 - a) * last
+            out[i] = last
+    return out
+
+
+# ---------------------------------------------------------------- شجرة الشروط
+
+_OPS = {
+    ">": lambda a, b: a > b,
+    ">=": lambda a, b: a >= b,
+    "<": lambda a, b: a < b,
+    "<=": lambda a, b: a <= b,
+    "==": lambda a, b: abs(a - b) < 1e-12,
+    "!=": lambda a, b: abs(a - b) >= 1e-12,
+}
+
+
+def _lookup_ref(ref: Any, series_lookup: Dict[str, Any], i: int) -> Tuple[bool, Optional[float]]:
+    """يحل المرجع: رقم مباشر · osc:<id>.<field> · price:<col> (من المحرك).
+    السلاسل قد تكون ndarray (ذاكرة محكمة) أو قوائم."""
+    if isinstance(ref, (int, float)) and not isinstance(ref, bool):
+        return True, float(ref)
+    s = str(ref)
+    low = s.lower()
+    if low.startswith("osc:") or low.startswith("price:"):
+        arr = series_lookup.get(low)
+        if arr is None or i >= len(arr):
+            return False, None
+        v = arr[i]
+        if v is None:
+            return False, None
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            return False, None
+        if np.isnan(fv):
+            return False, None
+        return True, fv
+    try:
+        return True, float(s)
+    except ValueError:
+        return False, None
+
+
+def evaluate_conditions(node: Any, series_lookup: Dict[str, Any], i: int) -> bool:
+    """تقييم شجرة الشروط عند الشمعة المغلقة i (بلا أي نظرة مستقبلية).
+
+    الأوراق: {left, op, right, skip_unavailable} — المرجع osc:<id>.<field>.
+    قيمة مفقودة ⇒ الورقة False ما لم يُطلب skip_unavailable=True.
+    العقد: {logic: and|or|not, conditions: [...]}; not = نفي أول عنصر."""
+    if node is None:
+        return True
+    if isinstance(node, bool):
+        return node
+    if isinstance(node, (int, float)):
+        return bool(node)
+    if isinstance(node, list):
+        return all(evaluate_conditions(sub, series_lookup, i) for sub in node)
+    if not isinstance(node, dict):
+        return True
+    if "left" in node and "op" in node:
+        ok_l, v_l = _lookup_ref(node.get("left"), series_lookup, i)
+        ok_r, v_r = _lookup_ref(node.get("right"), series_lookup, i)
+        if not (ok_l and ok_r):
+            return bool(node.get("skip_unavailable", False))
+        fn = _OPS.get(str(node.get("op", ">")))
+        if fn is None:
+            return False
+        return bool(fn(v_l, v_r))
+    logic = str(node.get("logic", "and")).lower()
+    subs = node.get("conditions") or []
+    if not isinstance(subs, list):
+        subs = [subs]
+    if not subs:
+        return True
+    if logic == "not":
+        return not evaluate_conditions(subs[0], series_lookup, i)
+    if logic == "or":
+        return any(evaluate_conditions(sub, series_lookup, i) for sub in subs)
+    return all(evaluate_conditions(sub, series_lookup, i) for sub in subs)
+
+
+# ---------------------------------------------------------------- التقاطعات (B-7)
+
+def _macd_crosses_np(line: np.ndarray, sig: np.ndarray,
+                      cap: int = 20000) -> List[Dict[str, Any]]:
+    """تقاطعات line×signal: [{index, up}] — up=true عند صعود الخط فوق الإشارة."""
+    n = min(len(line), len(sig))
+    out: List[Dict[str, Any]] = []
+    if n == 0:
+        return out
+    diff = line[:n] - sig[:n]
+    valid = ~(np.isnan(diff))
+    idx = np.where(valid)[0]
+    if len(idx) < 2:
+        return out
+    d = diff[idx]
+    for j in range(1, len(idx)):
+        pd_prev, pd_cur = d[j - 1], d[j]
+        if pd_prev <= 0.0 < pd_cur:
+            out.append({"index": int(idx[j]), "up": True})
+        elif pd_prev >= 0.0 > pd_cur:
+            out.append({"index": int(idx[j]), "up": False})
+        if len(out) >= cap:
+            break
+    return out
+
+
+def sample_numpy_to_view(arr: np.ndarray, view_idx: np.ndarray,
+                          hit: Optional[np.ndarray] = None) -> List[Optional[float]]:
+    """عينة ndarray عند فهارس الأعمدة المخزنة → قائمة JSON (NaN→None).
+
+    ✅ PRO76b (HF-A): hit — قناع فوق أعمدة العرض: العمود غير الممثَّل في
+    القاعدة (انقطاع/صف مشوّه) يُخزَّن None بدل قيمة الجار المقصورة:
+    مقياس العرض = عدد أعمدة العرض نفسها دائماً، لا مقياس المطابقات فقط."""
+    if not len(view_idx) or not len(arr):
+        return [None] * len(view_idx)
+    take = np.clip(view_idx, 0, len(arr) - 1)
+    vals = arr[take]
+    out = [None if np.isnan(v) else float(v) for v in vals]
+    if hit is not None:
+        for k in np.nonzero(~np.asarray(hit, dtype=bool))[0]:
+            if 0 <= int(k) < len(out):
+                out[int(k)] = None
+    return out
 
 
 def _warmup_neutral_horizon(
-    tree: Optional[Dict[str, Any]],
-    osc_np: Dict[str, Dict[str, np.ndarray]],
-    osc_available: Dict[str, bool],
+    conditions: Any,
+    combined_lookup: Dict[str, Any],
     n: int,
 ) -> int:
-    """✅ PRO74 — أفق حياد الإحماء لشجرة الشروط.
+    """✅ PRO76b (P2) — أفق حياد الإحماء (عقد R74 داخل نواة R76).
 
-    أقصى «أول شريط صالح» عبر كل الأوراق المرجعية بالشجرة (نسخ المستندات
-    المتاحة فقط). قبل هذا الشريط قد تكون قيمة الشجرة False لمجرد أن بعض
-    المؤشرات لم تدخل قيمها بعد (NaN الإحماء) — فالحجب زورٌ بلا حكم.
+    أقصى «أول شريط صالح» عبر كل الأوراق المرجعية بالشجرة (سلاسل النسخ
+    المتاحة فقط). قبل هذا الشريط قد تكون قيمة الشجرة False لمجرد أن
+    مؤشراً لم تدخل قيمه بعد (NaN الإحماء) — فالحجب زورٌ بلا حكم.
     القاعدة: قبل الأفق البوابة محايدة (مفتوحة)؛ بعده التقييم الطبيعي.
-    النسخ غير المتاحة (فريم أدنى من القاعدة) ليست إحماءً — إدارتها عند
-    skip_unavailable/الفشل المغلق كما هي.
+    (كانت مفقودة من نواة PRO76 — انحدار «بوابة الإحماء مغلقة لا محايدة».)
     """
     horizon = 0
-    if not isinstance(tree, dict):
+    if not isinstance(conditions, dict):
         return horizon
+
+    def _arr_of(ref: Any) -> Optional[np.ndarray]:
+        if not (isinstance(ref, str) and ref.lower().startswith("osc:")):
+            return None
+        return combined_lookup.get(ref.lower())
+
+    def _first_valid(arr: Any) -> int:
+        try:
+            a = np.asarray(arr, dtype=np.float64)
+        except (TypeError, ValueError):
+            return n
+        if not len(a):
+            return n
+        try:
+            fin = ~np.isnan(a)
+        except TypeError:
+            return n
+        if not bool(fin.any()):
+            return n
+        return int(np.argmax(fin))
 
     def _walk(node: Any) -> None:
         nonlocal horizon
@@ -912,97 +682,511 @@ def _warmup_neutral_horizon(
                 _walk(child)
             return
         for k in ("left", "right"):
-            v = node.get(k)
-            if not (isinstance(v, str) and v.startswith("osc:")):
-                continue
-            spec = v[4:].split(".")
-            if len(spec) != 2:
-                continue
-            iid, fld = spec[0], spec[1]
-            if osc_available.get(iid) is False:
-                continue
-            arr = (osc_np.get(iid) or {}).get(fld)
+            arr = _arr_of(node.get(k))
             if arr is None:
                 continue
-            h = _first_valid_index(arr, n)
-            if h >= n:
-                continue
-            if h > horizon:
+            h = _first_valid(arr)
+            if h < n and h > horizon:
                 horizon = h
 
-    _walk(tree)
+    _walk(conditions)
     return horizon
 
 
-# ---------------------------------------------------------------------------
-# ✅ PRO73-R2 — طبقة الدمج المشتركة لمحركي «الماكدية» (ترنديه ماكديه /
-#    ملتهبه ماكديه): مصفوفة الموشرات + بوابة الشروط + المصفوفات الجاهزة.
-# ---------------------------------------------------------------------------
-def macdized_layer(
-    candles: Any,
-    osc_instances: Any,
-    osc_conditions: Any,
-) -> Dict[str, Any]:
-    """الطبقة المشتركة: يحسبها كلا محركي الماكدية فوق محركه الأصل.
+# ---------------------------------------------------------------- توحيد النسخ (B-3)
 
-    يعيد:
-      {
-        "N", "o_np","h_np","l_np","c_np"       (مصفوفات OHLC القاعدة),
-        "osc"        (نتيجة compute_oscillator_matrix كاملة),
-        "osc_json"   (سلاسل JSONable للنسخ),
-        "osc_np"     ({id: {field: ndarray}}),
-        "tree"       (شجرة الشروط المطبَّعة | None),
-        "gate"       (ndarray bool[N] — True = الشروط منطبقة),
-        "gate_list"  (قائمة 0/1 للسلاسل),
-        "warnings"   (مجمع: النسخ + الشجرة + التقييم),
-      }
-    """
-    t, o, h, l, c = norm_candles(candles)
-    N = len(c)
-    osc = compute_oscillator_matrix(candles, osc_instances)
-    osc_json = osc.get("series") or {}
-    osc_np: Dict[str, Dict[str, np.ndarray]] = {}
-    for iid, fields in osc_json.items():
-        osc_np[iid] = {}
-        for f, vals in fields.items():
-            osc_np[iid][f] = _np_from_jsonable(vals, N)
-
-    tree, tree_warns = normalize_osc_conditions(osc_conditions)
-    o_np = np.asarray([float(x) if x is not None else np.nan for x in o], dtype=np.float64) if N else np.zeros(0)
-    h_np = np.asarray([float(x) if x is not None else np.nan for x in h], dtype=np.float64) if N else np.zeros(0)
-    l_np = np.asarray([float(x) if x is not None else np.nan for x in l], dtype=np.float64) if N else np.zeros(0)
-    c_np = np.asarray([float(x) if x is not None else np.nan for x in c], dtype=np.float64) if N else np.zeros(0)
-    # PRO73-R3 — خريطة توفر النسخ (الفريم الأدنى من القاعدة/المعطّلة → skip_unavailable)
-    osc_available: Dict[str, bool] = {}
-    for rep in (osc.get("instances") or []):
-        try:
-            osc_available[str(rep.get("id"))] = bool(rep.get("available", True))
-        except Exception:
+def resolve_instances(osc_instances: Any) -> List[Dict[str, Any]]:
+    """توحيد نسخ المستخدم: قوائم dicts (عقد R74 الحي: معاملات مسطحة أو
+    داخل params) أو معرّفات نصية — None ⇒ المستند الافتراضي الكامل 67."""
+    if osc_instances is None:
+        out = []
+        for i, inst in enumerate(DEFAULT_OSC_INSTANCES):
+            d = dict(inst)
+            d["index"] = i
+            d["enabled"] = True
+            out.append(d)
+        return out
+    if isinstance(osc_instances, dict):
+        # قاموس واحد = نسخة واحدة (وليس فهرساً)
+        first = next(iter(osc_instances.values()), None) if osc_instances else None
+        if isinstance(first, dict) and "kind" in first:
+            osc_instances = [osc_instances]
+        elif "kind" in osc_instances:
+            osc_instances = [osc_instances]
+        else:
+            osc_instances = list(osc_instances.values())
+    if not isinstance(osc_instances, (list, tuple)):
+        return []
+    out: List[Dict[str, Any]] = []
+    for i, raw in enumerate(osc_instances):
+        if raw is None:
             continue
-    gate, gate_warns = evaluate_osc_conditions(
-        tree, osc_np, o_np, h_np, l_np, c_np, N, osc_available=osc_available)
-    # ✅ PRO74 — حياد الإحماء (Warmup Neutrality): قبل جاهزية كل الأوراق
-    # المرجعية بالشجرة تكون قيمة الشجرة False لمجرد NaN الإحماء — لا يُحجب
-    # دخولٌ بحكم موشرٍ لم تتوفر بياناته بعد. (المسار الحي المتصل لا يتأثر
-    # عملياً؛ هذا يُصلح الباك-تستات ذات البداية الباردة التي كانت تحجب
-    # أسابيعها/أشهرها الأولى زوراً بتقييم NaN→False.)
+        if isinstance(raw, str):
+            raw = {"id": raw.strip()}
+        if not isinstance(raw, dict):
+            continue
+        kind = str(raw.get("kind", "")).strip().lower()
+        tf = normalize_timeframe(raw.get("timeframe"))
+        params = raw.get("params") or {}
+        flat = {k: v for k, v in raw.items()
+                if k not in ("kind", "id", "timeframe", "index", "enabled", "doc", "params")}
+        merged: Dict[str, Any] = {}
+        merged.update(flat)
+        merged.update({k: v for k, v in params.items()})
+        d: Dict[str, Any] = {"kind": kind, "timeframe": tf or ""}
+        if kind == "macd":
+            f = int(merged.get("fast", 12)); s = int(merged.get("slow", 26)); g = int(merged.get("signal", 9))
+            d["params"] = {"fast": f, "slow": s, "signal": g}
+            d["id"] = str(raw.get("id") or f"macd_{tf}_{f}_{s}_{g}")
+        elif kind == "rsi":
+            p_ = int(merged.get("period", 14)); m_ = int(merged.get("ma_length", 14))
+            b_ = float(merged.get("bb_std", 2.0))
+            d["params"] = {"period": p_, "ma_length": m_, "bb_std": b_}
+            d["id"] = str(raw.get("id") or f"rsi_{tf}_{p_}_{m_}")
+        elif kind == "mom":
+            L = int(merged.get("length", 10))
+            d["params"] = {"length": L}
+            d["id"] = str(raw.get("id") or f"mom_{tf}_{L}")
+        else:
+            d["params"] = merged
+            d["id"] = str(raw.get("id") or f"{kind}_{tf}")
+        if raw.get("doc"):
+            d["doc"] = raw["doc"]
+        d["index"] = int(raw.get("index", i))
+        d["enabled"] = bool(raw.get("enabled", True))
+        out.append(d)
+    return out
+
+
+def _collect_condition_refs(node: Any) -> set:
+    """✅ R76 (ذاكرة) — مراجع شجرة الشروط (osc:<id>.<field> · price:<عمود>).
+
+    يجمعها مسبقاً كي تُحسب فقط النسخ المطلوبة للبوابة ويُتخلص من مصفوفات
+    البقية فور أخذ العينات (ذروة ذاكرة نافذة البطل: ~1.4GB → ~150MB)."""
+    refs: set = set()
+    if node is None:
+        return refs
+    if isinstance(node, (list, tuple)):
+        for sub in node:
+            refs |= _collect_condition_refs(sub)
+        return refs
+    if not isinstance(node, dict):
+        return refs
+    if "left" in node and "op" in node:
+        for side in ("left", "right"):
+            v = node.get(side)
+            if isinstance(v, str):
+                low = v.lower()
+                if low.startswith("osc:") or low.startswith("price:"):
+                    refs.add(low)
+        return refs
+    for sub in (node.get("conditions") or []):
+        refs |= _collect_condition_refs(sub)
+    return refs
+
+
+def _price_lookup_arrays(candles: Any, wanted_cols: set) -> Dict[str, np.ndarray]:
+    """✅ R76 — أعمدة price:<عمود> المطلوبة فقط، ك ndarray بطول الدقة الكاملة.
+
+    يقبل قاموس osc_base ({time_ms, close} — close فقط) أو قائمة شموع أو
+    DataFrame. الأعمدة الغائبة تُتجاهل بلا سقوط (المرجع الغائب = False
+    fail-closed كما في عقد الشروط)."""
+    out: Dict[str, np.ndarray] = {}
+    try:
+        if isinstance(candles, pd.DataFrame):
+            for col in wanted_cols:
+                if col in candles.columns:
+                    out[f"price:{col}"] = pd.to_numeric(
+                        candles[col], errors="coerce").to_numpy(dtype=np.float64)
+            return out
+        if isinstance(candles, dict) and "close" in candles:
+            if "close" in wanted_cols:
+                out["price:close"] = np.asarray(candles["close"], dtype=np.float64)
+            return out
+        rows = list(candles)
+        for col in wanted_cols:
+            vals = []
+            for r in rows:
+                if isinstance(r, dict):
+                    v = r.get(col)
+                else:
+                    try:
+                        v = r[{"open": 1, "high": 2, "low": 3, "close": 4,
+                               "volume": 5}.get(col, -1)]
+                    except Exception:
+                        v = None
+                try:
+                    vals.append(float(v) if v is not None else float("nan"))
+                except (TypeError, ValueError):
+                    vals.append(float("nan"))
+            out[f"price:{col}"] = np.asarray(vals, dtype=np.float64)
+    except Exception:
+        return out
+    return out
+
+
+def osc_series_names(inst: Dict[str, Any], prefix: str) -> List[str]:
+    """أسماء سلاسل النسخة: {prefix}_osc_{id}_{field}."""
+    return [f"{prefix}_osc_{inst['id']}_{f}"
+            for f in FIELDS_PER_KIND.get(str(inst.get("kind", "")).lower(), [])]
+
+
+# ---------------------------------------------------------------- الباني الرئيسي
+
+def build_osc_section(
+    candles: Any,
+    *,
+    base_timeframe: Any = None,
+    osc_instances: Any = None,
+    osc_conditions: Any = None,
+    view_times: Optional[Sequence[Any]] = None,
+    resolution: str = "full",
+    prefix: str = "zzfetm",
+    entry_series: Optional[Sequence[Optional[float]]] = None,
+    entry_label: str = "trend_entries",
+    sample_step: int = 1,
+    osc_series: str = "full",
+) -> Dict[str, Any]:
+    """يبني قسم osc الكامل (عقد 1.1.0 + إضافات R76) بذاكرة محكمة.
+
+    candles: شموع القاعدة (أدق المتاح — dicts أو DataFrame بأعمدة
+    time/close أو قاموس osc_base المخزّن {time_ms, close}). فريم القاعدة
+    يُستنتج من التباعد الفعلي؛ إذا كانت الشموع أدق من المطلوب صراحة فالقاعدة
+    الفعلية = أدق شمعة (B-1: نسخ الثواني تعمل عند توفر شموع أدق).
+
+    أنماط التخزين (osc_series) — علاج علة SIGKILL:
+      · "full"  (مسار الحساب الحي): سلاسل كاملة بطول المدخل.
+      · "view"  (مسار chart-data): يُحسب على الدقة الكاملة ثم تُخزَّن عينات
+        عند view_times فقط (B-2) — bars = عدد أعمدة العرض (B-8) وfull_bars
+        = الدقة الكاملة.
+      · "none"  (مسار محرك الباك-تست): بوابات وعدادات فقط — لا سلاسل في
+        الرد (الرسم يُبنى لاحقاً من osc_base المخزّن عبر مسار chart-data).
+
+    entry_series: سلسلة دخول المحرك الخام (قبل بوابة الموشرات) للعدادات.
+    entry_label: اسم عداد الدخول الخام (trend_entries / blazing_entries).
+
+    يعيد: {"section", "series", "gate" (list[bool] بطول الدقة الكاملة),
+           "gate_view" (بمقياس أعمدة العرض كلها — PRO76b)، "gate_orig"
+           (بمقياس صفوف الدخل الأصلية — PRO76b)، "lookup" (ndarray),
+           "base_tf", "n"}."""
+    t, c, keep_idx, inv_sorted, n_orig = _norm_candles(candles, return_map=True)
+    n = len(t)
+    detected = detect_base_tf(t) if n else None
+    requested = normalize_timeframe(base_timeframe) or detected
+    base_tf = requested or detected or "1m"
+    base_ms = TF_MS.get(base_tf)
+    # ✅ الصدق (B-2): الشموع أدق من المطلوب ⇒ القاعدة الفعلية هي أدق شمعة
+    if detected in TF_MS and base_ms is not None and TF_MS[detected] < base_ms:
+        base_tf = detected
+        base_ms = TF_MS[detected]
+
+    # نمط العرض: view_times صالحة ⇒ عينات عند أعمدة العرض المخزنة
+    mode = str(osc_series).strip().lower()
+    if mode not in ("full", "view", "none"):
+        mode = "full"
+    view_idx = np.array([], dtype=np.int64)
+    view_hit: Optional[np.ndarray] = None
+    view_ms: List[int] = []
+    if view_times is not None and mode != "none":
+        vt = np.array([_candle_time_ms(v) for v in list(view_times)], dtype=np.int64)
+        pos = np.searchsorted(t, vt)
+        pos_c = np.clip(pos, 0, max(n - 1, 0))
+        hit = (pos_c < n) & (t[pos_c] == vt) if n else np.zeros(len(vt), dtype=bool)
+        # ✅ PRO76b (HF-A): مقياس العرض = عدد أعمدة العرض نفسها دائماً —
+        # الأعمدة غير الممثَّلة في القاعدة (انقطاع/صف مشوّه) تُدار عند أخذ
+        # العينات (None للقيم، حياد للبوابة) لا بقصّ المقياس إلى المطابقات
+        # فقط — فلا تعود البوابة أقصر من سلاسل المحرك (جذر انهيار 4d976421
+        # عند L133: بوابة بطول المطابقات تُطبَّق على حلقة بطول الشموع).
+        view_idx = pos_c
+        view_hit = hit
+        view_ms = [int(x) for x in vt]
+        if len(vt) and n and (len(vt) != n or not bool(hit.all())):
+            mode = "view"  # انقطاعات موجودة أو مقياس مختلف — عينات مُدارة
+        # (كل الأعمدة موجودة ومطابقة ⇒ "full" — لا حاجة لأخذ عينات)
+
+    instances = resolve_instances(osc_instances)
+    warnings: List[str] = []
+    warnings_v2: List[Dict[str, Any]] = []
+    warning_codes: List[str] = []
+
+    def _warn(code: str, message: str, instance: Optional[str] = None) -> None:
+        warnings.append(message)
+        warnings_v2.append({"code": code, "message": message, "instance": instance})
+        if code not in warning_codes:
+            warning_codes.append(code)
+
+    series: Dict[str, List[Optional[float]]] = {}
+    inst_meta: List[Dict[str, Any]] = []
+    crosses: Dict[str, List[Dict[str, Any]]] = {}
+
+    # ✅ R76 (ذاكرة + عقد الشروط): مراجع الشجرة تُجمع مسبقاً — لا تُحسب إلا
+    # النسخ المعروضة أو المطلوبة للبوابة، ويُتخلص من مصفوفات غيرها فور
+    # أخذ العينات (ذروة نافذة البطل: ~1.4GB → ~150MB). مفاتيح lookup
+    # بالبادئة التعاقدية الكاملة (osc:/price:) — كانت بلا بادئة بينما
+    # _lookup_ref يبحث بها فلم يكن أي مرجع يُحلّ أبداً (علة مكتشفة في R76).
+    conditions = osc_conditions if osc_conditions is not None else None
+    refs: set = _collect_condition_refs(conditions) if conditions else set()
+    combined_lookup: Dict[str, np.ndarray] = {}
+    if any(r.startswith("price:") for r in refs):
+        wanted_price = {r[len("price:"):] for r in refs if r.startswith("price:")}
+        combined_lookup.update(_price_lookup_arrays(candles, wanted_price))
+
+    for inst in instances:
+        meta: Dict[str, Any] = {
+            "id": inst["id"], "kind": inst["kind"], "timeframe": inst["timeframe"],
+            "index": inst["index"], "params": inst["params"], "enabled": inst["enabled"],
+        }
+        if not inst["enabled"]:
+            meta.update({"available": False, "why": "disabled", "code": "disabled"})
+            inst_meta.append(meta)
+            if mode == "full":
+                for nm in osc_series_names(inst, prefix):
+                    series[nm] = [None] * n
+            continue
+        tf = normalize_timeframe(inst["timeframe"])
+        tf_ms = TF_MS.get(tf) if tf else None
+        if tf is None or tf_ms is None:
+            meta.update({"available": False, "why": "unknown_timeframe", "code": "unknown_timeframe"})
+            _warn("unknown_timeframe",
+                  f"النسخة '{inst['id']}' ({inst['kind']} {inst['timeframe']}): فريم غير معروف — القيم None",
+                  inst["id"])
+            inst_meta.append(meta)
+            if mode == "full":
+                for nm in osc_series_names(inst, prefix):
+                    series[nm] = [None] * n
+            continue
+        if base_ms is not None and tf_ms < base_ms:
+            meta.update({"available": False, "why": "tf_below_base", "code": "tf_below_base"})
+            _warn("tf_below_base",
+                  f"النسخة '{inst['id']}' ({inst['kind']} {tf}): الفريم أدنى من فريم شموع القاعدة "
+                  f"({base_tf}) — لا يمكن بناؤه من بيانات أسمك؛ القيم None (مرر شموعاً أدق لبنائه)",
+                  inst["id"])
+            inst_meta.append(meta)
+            if mode == "full":
+                for nm in osc_series_names(inst, prefix):
+                    series[nm] = [None] * n
+            continue
+        inst_id_l = str(inst["id"]).lower()
+        inst_ref_prefix = f"osc:{inst_id_l}."
+        # ✅ R76 (ذاكرة): نمط المحرك (none) يحتاج فقط النسخ المُشار إليها
+        # بالبوابة — ما سواها لا يُحسب أصلاً (لا سلاسل تُخزَّن ولا داعي لها).
+        needed_for_gate = any(r.startswith(inst_ref_prefix) for r in refs)
+        if mode == "none" and not needed_for_gate:
+            meta.update({"available": True, "why": None, "code": None,
+                         "computed": False,
+                         "note": "نمط المحرك: غير مطلوبة للبوابة ولا للعرض — لم تُحسب"})
+            inst_meta.append(meta)
+            continue
+        vals = compute_instance_series(inst, t, c, base_tf)
+        if not vals:
+            meta.update({"available": False, "why": "insufficient_data", "code": "insufficient_data"})
+            _warn("insufficient_data",
+                  f"النسخة '{inst['id']}': بيانات غير كافية لحسابها في هذه النافذة — القيم None",
+                  inst["id"])
+            inst_meta.append(meta)
+            if mode == "full":
+                for nm in osc_series_names(inst, prefix):
+                    series[nm] = [None] * n
+            continue
+        meta.update({"available": True, "why": None, "code": None})
+        inst_meta.append(meta)
+        # التقاطعات تحتاج line/signal قبل التخلص الذكي من المصفوفات
+        arr_line = vals.get("line")
+        arr_sig = vals.get("signal")
+        for field, arr in vals.items():
+            ref_key = f"osc:{inst_id_l}.{str(field).lower()}"
+            if ref_key in refs:
+                combined_lookup[ref_key] = arr
+            nm = f"{prefix}_osc_{inst['id']}_{field}"
+            if mode == "full":
+                series[nm] = _tolist(arr)
+            elif mode == "view":
+                # ✅ PRO76b (HF-A): العينات بمقياس أعمدة العرض كلها —
+                # الانقطاع None لا قيمة جار مقصورة
+                series[nm] = sample_numpy_to_view(arr, view_idx, view_hit)
+        # ✅ B-7: التقاطعات (بمقاييس التخزين الفعلي للفرونت)
+        if inst["kind"] == "macd":
+            cr = _macd_crosses_np(arr_line if arr_line is not None else np.array([]),
+                                  arr_sig if arr_sig is not None else np.array([]))
+            if mode == "view" and len(cr) and view_hit is not None:
+                # ✅ PRO76b: الخريطة من موضع القاعدة إلى فهرس عمود العرض —
+                # أعمدة الانقطاع لا تُخدع بجار مقصور
+                hit_cols = np.nonzero(view_hit)[0]
+                pos_map = {int(view_idx[k]): int(k) for k in hit_cols}
+                cr = [{"index": pos_map[int(x["index"])], "up": x["up"]}
+                      for x in cr if int(x["index"]) in pos_map]
+            if mode != "none":
+                crosses[inst["id"]] = cr
+        vals = None  # 🩸 ذاكرة: تحرير مصفوفات النسخة بعد أخذ العينات/التقاطعات
+
+    # شجرة الشروط + البوابة (عند الشمعة المغلقة نفسها — بلا استشراف،
+    # وبطول الدقة الكاملة دائماً: البوابة قرار تداول لا قرار عرض)
+    if conditions:
+        gate: List[bool] = [bool(evaluate_conditions(conditions, combined_lookup, i)) for i in range(n)]
+    else:
+        gate = [True] * n
+
+    # ✅ PRO76b (P2 — استعادة عقد حياد الإحماء R74 داخل النواة): قبل
+    # جاهزية كل الأوراق المرجعية تكون قيمة الشجرة False لمجرد NaN الإحماء
+    # — لا يُحجب دخولٌ زوراً في أسابيع/أشهر البداية الباردة (الباك-تستات).
+    # القاعدة: قبل الأفق البوابة محايدة (مفتوحة)؛ بعده التقييم الطبيعي.
     warmup_neutral_bars = 0
-    if tree is not None and N:
+    if conditions and n:
         try:
-            warmup_neutral_bars = _warmup_neutral_horizon(
-                tree, osc_np, osc_available, N)
-        except Exception:
+            warmup_neutral_bars = _warmup_neutral_horizon(conditions, combined_lookup, n)
+        except Exception:  # noqa: BLE001 — حزام احتياطي: الحياد أمان لا فشل
             warmup_neutral_bars = 0
         if warmup_neutral_bars > 0:
-            gate = np.asarray(gate, dtype=bool).copy()
-            gate[:warmup_neutral_bars] = True
-    warnings = list(osc.get("warnings") or []) + list(tree_warns) + list(gate_warns)
-    gate_list: List[float] = [1.0 if bool(g) else 0.0 for g in gate] if N else []
-    return {
-        "N": N,
-        "o_np": o_np, "h_np": h_np, "l_np": l_np, "c_np": c_np,
-        "osc": osc, "osc_json": osc_json, "osc_np": osc_np,
-        "tree": tree, "gate": gate, "gate_list": gate_list,
-        "warmup_neutral_bars": int(warmup_neutral_bars),
+            gate = list(gate)
+            for j in range(min(warmup_neutral_bars, n)):
+                gate[j] = True
+            _warn("warmup_neutral",
+                  f"حياد الإحماء: البوابة مفتوحة لأول {warmup_neutral_bars} شريط (إحماء الموشرات) — "
+                  "عقد R74 المُستعاد داخل نواة R76", None)
+
+    # ✅ PRO76b (HF-A): بوابة بمقياس صفوف الدخل الأصلية — قرار المحرك
+    # يُفهرس بشموعه لا بصفوف القاعدة المُنقاة/المرتبة. الصفوف المسقوطة
+    # (قيم «—»/طوابع معطوبة) تبقى حياداً (True): لا حجب على بيانات غائبة
+    # — والبوابة لا تعود أقصر من سلاسل المحرك (جذر IndexError 4d976421
+    # والانحدارات الصامتة فوق البيانات ذات الفجوات).
+    gate_orig: Optional[List[bool]] = None
+    _order_identity = bool(
+        len(inv_sorted) == 0 or np.array_equal(inv_sorted, np.arange(len(inv_sorted))))
+    if n_orig != len(t) or not _order_identity:
+        gate_orig = [True] * n_orig
+        for i in range(len(keep_idx)):
+            gate_orig[int(keep_idx[i])] = bool(gate[int(inv_sorted[i])])
+        if n_orig != len(t):
+            _warn("gate_realigned",
+                  f"بوابة الموشرات أُعيدت محاذاتها على شموع الدخل ({n_orig} صفّاً؛ سقط "
+                  f"{n_orig - len(t)} صفّاً مشوّهاً من القاعدة — حياد للصفوف الغائبة)", None)
+    else:
+        gate_orig = gate
+
+    # ✅ R76 (B-2): بوابة عند أعمدة العرض — لطبقة الرسم في مسار chart-data
+    # عندما يكون مصدر الحساب osc_base بالدقة الكاملة (تُطبّق على سلسلة دخول
+    # بطول العرض المخزّن فيتوافق المقياسان حرفياً).
+    # ✅ PRO76b (HF-A): مقياس gate_view = عدد أعمدة العرض كلها — العمود
+    # غير الممثَّل في القاعدة (انقطاع) حياد (True): لا حجب عرضٍ على بيانات
+    # غائبة، ولا سوء تطابق أطوال يكسر المحركات فوقه.
+    gate_view: Optional[List[bool]] = None
+    if mode == "view" and len(view_idx):
+        gate_view = []
+        for k in range(len(view_idx)):
+            if view_hit is not None and not bool(view_hit[k]):
+                gate_view.append(True)
+            else:
+                gate_view.append(bool(gate[int(view_idx[k])]))
+
+    # العدادات على سلسلة دخول المحرك الخام (أساس الدقة الكاملة — أو أساس
+    # العرض إذا كانت السلسلة الخام بطول أعمدة العرض: مسار chart-data)
+    if entry_series is not None:
+        raw = list(entry_series)
+        if gate_view is not None and len(raw) == len(gate_view):
+            g_basis = gate_view
+        else:
+            g_basis = gate
+        trend_entries = 0
+        final_entries = 0
+        blocked = 0
+        for i in range(min(len(raw), len(g_basis))):
+            if raw[i]:
+                trend_entries += 1
+                if g_basis[i]:
+                    final_entries += 1
+                else:
+                    blocked += 1
+        counts: Dict[str, Any] = {entry_label: trend_entries,
+                                  "final_entries": final_entries,
+                                  "osc_blocked_entries": blocked}
+        gate_open = (blocked == 0) if trend_entries else True
+        if gate_view is not None and len(raw) == len(gate_view):
+            counts["counts_basis"] = "view"
+    else:
+        counts = {entry_label: 0, "final_entries": 0, "osc_blocked_entries": 0}
+        gate_open = True
+
+    stored_bars = len(view_idx) if mode == "view" else n
+    section: Dict[str, Any] = {
+        "enabled": True,
+        "engine": OSC_CORE_ENGINE,
+        "version": OSC_CORE_VERSION,
+        "base_tf": base_tf,
+        "base_tf_ms": base_ms,
+        "bars": stored_bars,
+        "instances": inst_meta,
+        "conditions": conditions,
         "warnings": warnings,
+        # ✅ B-5: أكواد برمجية لكل تحذير
+        "warning_codes": warning_codes,
+        "warnings_v2": warnings_v2,
+        "fields_per_kind": FIELDS_PER_KIND,
+        "rule": OSC_RULE_TEXT,
+        "counts": counts,
+        "gate_open": gate_open,
+        # ✅ B-7: التقاطعات جاهزة من الباك اند
+        "crosses": crosses,
+        # ✅ B-2: شفافية الدقة ومصدر الحساب
+        "resolution": ("view_sampled_from_full" if mode == "view"
+                       else ("engine_run" if mode == "none" else resolution)),
+        "view_sampled": bool(mode == "view"),
+        "view_step": int(sample_step) if int(sample_step) > 1 else 1,
+        # ✅ PRO76b (P2/P5): شفافية الحياد والحالة داخل القسم نفسه
+        "warmup_neutral_bars": int(warmup_neutral_bars),
+        "mode": mode,
+        "status": ("ok" if not warning_codes else "degraded"),
     }
+    if mode == "view":
+        section["full_bars"] = n  # الدقة الكاملة التي حُسبت عليها (B-8)
+        # ✅ PRO76b (HF-A): عدد أعمدة العرض غير الممثّلة في القاعدة (انقطاعات)
+        if view_hit is not None:
+            _gaps = int(np.count_nonzero(~np.asarray(view_hit, dtype=bool)))
+            if _gaps:
+                section["view_gaps"] = _gaps
+    # ✅ B-6: أزمنة الأعمدة المخزنة داخل قسم osc نفسه — أعمدة العرض كلها
+    # (PRO76b: كانت تُقصّ إلى المطابقات فقط فتخون الفرونت عن الأعمدة الغائبة)
+    if view_ms:
+        section["view_times"] = view_ms
+    elif view_times is not None and mode != "none":
+        section["view_times"] = [_candle_time_ms(v) for v in list(view_times)]
+    if mode == "view":
+        # شفافية أساس العدادات في مسار العرض (B-8/B-2)
+        section.setdefault("counts_basis", "view")
+    return {"section": section, "series": series, "gate": gate, "gate_view": gate_view,
+            "gate_orig": gate_orig, "lookup": combined_lookup, "base_tf": base_tf, "n": n}
+
+
+# أسماء بديلة للتوافق مع مسارات استدعاء PRO73/74 القديمة
+def compute_osc_section(candles: Any, **kw: Any) -> Dict[str, Any]:
+    return build_osc_section(candles, **kw)
+
+
+def build_mtf_osc(candles: Any, **kw: Any) -> Dict[str, Any]:
+    return build_osc_section(candles, **kw)
+
+
+class MtfOscillatorCore:
+    """واجهة صنفية اختيارية (نفس عقود الدوال)."""
+
+    engine = OSC_CORE_ENGINE
+    version = OSC_CORE_VERSION
+
+    def build(self, candles: Any, **kw: Any) -> Dict[str, Any]:
+        return build_osc_section(candles, **kw)
+
+    @staticmethod
+    def instances() -> List[Dict[str, Any]]:
+        return DEFAULT_OSC_INSTANCES
+
+
+def __getattr__(name: str):
+    """توافق مركّب: محركا الماكد يُصدَّران من وحدتيهما (بلا استيراد دائري)."""
+    if name in ("zigzag_fib_e2e_trendy_macd", "zigzag_fib_e2e_blazing_macd"):
+        import importlib as _il
+        mod = _il.import_module(
+            "app.services.indicators.overlays_zlf_e2e_trendy_macd"
+            if name == "zigzag_fib_e2e_trendy_macd"
+            else "app.services.indicators.overlays_zlf_e2e_blazing_macd"
+        )
+        return getattr(mod, name)
+    raise AttributeError(name)

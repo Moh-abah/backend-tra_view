@@ -1,0 +1,142 @@
+{
+ "name": "خروج منطقة 5m حقيقي (جلب شموع 5m) — نسخة #10000537",
+ "description": "نفس تكوين #10000537 بت-بت + zone_exit_resolution=5m: هيكل الخروج (CHoCH LL+LH) محسوب على شموع 5 دقائق حقيقية مجلوبة من مزود البيانات ومسقطة سببياً على شارت 15m (ZONE-EXIT-LTF1) — الدخول والمنطقة المسموحة على فريم الشارت كما هما",
+ "mode": "standard",
+ "start_date": "2020-03-16T00:00:00Z",
+ "end_date": "2026-11-17T20:59:59Z",
+ "days": null,
+ "timeframe": "15m",
+ "timezone": "UTC",
+ "tz_offset_minutes": 0,
+ "market": "crypto",
+ "symbols": [
+  "SOLUSDT"
+ ],
+ "strategy_config": {
+  "name": "ZLF-End-To-End-Trendy-Quantum-EMA (3 Entry Signals — Trend+Zone+EMA-stack gated)",
+  "version": "1.0.0",
+  "description": "التحقق الحي من الدمج — الاستراتيجية الترندية الكمومية المتجههه",
+  "base_timeframe": "15m",
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "zigzag_fib_e2e_trendy_quantum_ema",
+    "type": "support_resistance",
+    "params": {
+     "mode": "luxalgo",
+     "length": 100,
+     "touch_level": 0.618,
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "ema_lengths": [
+      21,
+      50,
+      100,
+      200,
+      350,
+      500
+     ],
+     "ema_resolution": "60",
+     "ema_source": "close",
+     "ema_offset": 0,
+     "ema_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_exit_resolution": "5m"
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.34,
+    "enabled": true
+   },
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA S2 · الاختراق بدون هيمنة الحجم + الترند + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   },
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA S3 · الامتصاص قبل الاختراق + الترند + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   }
+  ],
+  "filter_rules": [],
+  "risk_management": {
+   "stop_loss_percentage": 2,
+   "take_profit_percentage": 99
+  }
+ },
+ "initial_capital": 300.0,
+ "position_sizing": "percentage",
+ "position_size_percent": 100.0,
+ "max_positions": 3,
+ "compounding": true,
+ "multi_position_compounding": true,
+ "commission_rate": 0.0,
+ "slippage_percent": 0.0,
+ "fill_model": "next_open",
+ "stop_loss_percent": null,
+ "take_profit_percent": null,
+ "trailing_stop_percent": null,
+ "max_daily_loss_percent": 5.0,
+ "enable_short_selling": false,
+ "enable_margin": false,
+ "leverage": 1.0,
+ "require_confirmation": false,
+ "exit_strategy": null
+}

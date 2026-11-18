@@ -1,0 +1,4 @@
+aa6c3e3b2d4ccb30a69d3e97fab96502  app/services/strategy/presets.py
+065526819d761950a6af949464f5b85b  strategies/zlf_almighty_quantum_ema_sol15m.json
+a56b2c5fc6d2def3d914b69dd3d80ad0  payloads/zlf_almighty_quantum_ema_full_history.json
+484021923779af8ba69991d7b4ae70c1  INSTALL-ALMIGHTY-AR.md

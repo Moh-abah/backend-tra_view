@@ -1,0 +1,13 @@
+bd5945706fb8fa9f751ab871df5a7339  ./README-TSFIX-1970-AR.md
+6c876abf62fa572470f2e5594728e7b8  ./REPORT-TSFIX-1970-AR.md
+f7e55f5122c9e0165e3bd073633b4539  ./app/backtest/engine1.py
+9d7817137acb9837b59562f808574c34  ./app/services/candle_cache.py
+c623898f2efc7fa9fd8ea6b5125fbd56  ./app/services/data_service.py
+cc6affe3b7acf9615e28f1c7c8f35d69  ./diffs/candle_cache.diff
+db8d3095f64e457aefc416f3936aff31  ./diffs/data_service.diff
+19b93acf5d014e2d7185ef76198f6861  ./diffs/engine1.diff
+7488c047306714153462f108fd9e5e98  ./payloads/quantum_verify_payload.json
+394fd6e7d938037e54cb4da59076ed71  ./tests/test_tsfix_e2e.py
+1a86c52ca468d168b5131dad6eeaafcd  ./tests/test_tsfix_e2e_exact.py
+e00b97216b65e8bb2465b0b934d0bc38  ./tests/test_tsfix_layers.py
+155fbbf692a774b9db40d00cc12160e3  ./tools/verify_tsfix_1970.py

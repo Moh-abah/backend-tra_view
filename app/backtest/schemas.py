@@ -196,10 +196,11 @@ class BacktestConfig(BaseModel):
     position_size_percent: float = Field(0.1, ge=0.01, le=100.0)
     # ✅ R55 — ماكس المراكز المفتوحة رقمي فعّال في المحركين:
     # None أو 1 = السلوك التاريخي بت-بت (مركز واحد في كل لحظة)،
-    # 2..10 = إشارة جديدة والمراكز المفتوحة < N ⇒ مركز مستقل بإدارة
+    # 2..100 = إشارة جديدة والمراكز المفتوحة < N ⇒ مركز مستقل بإدارة
     # مخاطر كاملة؛ بلغ N ⇒ تجاهل الإشارة (signals_ignored_open).
+    # ✅ R74 — السقف مُمدَّد من 10 إلى 100 (طلب صاحب القرار: كسر حد العشرة).
     # يمرّر تلقائياً لمحرك الخروج الموحد كـ max_concurrent_positions.
-    max_positions: Optional[int] = Field(None, ge=1, le=10)
+    max_positions: Optional[int] = Field(None, ge=1, le=100)
 
     # ✅ R60 — وضع «رأس المال الكامل والربح التزايدي» (compounding):
     # طلب المستخدم الحرفي: زر تفعيل في الواجهة يجعل كل صفقة تدخل
@@ -680,8 +681,15 @@ class BacktestResult(BaseModel):
     # المراكز) — يُبنى من الكونفيق النظيف في math_audit.risk_echo نفسه
     # ويصل للمكتبة والفرونت عبر مهام Celery والمسار الداخلي معاً.
     effective_config: Dict[str, Any] = Field(default_factory=dict)
-    
-    # دالة تحويل للأنواع NumPy
+
+    # ✅ R74 — أساس النسبة الدقيق (رأس المال المُنشر فعلياً):
+    # النسبة الرئيسية total_pnl_percent صارت تُحسب على أقصى رأس مال دخل
+    # فعلاً في صفقات مفتوحة في نفس اللحظة (peak deployed) لا على كامل
+    # initial_capital — والقيمة القديمة (÷ initial) تبقى مرجعاً صريحاً،
+    # وكتلة capital_deployed توثّق الذروة/إجمالي الدخول/الرصيد الخامل.
+    total_pnl_percent_on_initial: Optional[float] = None
+    capital_deployed: Optional[Dict[str, Any]] = None
+
     @field_validator('equity_curve', 'drawdown_curve', mode='before')
     @classmethod
     def convert_numpy_floats(cls, v):

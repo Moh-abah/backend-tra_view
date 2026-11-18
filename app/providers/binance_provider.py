@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 # شبكة الكاش parquet ومحاذاة الشموع مبنية على ثبات المدة، لذا تُرفض صراحةً
 # في مسار الباك-تست حتى توثق حاجة حقيقية لها.
 BINANCE_DIRECT_INTERVALS = {
+    "1s",  # ✅ R76 (B-1): فريم الثانية الرسمي في Binance现货 klines
     "1m", "3m", "5m", "15m", "30m",
     "1h", "2h", "4h", "6h", "8h", "12h",
     "1d", "3d", "1w",
@@ -70,6 +71,22 @@ _MONTH_INTERVAL = "1M"
 # فإعادة تجميع مزاحة ستعطي حدوداً لا تطابق شموع Binance الأصلية لنفس
 # الفريم — نرفض صراحة بدل إنتاج أرقام بمعنى مزدوج.
 _TZ_SHIFT_REJECTED_INTERVALS = {"3d", "1w", "2w"}
+
+
+def parse_fixed_interval_seconds(tf: str) -> Optional[int]:
+    """ثواني الفريم ثابت العرض (لواحق s) أو None — ✅ R76 (B-1).
+
+    '5s'→5 · '15s'→15 · '30s'→30 · '1s'→1 (أصلي يُجلَب مباشرة لا عبر هنا).
+    حساسة لحالة الأحرف: 'S' الكبيرة غير مقبولة (عرف عائلة الفريمات)."""
+    if not isinstance(tf, str) or len(tf) < 2:
+        return None
+    if not tf.endswith("s"):
+        return None
+    try:
+        v = int(tf[:-1])
+        return v if v > 0 else None
+    except ValueError:
+        return None
 
 
 def parse_fixed_interval_minutes(tf: str) -> Optional[int]:
@@ -117,6 +134,40 @@ def pick_resample_base_interval(n_minutes: int, tz_offset_minutes: int = 0) -> O
         if m and m < n_minutes and n_minutes % m == 0 and tz_offset_minutes % m == 0 and m > best_minutes:
             best, best_minutes = name, m
     return best
+
+
+def resample_candles_to_seconds(
+    df: pd.DataFrame,
+    n_seconds: int,
+    now_ms: Optional[int] = None,
+) -> pd.DataFrame:
+    """✅ R76 (B-1) — تجميع شموع 1s على شبكة ثواني ثابتة العرض مثبتة على Epoch.
+
+    5s = 1s×5 · 15s = 1s×15 · 30s = 1s×30 — نفس منهجية resample_candles_to_minutes
+    حرفياً (open=أول · high=أعلى · low=أدنى · close=آخر · volume=مجموع) ونفس
+    قاعدة السببية: النافذة غير المكتملة (ناقصة الشموع أو لم تنتهِ) تُسقط —
+    لا شموع مشطورة ولا غش. الشبكة = ((t // step) * step) بلا إزاحة توقيت
+    (إزاحة الدقائق لا تغيّر حدود الشبكة الفرعية للدقيقة أصلاً)."""
+    cols = ["time", "open", "high", "low", "close", "volume"]
+    if df is None or df.empty or n_seconds <= 1:
+        return pd.DataFrame(columns=cols)
+    step = int(n_seconds) * 1_000
+    expected = int(n_seconds)  # شموع 1s لكل نافذة
+    out = df.copy()
+    out["time"] = out["time"].astype("int64")
+    grid = ((out["time"] // step) * step).rename("time")
+    grouped = out.sort_values("time").groupby(grid, sort=True)
+    res = grouped.agg(
+        {"open": "first", "high": "max", "low": "min",
+         "close": "last", "volume": "sum"}
+    ).reset_index()
+    sizes = grouped.size().rename("_n").reset_index().rename(columns={"time": "time"})
+    res = res.merge(sizes, on="time", how="left")
+    keep = res["_n"] == expected
+    if now_ms is not None:
+        keep = keep & ((res["time"] + step) <= int(now_ms))
+    res = res[keep][cols].reset_index(drop=True)
+    return res
 
 
 def resample_candles_to_minutes(
@@ -983,9 +1034,12 @@ class BinanceProvider(MarketDataProvider):
         off_min = int(tz_offset_minutes or 0)
 
         # (1) فريم أصلي — مباشر فقط إذا كانت الإزاحة لا تغيّر حدوده
+        # ✅ R76: الفحص ب رياضيات الملّي ثانية الصحيحة (كانت float-modulo
+        # للدقائق — تفشل عائلياً لفريم الثانية الأصلي الجديد 1s).
         if tf in BINANCE_DIRECT_INTERVALS:
-            tf_min = self._timeframe_to_minutes(tf)
-            if off_min == 0 or (tf_min > 0 and off_min % tf_min == 0):
+            tf_ms_chk = self._timeframe_to_ms(tf)
+            off_ms_chk = int(off_min) * 60_000
+            if off_min == 0 or (tf_ms_chk > 0 and off_ms_chk % tf_ms_chk == 0):
                 return await self._get_historical_native(symbol, tf, start_date, end_date)
             if tf in _TZ_SHIFT_REJECTED_INTERVALS:
                 raise ValueError(
@@ -1002,6 +1056,24 @@ class BinanceProvider(MarketDataProvider):
         if end_date is None:
             end_date = datetime.utcnow()
         now_ms = int(end_date.timestamp() * 1000)
+
+        # (1.5s) ✅ R76 (B-1) — فريمات الثواني (5s/15s/30s): تجميع صاعد حقيقي
+        # من فريم الثانية الأصلي (Binance现货 1s klines). '1s' نفسه أصلي مباشر
+        # (مسار 1 أعلاه). لا إزاحة توقيت لفريمات الثواني (شبكة فرعية للدقيقة).
+        n_sec = parse_fixed_interval_seconds(tf)
+        if n_sec is not None and n_sec >= 2:
+            step_ms = n_sec * 1_000
+            t0 = int(start_date.timestamp() * 1000)
+            floored_ms = (t0 // step_ms) * step_ms
+            start_floored = datetime.fromtimestamp(floored_ms / 1000.0, tz=timezone.utc)
+            logger.info(
+                "🧱 %s %s: إعادة تجميع ثوانٍ حقيقية من 1s (×%d شمعة أساس لكل نافذة)",
+                symbol, tf, n_sec,
+            )
+            base_df = await self._get_historical_native(
+                symbol, "1s", start_floored, end_date
+            )
+            return resample_candles_to_seconds(base_df, n_sec, now_ms=now_ms)
 
         # (2) فريم ثابت العرض → إعادة تجميع حقيقية (مزاحة بالتوقيت عند الحاجة)
         n_min = parse_fixed_interval_minutes(tf)
@@ -1106,12 +1178,12 @@ class BinanceProvider(MarketDataProvider):
             )
         tf = timeframe
         interval = tf
-        tf_ms = self._timeframe_to_minutes(tf) * 60 * 1000
+        tf_ms = self._timeframe_to_ms(tf)  # ✅ R76 (B-1): دعم فريم الثانية (كان دقائق×60)
 
         if end_date is None:
             end_date = datetime.utcnow()
         # آخر شمعة مغلقة (الشمعة الحالية لم تُغلق بعد)
-        end_ms = int((end_date - timedelta(minutes=self._timeframe_to_minutes(timeframe))).timestamp() * 1000)
+        end_ms = int((end_date - timedelta(milliseconds=self._timeframe_to_ms(timeframe))).timestamp() * 1000)
         # محاذاة البداية على حدود الشمعة (floor)
         start_ms = (int(start_date.timestamp() * 1000) // tf_ms) * tf_ms
         if end_ms < start_ms:
@@ -1215,9 +1287,27 @@ class BinanceProvider(MarketDataProvider):
                 result.attrs["fetch_incomplete"] = True
             return result
     
-    def _timeframe_to_minutes(self, timeframe: str) -> int:
+    def _timeframe_to_ms(self, timeframe: str) -> int:
+        """✅ R76 (B-1) — عرض الفريم بالملّي ثانية (يشمل فريمات الثواني).
+
+        '1s'→1000 · '5s'→5000 · '1m'→60000 … '1w'→604800000. هذا هو المصدر
+        الوحيد لرياضيات الشبكة/الكاش في المسار الأصلي (كان _timeframe_to_minutes
+        يردّ '1s' إلى دقيقة كاملة فيفسد محاذاة الشبكة والقصّ للشمعة المغلقة)."""
+        s = parse_fixed_interval_seconds(timeframe)
+        if s is not None:
+            return s * 1_000
+        return self._timeframe_to_minutes(timeframe) * 60_000
+
+    def _timeframe_to_minutes(self, timeframe: str) -> float:
         """تحويل الإطار الزمني إلى دقائق — ✅ الجولة 13.3: دعم w (أسبوع).
-        (1M شهر غير مدعوم في مسار الباك-تست — شبكة تقويمية غير ثابتة)."""
+        (1M شهر غير مدعوم في مسار الباك-تست — شبكة تقويمية غير ثابتة).
+        ✅ R76 (B-1): فريمات الثواني تُردّ بدقائق كسرية صحيحة ('1s'→1/60،
+        '30s'→0.5) — كانت تسقط في else فتردّ دقيقة كاملة زوراً فيفسد رياضيات
+        المضاعف في get_last_closed_candles (30s كانت تجلب 1/1 بدل 30).
+        غير المعروف يبقى 1 كما كان العقد."""
+        s = parse_fixed_interval_seconds(timeframe)
+        if s is not None:
+            return s / 60.0
         if timeframe.endswith('m'):
             return int(timeframe[:-1])
         elif timeframe.endswith('h'):

@@ -519,7 +519,7 @@ async def _run_unified_exit_task(task_id: str, config_dict: dict) -> None:
             )
 
         # ✅ R55 — تمرير سقف المراكز الرقمي من جذر الطلب لمحرك الخروج:
-        # max_positions (None/1 = تاريخي · 2..10 = سقف رقمي فعّال)
+        # max_positions (None/1 = تاريخي · 2..100 = سقف رقمي فعّال — ✅ R74 مُمدّد من 10 إلى 100)
         if config.max_positions is not None:
             exit_cfg["max_concurrent_positions"] = int(config.max_positions)
 
@@ -1179,6 +1179,8 @@ async def get_backtest_details(
         base = await _get_or_build_base(db, backtest_id, backtest)
 
         def _build_payload():
+            from app.routers.backtest import _backfill_capital_deployed
+
             chart_data = dict(base["get_extras"])
             chart_data["visual_candles"] = base["flat_candles"]
             chart_data["trade_points"] = base["trade_points_raw"]
@@ -1187,7 +1189,12 @@ async def get_backtest_details(
                 "backtest_id": backtest.id,
                 "name": backtest.name,
                 "created_at": backtest.created_at.isoformat(),
-                "summary": backtest.summary,
+                # ✅ R74.1 — استكمال capital_deployed للسجلات الأقدم من R74
+                # (عرض فقط — لا مساس بقاعدة البيانات). هذا مسار فتح الكمومية:
+                # سؤال #10000422 (إجمالي المبالغ + الربح النقدي) يُجاب هنا.
+                "summary": _backfill_capital_deployed(
+                    backtest.summary, base["trade_points_raw"], backtest.full_config
+                ),
                 "chart_data": chart_data,
                 "config": backtest.full_config,
             }

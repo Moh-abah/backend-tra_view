@@ -1,0 +1,10 @@
+--- /home/z/my-project/trading-system/quantum-fix/merge_package/app/services/indicators/__init__.py	2026-11-15 21:22:46.000000000 +0000
++++ app/services/indicators/__init__.py	2026-11-16 13:36:56.849926316 +0000
+@@ -18,6 +18,7 @@
+ from . import overlays_zlf_e2e_trendy_macd as _overlays_zlf_e2e_trendy_macd  # noqa: F401  # ✅ PRO73: «الترندية الماكدية» (تسجيل ذاتي — إضافة فقط)
+ from . import overlays_zlf_e2e_blazing_macd as _overlays_zlf_e2e_blazing_macd  # noqa: F401  # 🔥 PRO73: «الملتهبة الماكدية» (تسجيل ذاتي — إضافة فقط)
+ from . import overlays_zlf_e2e_trendy_quantum as _overlays_zlf_e2e_trendy_quantum  # noqa: F401  # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» (تسجيل ذاتي — إضافة فقط؛ يستورد الترندية أيضاً)
++from . import overlays_mtf_ema as _overlays_mtf_ema  # noqa: F401  # ✅ MTFEMA1: «MTF EMA» متعدد الفريمات (تسجيل ذاتي — إضافة فقط)
+ from .pine_transpiler import PineScriptTranspiler
+ 
+ 

@@ -7,6 +7,11 @@ from enum import Enum
 from pydantic import BaseModel, Field, validator
 
 class Timeframe(str, Enum):
+    # ✅ R76 (B-1): فريمات الثواني الرسمية (1s أصلي من Binance现货 klines ·
+    # 5s/15s/30s تجميع صاعد في المزوّد) — 30s كانت وحدها هنا من قبل.
+    SEC1 = "1s"
+    SEC5 = "5s"
+    SEC15 = "15s"
     SEC30 = "30s"
     MIN1 = "1m"
     MIN2 = "2m"

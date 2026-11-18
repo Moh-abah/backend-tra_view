@@ -1,0 +1,15 @@
+499246416dcff6f3223e00c5ecbdba1b  ./README-QUANTUM-FIX-AR.md
+c29de4ff8539ad3a04a88bb934180b77  ./app/services/indicators/__init__.py
+5259123819dc0928807e442d3d8f73b9  ./app/services/indicators/calculator.py
+fba888043fddc490c8ab025591c544d2  ./app/services/indicators/overlay_columns.py
+d1d04ecafd16dc269ac926a20af35c80  ./app/services/indicators/overlays.py
+a31b024aa7c8ba3fa871ee8d4b630ee8  ./app/services/indicators/overlays_zlf_e2e_trendy_quantum.py
+5fac93663a442ffb16ea3b9efd792125  ./app/services/strategy/presets.py
+4f47a7dba64b15bc2ed6300c1cd8f4c1  ./diffs/app__services__indicators____init__.py.diff
+e1fcdf26e885b8d9e59264cdd531e112  ./diffs/app__services__indicators__calculator.py.diff
+c5ccde0d8cac453fac6536f0ac0dfe5f  ./diffs/app__services__indicators__overlay_columns.py.diff
+7c336eb3cf46b7ae0625df5dab4ac697  ./diffs/app__services__indicators__overlays.py.diff
+b4676b74f043bb2ac7d92303d853b278  ./diffs/app__services__strategy__presets.py.diff
+a31b024aa7c8ba3fa871ee8d4b630ee8  ./diffs/overlays_zlf_e2e_trendy_quantum.py.NEW
+7488c047306714153462f108fd9e5e98  ./payloads/quantum_verify_payload.json
+f4493241b672410ae886739334783a02  ./tools/verify_quantum_fix.py

@@ -1,0 +1,73 @@
+--- /home/z/my-project/trading-system/quantum-fix/merge_package/app/services/indicators/calculator.py	2026-11-15 21:22:37.000000000 +0000
++++ app/services/indicators/calculator.py	2026-11-16 13:37:26.306852593 +0000
+@@ -93,6 +93,11 @@
+         # بوابة المنطقة الكمومية (HH+HL يفتح · LL+LH يغلق ويخرج next_open)
+         # + تمرير أعمدة الترندية zzfet_* كاملة في استجابة الشموع (بيانات الرسم).
+         "zigzag_fib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum", "zzfib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum",
++        # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (رسم قابل
++        # للتخصيص من الواجهة — شروط المرحلة القادمة عبر الجسر نفسه).
++        "mtf_ema": "mtf_ema", "mtfema": "mtf_ema",
++        "multi_timeframe_ema": "mtf_ema",
++        "multi_timeframe_exponential_moving_average": "mtf_ema",
+         "trend_fractal": "trend_fractal", "fractal_trendlines": "trend_fractal",
+     }
+     # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
+@@ -113,6 +118,9 @@
+         "zzfib_e2e_blazing_macd": "ind_zzfbm_entry",
+         # ✅ QUANTUM1: الكمومية = الدخول الجامع النهائي (ترند ∧ منطقة مفتوحة)
+         "zzfib_e2e_trendy_quantum": "ind_zzfetq_entry",
++        # ✅ MTFEMA1: MTF EMA = خط النسخة الأساسية (مؤشر رسم — الجسر جاهز
++        # للشروط لاحقاً: indicator:mtf_ema:mtfema_value / mtfema_<id>).
++        "mtf_ema": "ind_mtfema_value",
+         "trend_fractal": "ind_trf_trend_ok",
+     }
+     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
+@@ -490,6 +498,33 @@
+                     kw['trend_gate'] = _v
+                 if 'zone_gate' in params:
+                     kw['zone_gate'] = params['zone_gate']
++            elif base == 'mtf_ema':
++                # ✅ MTFEMA1 — MTF EMA: معاملات Pine بحذافيرها + النسخ المتعددة
++                # (رسم الآن — شروط المرحلة القادمة عبر indicator:mtf_ema:...).
++                kw = {}
++                _v = params.get('length', params.get('ma_len', params.get('len')))
++                if _v is not None:
++                    try:
++                        kw['length'] = max(1, int(float(_v)))
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('source', params.get('src'))
++                if _v is not None:
++                    kw['source'] = str(_v)
++                _v = params.get('offset', params.get('ma_offset',
++                                                  params.get('plot_offset')))
++                if _v is not None:
++                    try:
++                        kw['offset'] = int(float(_v))
++                    except (TypeError, ValueError):
++                        pass
++                _v = params.get('resolution', params.get('res', params.get(
++                    'tf', params.get('timeframe'))))
++                if _v is not None:
++                    kw['resolution'] = _v
++                _v = params.get('instances', params.get('mtf_instances'))
++                if _v is not None:
++                    kw['instances'] = _v
+             elif base == 'zzfib_e2e_blazing':
+                 # 🔥 R69 — الملتهبة: نفس معاملات الترندية حرفياً (بوابة ترند على
+                 # s1/s2/s3/n5/n6 — الأنواع الجديدة قالبية كبقية العائلة).
+@@ -594,6 +629,14 @@
+                         col = 'ind_' + sub_l
+                     elif sub_l.startswith('zigzag_fib_e2e_trendy_quantum_'):
+                         col = 'ind_zzfetq_' + sub_l[len('zigzag_fib_e2e_trendy_quantum_'):]
++                # ✅ MTFEMA1: أي اسم فرعي من عائلة MTF EMA يُحل بالقاعدة العامة
++                # (mtfema_X → ind_mtfema_X — يشمل mtfema_value وخطوط النسخ
++                # mtfema_<id> البديناميكية).
++                if base == 'mtf_ema':
++                    if sub_l.startswith('mtfema_'):
++                        col = 'ind_' + sub_l
++                    elif sub_l.startswith('mtf_ema_'):
++                        col = 'ind_mtfema_' + sub_l[len('mtf_ema_'):]
+                 # 🔥 R69: أي اسم فرعي من عائلة الملتهبة يُحل بالقاعدة العامة
+                 # (سلسلة zzfb_X → عمود ind_zzfb_X — يشمل مستويات zzfb_level_<L>
+                 # ومرايا الفترات zzfb_tr_p{n}_* وأعمدة n5/n6 كاملة).

@@ -17,6 +17,9 @@ from . import overlays_zlf_e2e as _overlays_zlf_e2e  # noqa: F401  # ✅ ROUND22
 from . import overlays_zlf_e2e_blazing as _overlays_zlf_e2e_blazing  # noqa: F401  # 🔥 R69: ZLF-End-To-End-Blazing «الترندية الملتهبة» (تسجيل ذاتي — إضافة فقط)
 from . import overlays_zlf_e2e_trendy_macd as _overlays_zlf_e2e_trendy_macd  # noqa: F401  # ✅ PRO73: «الترندية الماكدية» (تسجيل ذاتي — إضافة فقط)
 from . import overlays_zlf_e2e_blazing_macd as _overlays_zlf_e2e_blazing_macd  # noqa: F401  # 🔥 PRO73: «الملتهبة الماكدية» (تسجيل ذاتي — إضافة فقط)
+from . import overlays_zlf_e2e_trendy_quantum as _overlays_zlf_e2e_trendy_quantum  # noqa: F401  # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» (تسجيل ذاتي — إضافة فقط؛ يستورد الترندية أيضاً)
+from . import overlays_zlf_e2e_trendy_quantum_ema as _overlays_zlf_e2e_trendy_quantum_ema  # noqa: F401  # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» (تسجيل ذاتي — إضافة فقط؛ يستورد الكمومية أيضاً)
+from . import overlays_mtf_ema as _overlays_mtf_ema  # noqa: F401  # ✅ MTFEMA1: «MTF EMA» متعدد الفريمات (تسجيل ذاتي — إضافة فقط)
 from .pine_transpiler import PineScriptTranspiler
 
 

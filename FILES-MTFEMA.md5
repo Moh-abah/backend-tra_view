@@ -1,0 +1,15 @@
+ac4d9111d42eb05fedc7c16eac2843bf  ./README-MTFEMA-AR.md
+996102f3a91fdac7622cf32aa5979528  ./REPORT-MTFEMA-AR.md
+a7fdab332909e2fa1f5fb01c123b8a23  ./app/services/indicators/__init__.py
+b976c1837ba9dbc170fbd90b824a5205  ./app/services/indicators/calculator.py
+8b86a1a0c13f661710e629d629eb0f75  ./app/services/indicators/overlay_columns.py
+737fb43cb3ce79a7d04db865d5b385bd  ./app/services/indicators/overlays.py
+a1a6eac6ff4c9a57b89be7400aa6c589  ./app/services/indicators/overlays_mtf_ema.py
+3080c7a14c842385458880ecc4f76e35  ./diffs/app__services__indicators____init__.py.diff
+0a0fd42e08ffbcaa2a2b874b4379ae52  ./diffs/app__services__indicators__calculator.py.diff
+bfc08a19593196d8747491c5241d423d  ./diffs/app__services__indicators__overlay_columns.py.diff
+55aa0868058b5c6d132608604bef49ad  ./diffs/app__services__indicators__overlays.py.diff
+a1a6eac6ff4c9a57b89be7400aa6c589  ./diffs/overlays_mtf_ema.py.NEW
+ecd378d49ddc5c40045d7416239e939c  ./payloads/mtfema_multi_payload.json
+9f5eeefb348a1112c65c8de3316cff27  ./payloads/mtfema_verify_payload.json
+a6921d0a81ed439a38a4130aa4aa8206  ./tools/verify_mtfema.py

@@ -1,0 +1,128 @@
+{
+ "name": "ZLT1-MMT · هيكل خروج 5 دقائق (عيار 75) — تخفيف الضرر على العملة النازفة",
+ "description": "MMTUSDT (#10000561 · -44.44%) بباب الخروج مستبدلًا بهيكل CHoCH على 5 دقائق الحقيقية عيار 75 — يغلق الكل عند الانعكاس الأدق (يقلّل زمن النزيف المفتوح). المتوقع: ~-36.7% · أسوأ صفقة -26.5 (من -40) · MaxDD 55 (من 59).",
+ "mode": "standard",
+ "start_date": "2025-11-04T00:00:00Z",
+ "end_date": "2026-11-18T08:00:00Z",
+ "timeframe": "15m",
+ "timezone": "UTC",
+ "tz_offset_minutes": 0,
+ "market": "crypto",
+ "symbols": [
+  "MMTUSDT"
+ ],
+ "strategy_config": {
+  "name": "ZLT1-MMT · هيكل خروج 5 دقائق (عيار 75) — تخفيف الضرر على العملة النازفة",
+  "version": "1.0.0",
+  "base_timeframe": "15m",
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "zigzag_fib_e2e_trendy_quantum_ema",
+    "type": "support_resistance",
+    "params": {
+     "mode": "luxalgo",
+     "length": 226,
+     "touch_level": 0.618,
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_gate": [
+      "s1"
+     ],
+     "ema_lengths": [
+      50,
+      100,
+      200,
+      350,
+      500
+     ],
+     "ema_resolution": "60",
+     "ema_source": "close",
+     "ema_offset": 0,
+     "ema_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_exit_resolution": "5m",
+     "zone_exit_length": 75
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "ALMIGHTY S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL · بوابة s1 فقط) + رصة EMA الخمسة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.34,
+    "enabled": true
+   },
+   {
+    "name": "ALMIGHTY S2 · الاختراق بدون هيمنة الحجم + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   },
+   {
+    "name": "ALMIGHTY S3 · الامتصاص قبل الاختراق + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "ZONE-EXIT-LTF1 · خروج هيكل 5 دقائق — LL+LH على الفريم الأدق (استبدال الباب الوحيد)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   }
+  ],
+  "risk_management": {
+   "stop_loss_percentage": 2.0,
+   "take_profit_percentage": 99.0
+  }
+ },
+ "initial_capital": 300,
+ "position_sizing": "percentage",
+ "position_size_percent": 100.0,
+ "max_positions": 3,
+ "compounding": true,
+ "multi_position_compounding": true,
+ "commission_rate": 0,
+ "slippage_percent": 0,
+ "leverage": 1
+}

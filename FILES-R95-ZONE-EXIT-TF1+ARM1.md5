@@ -1,0 +1,57 @@
+# FILES-R95-ZONE-EXIT-TF1+ARM1.md5 — بيان حزمة الدمج (الملفات المعدلة والجديدة فقط)
+# المرجع: backend_PRO95.zip الأصلي · التاريخ: 2026-11-17
+# الإضافة 1 (ZONE-EXIT-TF1): فريم هيكل الخروج zone_exit_resolution/zone_exit_length
+# الإضافة 2 (ZONE-EXIT-ARM1): بوابة تفعيل الخروج بعد ربح X% arm_after_gain_pct
+# التحقق بعد الدمج:  md5sum -c FILES-R95-ZONE-EXIT-TF1+ARM1.md5
+
+2776066ebef6829e460456a6dbc4f976  app/backtest/engine1.py
+c6f1e21967dfe36e101bada890b1912d  app/services/indicators/overlay_columns.py
+21c7e60d3a4d7efc217b92885ab2ebb1  app/services/indicators/overlays.py
+bff45509c9bbdc5f69938e3869312b14  app/services/indicators/overlays_zlf_e2e_trendy_quantum.py
+d4509bedcfe9765e6b7479c5213ab340  app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema.py
+fb42c5ca9a64521cb083d67359c8e77e  app/services/strategy/schemas.py
+e9e8dc06c7c7b1405094384f21e3cd8c  app/services/strategy/strategy_engine1.py
+8ca0e38466060b3caf01d1b3a62459a3  app/services/indicators/overlays_zone_exit_mtf.py
+4d84879ff4ff2cedb4366305bfc62def  ZONE-EXIT-TF1-FRONTEND-AR.md
+6d69942ab057a69c7684ab8b0a801eb7  ZONE-EXIT-ARM1-FRONTEND-AR.md
+70c67773e4406a2c547d6292b6870465  scripts/fetch_solusdt_15m.py
+0619cbca6b957ca781f9e3e502e41b98  tests-r95/champion_ab_harness.py
+224818cf6a256edaf433f499a12269b8  tests-r95/e2e_api_test.sh
+498cfc887a2f3533b111e8bf48e6946d  tests-r95/e2e_api_arm_test.sh
+0129c74fb8eff7b77bb8c40e013afdd7  tests-r95/run_all_sequential.sh
+a6625bafd04132771bc73b20671a3cec  tests-r95/run_champion_variants.sh
+28d67d3ea3882cb4b6fb41938c162767  tests-r95/test_param_flow.py
+54aeb8c507c0c6f2abe83a93341c9ee1  tests-r95/test_zone_exit_unit.py
+23b5098e769789e3d2ca51d051aa131d  tests-r95/test_zone_exit_arm_unit.py
+50e3114d6c8aae1ad8a7a27fe271128e  tests-r95/verify_timing_causality.py
+b2d3da353a847c507094ce9a8cf01d5e  data/history/SOLUSDT_15m.parquet
+1497fcd9f06e36631465193fd35b75c2  tests-r95/results/ab_zx_1D.json
+8b202c4721a291fe83d74b578f80ede9  tests-r95/results/ab_zx_1D_len50.json
+99b73ace36de8cd119e5ffc3b9b6d135  tests-r95/results/ab_zx_240.json
+e9177fcbefa9f72966340dd9de48347b  tests-r95/results/ab_zx_240_len50.json
+f7115493dd2377ce9705c1593982fc89  tests-r95/results/ab_zx_60.json
+b46df0f43a167e549d3646c85e431d32  tests-r95/results/ab_zx_60_len100.json
+3e7ad154640316a09875084e5ab3feb6  tests-r95/results/ab_zx_60_len50.json
+f858aa13b2e796f82d9c5563c160542d  tests-r95/results/ab_zx_60_len50_arm2.5.json
+0e562c5fb8dd8aa89a4c7e5597eb9434  tests-r95/results/ab_zx_base.json
+d4dccd81f90626d51362ded9bad823f6  tests-r95/results/ab_zx_none.json
+80c1bfbf4d9790685cc3cfd090207801  tests-r95/results/ab_zx_none_arm10.json
+f601b31bca323d61522b5303c36d97cf  tests-r95/results/ab_zx_none_arm15.json
+6453019dc132e01e96aadda32f4a57db  tests-r95/results/ab_zx_none_arm2.5.json
+edc586358792ca965dbb34971b04ec93  tests-r95/results/ab_zx_none_arm20.json
+cfdeb18abe3d8cced9677a972c43bb7e  tests-r95/results/ab_zx_none_arm5.json
+6ead696331a95f7f66f499cb0c161642  tests-r95/results/trades_zx_1D.json
+e97b15ebda58de9af33d7bd9bba18f51  tests-r95/results/trades_zx_1D_len50.json
+f9d603c97d4a8d678c01b99966810ccf  tests-r95/results/trades_zx_240.json
+fde6e98bd527d571d1f4d0a103bce8e9  tests-r95/results/trades_zx_240_len50.json
+c459af0948332b8ed8639f30bf23b5dc  tests-r95/results/trades_zx_60.json
+e5105db9097ba39047f498de92c29dc3  tests-r95/results/trades_zx_60_len100.json
+551a001956c649688f1886046c92530e  tests-r95/results/trades_zx_60_len50.json
+68eb20b60cb392ceb70eed2e89f8e198  tests-r95/results/trades_zx_60_len50_arm2.5.json
+2c1036b77f497fded8c179eb5f17c5b9  tests-r95/results/trades_zx_base.json
+2c1036b77f497fded8c179eb5f17c5b9  tests-r95/results/trades_zx_none.json
+7c5449b6c90d1b6fcf795ef5499d3496  tests-r95/results/trades_zx_none_arm10.json
+d4848e69fb38a1176663966f7f2914b9  tests-r95/results/trades_zx_none_arm15.json
+33a499f66a9bf0e72e4d46bdf1d629cc  tests-r95/results/trades_zx_none_arm2.5.json
+d4848e69fb38a1176663966f7f2914b9  tests-r95/results/trades_zx_none_arm20.json
+d49e7c2767539ccfd26c1c9799b6b820  tests-r95/results/trades_zx_none_arm5.json

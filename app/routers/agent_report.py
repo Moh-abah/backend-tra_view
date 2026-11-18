@@ -336,7 +336,7 @@ async def agent_health():
 @router.get("/report/live")
 async def agent_report_live(
     symbol: str = Query("BTCUSDT", description="رمز التداول مثل BTCUSDT"),
-    timeframe: str = Query("1h", pattern="^(1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|1d|3d|1w|1M)$"),
+    timeframe: str = Query("1h", pattern="^(1s|5s|15s|30s|1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|1d|3d|1w|1M)$"),  # ✅ R76 (B-1): الثواني
     market: str = Query("crypto"),
     days: int = Query(7, ge=1, le=60, description="كم يوماً من التاريخ يُجلب"),
     limit: int = Query(None, ge=50, le=5000, description="قص الشموع إلى آخر N شمعة"),

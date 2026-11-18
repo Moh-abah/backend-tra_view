@@ -31,7 +31,7 @@ import json
 import logging
 import time
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,6 +106,22 @@ def _volume_series_from_dataframe(dataframe) -> List[Any]:
     except Exception:
         return [None] * len(dataframe)
     return out
+
+
+# ✅ R76 (B-1) — فريمات الثواني مواطنة من الدرجة الأولى:
+# 1s أصلي من Binance现货 klines · 5s/15s/30s تجميع صاعد حقيقي من 1s
+# (binance_provider.get_historicalcandl). سقف أيام لكل فريم ثواني يحمي
+# الخادم من نوافذ مستحيلة (1s×365 يوماً = 31.5 مليون شمعة) — القصّ يُعلن
+# في summary.days_effective/summary.days_capped بلا صمت.
+_SECONDS_DAYS_CAP: Dict[str, int] = {"1s": 1, "5s": 3, "15s": 8, "30s": 15}
+
+
+def _cap_days_for_timeframe(timeframe: str, days: int) -> Tuple[int, bool]:
+    """قيد أيام الجلب لفريمات الثواني — (الأيام الفعلية, هل قُصّ؟)."""
+    cap = _SECONDS_DAYS_CAP.get(str(timeframe).strip())
+    if cap is not None and int(days) > cap:
+        return cap, True
+    return int(days), False
 
 
 def _parse_types(types: Optional[str]) -> List[str]:
@@ -214,7 +230,7 @@ def _overlay_levels_summary(result: Dict[str, Any], wanted_types: List[str]) -> 
 @router.get("/compute")
 async def compute_market_overlays(
     symbol: str = Query(..., description="مثل BTCUSDT"),
-    timeframe: str = Query("1h", pattern="^(1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|1d|3d|1w|1M)$"),
+    timeframe: str = Query("1h", pattern="^(1s|5s|15s|30s|1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|1d|3d|1w|1M)$"),  # ✅ R76 (B-1): الثواني
     market: str = Query("crypto"),
     days: int = Query(30, ge=1, le=365, description="كم يوماً من التاريخ يُجلب"),
     limit: int = Query(None, ge=10, le=20000, description="قص الشموع إلى آخر N شمعة بعد الجلب"),
@@ -238,6 +254,8 @@ async def compute_market_overlays(
 ):
     """حساب مؤشرات البنية على شموع السوق الحقيقية — للشارت الحي."""
     _validate_symbol(symbol, timeframe)
+    # ✅ R76 (B-1): سقف أيام فريمات الثواني (يُعلن لا يُطبق صمتاً)
+    days_effective, days_capped = _cap_days_for_timeframe(timeframe, days)
     wanted_types = _parse_types(types)
     params = _build_params(zz_length, zz_extend, fib_depth, fib_dev, fib_ret, fib_levels,
                            tl_period, tl_pairs, zz_mode, zz_depth, zz_deviation, zz_backstep,
@@ -248,7 +266,7 @@ async def compute_market_overlays(
 
     normalized_market = _MARKET_MAP.get(market.lower(), market)
     cache_key_src = json.dumps(
-        ["GET", normalized_market, symbol.upper(), timeframe, days, limit, wanted_types, params],
+        ["GET", normalized_market, symbol.upper(), timeframe, days_effective, limit, wanted_types, params],
         sort_keys=True, default=str,
     )
     cache_key = hashlib.md5(cache_key_src.encode()).hexdigest()
@@ -262,7 +280,7 @@ async def compute_market_overlays(
     t0 = time.perf_counter()
     try:
         dataframe = await data_service.get_historical(
-            symbol=symbol.strip().upper(), timeframe=timeframe, market=normalized_market, days=days
+            symbol=symbol.strip().upper(), timeframe=timeframe, market=normalized_market, days=days_effective
         )
     except HTTPException:
         raise
@@ -313,6 +331,9 @@ async def compute_market_overlays(
             "types": wanted_types,
             "compute_ms": elapsed_ms,
             "cache": "built",
+            # ✅ R76 (B-1): شفافية قص أيام فريمات الثواني
+            "days_effective": days_effective,
+            "days_capped": days_capped,
             # ✅ ROUND28 — علم تشخيصي: هل وصل الحجم لمحركات السيولة فعلاً؟
             "volume_available": any(v is not None for v in _vols),
             **_summary_extra,
@@ -367,13 +388,15 @@ async def compute_given_overlays(
             params_alt = _apply_zzfib_defaults(params_alt)
 
             _validate_symbol(str(symbol), str(timeframe))
+            # ✅ R76 (B-1): سقف أيام فريمات الثواني في صيغة الواجهة أيضاً
+            days_eff_alt, days_capped_alt = _cap_days_for_timeframe(str(timeframe), int(days))
             normalized_market_alt = _MARKET_MAP.get(str(market).lower(), str(market))
             data_service = DataService(db)
             t0_alt = time.perf_counter()
             try:
                 dataframe = await data_service.get_historical(
                     symbol=str(symbol).strip().upper(), timeframe=str(timeframe),
-                    market=normalized_market_alt, days=days,
+                    market=normalized_market_alt, days=days_eff_alt,
                 )
             except HTTPException:
                 raise
@@ -415,6 +438,7 @@ async def compute_given_overlays(
                 "market": normalized_market_alt,
                 "summary": {"bars": result["bars"], "types": wanted_types_alt,
                             "compute_ms": elapsed_alt, "cache": "built-provider",
+                            "days_effective": days_eff_alt, "days_capped": days_capped_alt,
                             # ✅ ROUND28 — علم تشخيصي للحجم في صيغة الواجهة
                             "volume_available": any(v is not None for v in _vols_alt),
                             **_summary_extra_alt},

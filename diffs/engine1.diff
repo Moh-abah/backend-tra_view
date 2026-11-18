@@ -1,0 +1,43 @@
+--- tsfix-15m/pristine_check/app_backtest_engine1.py	2026-11-16 06:16:58.997011245 +0000
++++ project_extracted/app/backtest/engine1.py	2026-11-16 06:22:18.185799557 +0000
+@@ -153,6 +153,13 @@
+         ✅ إصلاح: كان DataService يعيد فهرساً رقمياً (0..n) مع عمود 'time' بالمللي
+         ثانية — ومحرك القرارات يحتاج DatetimeIndex (timestamps_sec, visual candles)
+         فكان يفشل بصمت ويعيد نتائج فارغة. نحوله هنا مركزياً.
++
++        ✅ TS-FIX-1970 — درع الطوابع المسمومة: فهرس رقمي صغير (0..n) يعني
++        أن طبقة البيانات فقدت البعد الزمني. to_datetime يفسّر الأعداد
++        الصحيحة كنانو-ثوانٍ منذ الحقبة فيولّد 1970-01-01 لكل الشموع —
++        عطل الإنتاج #10000378: 15,313 شمعة تتقاسم 16 طابعاً فقط (دفعات
++        كتابة من epoch) والشارت يرسم شمعة واحدة. نرفض صراحة بدل تسميم
++        النتيجة بصمت: الفشل الصادق أفضل من طوابع مختلَقة.
+         """
+         if isinstance(data.index, pd.DatetimeIndex):
+             return data
+@@ -162,6 +169,26 @@
+                 out = data.copy()
+                 out.index = pd.DatetimeIndex(t, name="time")
+                 return out.drop(columns=["time"])
++        # ✅ TS-FIX-1970 — فهرس عددي بمواضع (0..n) لا يمكن أن يكون زمناً
++        # حقيقياً (أي حقبة ns حقيقية ≥ ~1e17) ⇦ رفض صريح لا طوابع 1970.
++        try:
++            _idx = data.index
++            _numeric_idx = pd.api.types.is_numeric_dtype(
++                getattr(_idx, "dtype", None)
++            ) or isinstance(_idx, pd.RangeIndex)
++        except Exception:  # noqa: BLE001
++            _numeric_idx = False
++        if _numeric_idx:
++            try:
++                _max_val = float(pd.Series(_idx).astype("float64").max())
++            except Exception:  # noqa: BLE001
++                _max_val = 0.0
++            if _max_val < 1e15:
++                raise ValueError(
++                    "candle time dimension lost (positional integer index) — "
++                    "refusing to fabricate 1970 timestamps (TS-FIX-1970, "
++                    "see production incident #10000378)"
++                )
+         try:
+             coerced = pd.to_datetime(data.index, utc=True, errors="raise")
+             out = data.copy()

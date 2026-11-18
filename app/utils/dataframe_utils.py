@@ -36,8 +36,12 @@ COMPOSITE_TF_BASE: dict = {
 }
 
 # الفريمات المدعومة أصلاً من Binance kline streams
+# ✅ R76 (B-1): 1s أصلي في现货 klines (vision/REST) — 5s/15s/30s تُبنى
+# تجميعاً صاعداً في المزوّد لا هنا (COMPOSITE_TF_BASE لا يُمس — تجميع
+# الثواني داخل مزوّد بيانات Binance بأكواب الشبكة الثابتة لا resample
+# الباندا الاحتمالي).
 BINANCE_NATIVE_TF = {
-    "1m", "3m", "5m", "15m", "30m",
+    "1s", "3m", "5m", "15m", "30m",
     "1h", "2h", "4h", "6h", "8h", "12h",
     "1d", "3d", "1w",
 }
@@ -74,10 +78,18 @@ def composite_base_tf(timeframe: str) -> Tuple[str, Optional[int]]:
 
 
 def align_time_ms(ts_ms: int, timeframe: str) -> int:
-    """محاذاة زمن (ms) لبداية bucket الفريم — يدعم w (اثنين UTC) وM (أول الشهر)."""
+    """محاذاة زمن (ms) لبداية bucket الفريم — يدعم s (R76) وw وM."""
     tf_raw = str(timeframe).strip()
     tf = tf_raw.lower()
 
+    # ✅ R76 (B-1): فريمات الثواني — شبكة مثبتة على الإبوك بنفس منهجية
+    # الدقائق (تجميع صاعد من 1s في المزود ينتج حدود bucket مطابقة هنا).
+    if tf.endswith("s"):
+        try:
+            tf_ms = int(tf[:-1]) * 1_000
+            return (ts_ms // tf_ms) * tf_ms
+        except ValueError:
+            return ts_ms
     if tf_raw.endswith("M"):
         # تقويم شهري حقيقي — بداية الشهر UTC (الحرف M كبير يميّزه عن الدقيقة)
         from datetime import datetime, timezone

@@ -122,6 +122,51 @@ class ExitRule(BaseModel):
     exit_type: Literal["stop_loss", "take_profit", "trailing_stop", "signal_exit"]
     value: Optional[float] = None  # قيمة للوقف أو جني الأرباح
     enabled: bool = True
+    # ✅ ZONE-EXIT-ARM1 — بوابة «تفعيل شرط الخروج بعد ربح X%»:
+    # None / 0 / "off" / "false" / أي قيمة غير موجبة ⇒ البوابة معطّلة والسلوك
+    # التاريخي بت-بت (لا مساس إطلاقاً). رقم > 0 (مثل 5 أو 10) ⇒ هذه القاعدة
+    # لا تُطلق إشارة خروج حتى يصعد السعر X% على الأقل فوق سعر الدخول منذ فتح
+    # الصفقة (LONG: أقصى قمة شمعة منذ الدخول ≥ دخول×(1+X/100) — SHORT: أدنى
+    # قاع ≤ دخول×(1−X/100)). بعد التفعيل تبقى القاعدة مفعّلة حتى إغلاق الصفقة
+    # (Latch)، وما لم يتحقق X% تبقى الصفقة بيد بقية مخارج النظام (SL/TP/
+    # الانعكاس/نهاية البيانات) — قرار صاحب القرار حرفياً.
+    arm_after_gain_pct: Optional[float] = Field(
+        None, ge=0.0, le=10000.0,
+        description="ZONE-EXIT-ARM1: تعطيل هذه القاعدة حتى صعود السعر X% فوق "
+                    "سعر الدخول. None/0 = معطّل (السلوك التاريخي).",
+    )
+    # ✅ SMART-EXIT1 — علم «إغلاق الخاسر فقط» (طلب صاحب القرار: النظام
+    # الذكي يطلع من الصفقات الخاسرة): عند True تُغلق هذه القاعدة المراكز
+    # الخاسرة عند سعر التنفيذ فقط (الرابحة تركب). افتراضياً False ⇒ دلالات
+    # الإغلاق الكامل كما كانت بت-بت — لا يتغير شيء في أي تكوين قائم.
+    only_losing_positions: bool = False
+
+    @field_validator('arm_after_gain_pct', mode='before')
+    @classmethod
+    def _normalize_arm_after_gain_pct(cls, v):
+        """تطبيع دفاعي لقيمة البوابة (نفس فلسفة التطبيع في overlays_zone_exit_mtf):
+        أرقام كنصوص تُقبل، والقيم المعطِّلة الصريحة («off»/«false»/«none»/«-»/
+        فراغ/bool/NaN/غير رقمي/≤0) كلها ⇒ None = بوابة معطّلة بت-بت."""
+        import math as _math
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return None
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in ("", "off", "none", "false", "disabled", "disable", "no", "-"):
+                return None
+            try:
+                v = float(s)
+            except ValueError:
+                return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        if _math.isnan(f) or _math.isinf(f):
+            return None
+        return f if f > 0.0 else None
 
 class FilterRule(BaseModel):
     """قاعدة فلترة"""

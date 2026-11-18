@@ -182,9 +182,9 @@ EXIT_CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
         "desc_ar": "false = صفقة واحدة في نفس الوقت (الخطة). true = كل إشارة تفتح صفقة مستقلة تعمل بإدارة كاملة (متقدم). يُتجاهل عند تحديد max_concurrent_positions.",
     },
     "max_concurrent_positions": {
-        "type": "int", "min": 1, "max": 10, "step": 1, "default": None, "nullable": True,
+        "type": "int", "min": 1, "max": 100, "step": 1, "default": None, "nullable": True,
         "label_ar": "أقصى صفقات متزامنة",
-        "desc_ar": "سقف رقمي للصفقات المفتوحة معاً: إشارة جديدة والصفقات المفتوحة أقل من العدد ⇒ تُفتح صفقة مستقلة بإدارة كاملة؛ بلغت العدد ⇒ تُتجاهل الإشارة. فارغ (null) = السلوك التاريخي وفق allow_overlap.",
+        "desc_ar": "سقف رقمي للصفقات المفتوحة معاً (1..100 — ✅ R74 مُمدّد من 10 إلى 100): إشارة جديدة والصفقات المفتوحة أقل من العدد ⇒ تُفتح صفقة مستقلة بإدارة كاملة؛ بلغت العدد ⇒ تُتجاهل الإشارة. فارغ (null) = السلوك التاريخي وفق allow_overlap.",
     },
     "fees_pct": {
         "type": "float", "min": 0.0, "max": 2.0, "step": 0.01, "default": 0.0,
@@ -370,10 +370,10 @@ def normalize_exit_config(raw: Optional[Dict[str, Any]]) -> Tuple[Dict[str, Any]
         try:
             v_i = int(v)
         except (TypeError, ValueError):
-            errors.append(f"max_concurrent_positions يجب أن يكون عدداً صحيحاً 1..10 أو null (وصل: {v!r})")
+            errors.append(f"max_concurrent_positions يجب أن يكون عدداً صحيحاً 1..100 أو null (وصل: {v!r})")
         else:
-            if not (1 <= v_i <= 10):
-                errors.append(f"max_concurrent_positions خارج النطاق [1..10]: {v_i}")
+            if not (1 <= v_i <= 100):  # ✅ R74 — السقف مُمدّد من 10 إلى 100
+                errors.append(f"max_concurrent_positions خارج النطاق [1..100]: {v_i}")
             else:
                 cfg["max_concurrent_positions"] = v_i
 
@@ -750,7 +750,7 @@ def run_exit_backtest(
     size_usd = float(cfg["position_size_usd"])
     fees_rate = cfg["fees_pct"] / 100.0
     # ✅ R55 — السقف الرقمي للصفقات المتزامنة: None = السلوك التاريخي
-    # (allow_overlap البولياني يحكم)، وإلا فهو الحاكم الأوحد (1..10).
+    # (allow_overlap البولياني يحكم)، وإلا فهو الحاكم الأوحد (1..100 — R74).
     max_concurrent_cap = cfg.get("max_concurrent_positions")
     max_open_observed = 0
     # --- ROUND40.1 ---
@@ -1247,6 +1247,40 @@ def _compounding_audit(
     }
 
 
+def compute_peak_deployed_usd(trades: List[Dict[str, Any]]) -> float:
+    """✅ R74 — أقصى رأس مال مُنشر فعلاً من صفقات محرك الخروج.
+
+    أحداث لكل رجل دخول (entry/dca1/dca2): (+حجمها عند بارها) وزوجها
+    (−الحجم عند بار إغلاق الصفقة) — الترتيب داخل نفس الشمعة: الإغلاقات
+    قبل الفتحات (نفس ترتيب الحلقة الرئيسية: قسم الإدارة يسبق فتح المراكز)،
+    والمجموع الجاري يعطي الذروة اللحظية لرأس المال العامل.
+    """
+    events: List[Tuple[int, int, float]] = []
+    for tr in trades:
+        try:
+            xb = int(tr["exit"]["bar"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        for en in tr.get("entries") or []:
+            try:
+                usd = float(en["usd"])
+                b = int(en["bar"])
+            except (TypeError, ValueError, KeyError):
+                continue
+            if usd <= 0:
+                continue
+            events.append((b, 1, usd))
+            events.append((xb, 0, -usd))
+    events.sort(key=lambda e: (e[0], e[1]))
+    running = 0.0
+    peak = 0.0
+    for _bar, _phase, delta in events:
+        running += delta
+        if running > peak:
+            peak = running
+    return round(peak, 6)
+
+
 def _summarize(trades: List[Dict[str, Any]], counters: Dict[str, int], cfg: Dict[str, Any],
               max_open_observed: int = 0,
               equity_state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -1345,6 +1379,8 @@ def _summarize(trades: List[Dict[str, Any]], counters: Dict[str, int], cfg: Dict
             "max_entries_per_trade": cfg["max_entries"],
             "total_invested_usd": round(sum(tr["invested_usd"] for tr in trades), 6),
             "max_exposure_per_trade_usd": _max_exposure_usd,
+            # ✅ R74 — أقصى رأس مال مُنشر فعلاً (أساس النسبة الدقيق)
+            "peak_deployed_usd": compute_peak_deployed_usd(trades),
             # ✅ R55 — شفافية السقف الرقمي: المفعّل فعلاً + أقصى تزامن لوحظ
             "max_concurrent_positions": cfg.get("max_concurrent_positions"),
             "overlap_mode": (

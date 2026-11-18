@@ -1,0 +1,36 @@
+--- /home/z/my-project/trading-system/quantum-fix/merge_package/app/services/indicators/overlays.py	2026-11-15 21:20:19.000000000 +0000
++++ app/services/indicators/overlays.py	2026-11-16 13:36:51.484939476 +0000
+@@ -1155,6 +1155,10 @@
+                  # + بوابة المنطقة الكمومية HH+HL/LL+LH — محرك معزول جديد كلياً
+                  # (أسماء zzfetq_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
+                  "zzfib_e2e_trendy_quantum",
++                 # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (Pine
++                 # بحذافيره بلا استشراف — آخر شريط HTF مغلق فقط) — محرك
++                 # معزول جديد كلياً (أعمدة mtfema_*) — إضافة تسجيل فقط.
++                 "mtf_ema",
+                  "trend_fractal")
+ 
+ 
+@@ -1224,6 +1228,8 @@
+                                      "backstep", "launch_touch_ticks",
+                                      "trend_periods", "trend_confirm", "trend_gate",
+                                      "zone_gate"},
++        # ✅ MTFEMA1: MTF EMA — معاملات Pine الأربعة + النسخ المتعددة.
++        "mtf_ema": {"length", "source", "offset", "resolution", "instances"},
+         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
+         "trend_fractal": {"periods", "confirm_mode"},
+         "zigzag": {"length", "extend_right"},
+@@ -1344,5 +1350,13 @@
+         from app.services.indicators.overlays_zlf_e2e_trendy_quantum import zigzag_fib_e2e_trendy_quantum
+         q_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum", params.get("zzfib_e2e_trendy_quantum") or {})
+         out["overlays"]["zzfib_e2e_trendy_quantum"] = zigzag_fib_e2e_trendy_quantum(candles, **q_params)
++    if "mtf_ema" in wanted:
++        # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات — استدعاء مؤجل
++        # للمحرك المعزول الجديد (Pine بحذافيره: length/source/offset/resolution
++        # + نسخ متعددة instances — بلا أي استشراف: قيمة HTF = آخر شريط
++        # مغلق فقط). السلاسل: mtfema_value (الأساسية) + mtfema_<id> لكل نسخة.
++        from app.services.indicators.overlays_mtf_ema import mtf_ema_engine
++        mte_params = _normalize_overlay_params("mtf_ema", params.get("mtf_ema") or {})
++        out["overlays"]["mtf_ema"] = mtf_ema_engine(candles, **mte_params)
+ 
+     return out

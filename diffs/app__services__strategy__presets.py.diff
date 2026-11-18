@@ -1,0 +1,148 @@
+--- a/app/services/strategy/presets.py
++++ b/app/services/strategy/presets.py
+@@ -474,6 +474,117 @@
+                     "type": "indicator_value",
+                     "operator": "<",
+                     "left_value": "indicator:zigzag_fib_e2e_trendy:zzfet_dir",
++                    "right_value": 0,
++                },
++                "exit_type": "signal_exit",
++                "enabled": True,
++            }
++        ],
++        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
++    },
++    "initial_capital": 10000,
++    "position_sizing": "percentage",
++    "position_size_percent": 100.0,
++    "max_positions": 1,
++    "commission_rate": 0,
++    "slippage_percent": 0,
++    "leverage": 1,
++}
++
++
++# =============================================================================
++# ✅ QUANTUM1 — ZLF-End-To-End-Trendy-Quantum — «الاستراتيجية الترندية الكمومية»
++# =============================================================================
++# مواصفة صاحب القرار: الترندية بحذافيرها + بوابة المنطقة الكمومية فوق إشارات
++# الدخول: زقزاق مؤكد HH+HL (قمة أعلى + قاع أعلى) يفتح منطقة الدخول المسموحة،
++# وLL+LH (قمة أدنى + قاع أدنى) يغلقها ويُخرج أي صفقة مفتوحة (next_open).
++#
++# هذا القالب يعتمد:
++#   - المحرك المعزول: zigzag_fib_e2e_trendy_quantum (overlays_zlf_e2e_trendy_quantum.py
++#     — طبقة فوق المحرك الترندي نفسه: أعمدة الترندية zzfet_* تُمرَّر بت-بت
++#     + أعمدة الكمومية zzfetq_* — 109 أعمدة لكل شمعة: بيانات الرسم الكاملة
++#     كما كانت الترندية ترجعها + بيانات الكمومية نفسها).
++#   - ✅ الأرقام قالبية بالكامل: trend_periods=[7,15,25] وzone_gate=[s1,s2,s3]
++#     هنا في القالب — لا أرقام داخل أي كود.
++#   - الشفافية الرباعية الكاملة: entry_raw_* (خام) / entry_blocked_* (منعه
++#     الترند) / entry_zblocked_* (منعته المنطقة) / entry_* (النهائي).
++#   - الخروج: خروج المنطقة الكمومية LL+LH (zone_exit — أي صفقة مفتوحة تخرج
++#     next_open) + SL القالب.
++ZLF_E2E_TRENDY_QUANTUM_TRIPLE_SIGNAL: Dict[str, Any] = {
++    "name": "ZLF-End-To-End-Trendy-Quantum — الاستراتيجية الترندية الكمومية · 3 Entry Signals — ZERO FEE",
++    "timeframe": "1h",
++    "market": "crypto",
++    "symbols": ["BTCUSDT"],
++    "strategy_config": {
++        "name": "ZLF-End-To-End-Trendy-Quantum (3 Entry Signals — Trend+Zone gated)",
++        "base_timeframe": "1h",
++        "position_side": "long",
++        "indicators": [
++            {
++                "name": "zigzag_fib_e2e_trendy_quantum",
++                "type": "support_resistance",
++                "params": {
++                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — كما في الترندية حرفياً
++                    "mode": "luxalgo",
++                    "length": 100,
++                    "touch_level": 0.618,
++                    # ✅ قوالب الترند (الأرقام هنا لا في الكود)
++                    "trend_periods": [7, 15, 25],
++                    "trend_confirm": "majority",
++                    "trend_gate": ["s1", "s2", "s3"],
++                    # ✅ QUANTUM1 — قالب المنطقة: الأنواع المبوّبة بالمنطقة
++                    # (s1/s2/s3 أو "none" لتعطيل بوابة الدخول — البيانات تبقى).
++                    "zone_gate": ["s1", "s2", "s3"],
++                },
++                "enabled": True,
++                "timeframe": "1h",
++            }
++        ],
++        "entry_rules": [
++            {
++                "name": "ZLF-E2E-Trendy-Quantum S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL)",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s1",
++                    "right_value": 0,
++                },
++                "position_side": "long",
++                "weight": 0.34,
++                "enabled": True,
++            },
++            {
++                "name": "ZLF-E2E-Trendy-Quantum S2 · الاختراق بدون هيمنة الحجم («ويبرغم عندها لفل حجم سيولتها») + الترند + المنطقة الكمومية (HH+HL)",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s2",
++                    "right_value": 0,
++                },
++                "position_side": "long",
++                "weight": 0.33,
++                "enabled": True,
++            },
++            {
++                "name": "ZLF-E2E-Trendy-Quantum S3 · الامتصاص قبل الاختراق + الترند + المنطقة الكمومية (HH+HL)",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s3",
++                    "right_value": 0,
++                },
++                "position_side": "long",
++                "weight": 0.33,
++                "enabled": True,
++            },
++        ],
++        "exit_rules": [
++            {
++                "name": "ZLF-E2E-Trendy-Quantum · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج)",
++                "condition": {
++                    "type": "indicator_value",
++                    "operator": ">",
++                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_zone_exit",
+                     "right_value": 0,
+                 },
+                 "exit_type": "signal_exit",
+@@ -1340,4 +1451,27 @@
+             "payload": BLAZING_MACDIZED_RSI_LIGHT,
+             "notes": PRESET_NOTES,
+         },
++        # ✅ QUANTUM1 — «الاستراتيجية الترندية الكمومية» (إضافة — القوالب السابقة كما هي)
++        {
++            "id": "zlf_e2e_trendy_quantum_triple_signal_zero_fee",
++            "title": "ZLF-E2E-Trendy-Quantum — الاستراتيجية الترندية الكمومية · 3 Entry Signals — ZERO FEE",
++            "description": "المحرك المعزول (QUANTUM1): الترندية بحذافيرها (S1/S2/S3 + بوابة الترند "
++                           "القالبية 7/15/25 majority) + بوابة المنطقة الكمومية: زقزاق مؤكد HH+HL "
++                           "(قمة أعلى + قاع أعلى) يفتح منطقة الدخول المسموحة، وLL+LH يغلقها ويُخرج "
++                           "أي صفقة مفتوحة (next_open). تُرجع 109 أعمدة لكل شمعة: كل بيانات الترندية "
++                           "الأصلية zzfet_* ممرَّرة بت-بت (بيانات الرسم الكاملة: زقزاق/فيبو 8 مستويات/"
++                           "خطوط ترند 7-15-25/سيولة/إشارات) + أعمدة الكمومية zzfetq_* (المنطقة "
++                           "zone_on/enter/exit/struct/hh/hl/lh/ll/last/prev + الشفافية الرباعية "
++                           "entry_raw/entry_blocked ترند/entry_zblocked منطقة/entry النهائي). "
++                           "zone_gate قالب — s1/s2/s3 أو \"none\" (بيانات المنطقة تبقى محسوبة).",
++            "source": "QUANTUM1 — مواصفة صاحب القرار (جلسة الكمومية): «الترندية بحذافيرها + "
++                      "المنطقة الكمومية فوق إشارات الدخول» + إصلاح بيانات الرسم الكاملة "
++                      "(بيانات الترندية الأصلية يجب أن تكون موجودة في استجابة الكمومية "
++                      "بالإضافة إلى بيانات الكمومية نفسها)",
++            "reference_result": "المهمة الحية #10000375 (SOLUSDT · 15m · نافذة القاعدة): "
++                                "+69.338535% · 31 صفقة · WR 87.1% · PF 1.978684 · "
++                                "MaxDD 39.08% — تطابق بت-بت مع تشغيل التحقق",
++            "payload": ZLF_E2E_TRENDY_QUANTUM_TRIPLE_SIGNAL,
++            "notes": PRESET_NOTES,
++        },
+     ]

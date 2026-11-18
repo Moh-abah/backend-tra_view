@@ -1150,6 +1150,21 @@ OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib",
                  # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت (S1/S2/S3 + N5/N6)
                  # + نفس مصفوفة الموشرات والبوابة القابلة للتركيب — محرك معزول جديد كلياً.
                  "zzfib_e2e_blazing_macd",
+                 # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» — الترندية بحذافيرها
+                 # (أعمدتها zzfet_* تُمرّر بت-بت في سلاسلها — بيانات الرسم الكاملة)
+                 # + بوابة المنطقة الكمومية HH+HL/LL+LH — محرك معزول جديد كلياً
+                 # (أسماء zzfetq_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
+                 "zzfib_e2e_trendy_quantum",
+                 # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة
+                 # الأسية» — الكمومية بحذافيرها (أعمدتها zzfetq_* + zzfet_* تُمرّر
+                 # بت-بت — بيانات الرسم الكاملة) + بوابة رصة EMA الستة على فريم
+                 # الساعة (EMA 21/50/100/200/350/500 تنازلياً تحت السعر) — محرك
+                 # معزول جديد كلياً (أسماء zzfetqe_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
+                 "zzfib_e2e_trendy_quantum_ema",
+                 # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (Pine
+                 # بحذافيره بلا استشراف — آخر شريط HTF مغلق فقط) — محرك
+                 # معزول جديد كلياً (أعمدة mtfema_*) — إضافة تسجيل فقط.
+                 "mtf_ema",
                  "trend_fractal")
 
 
@@ -1212,6 +1227,30 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
                                    "backstep", "launch_touch_ticks",
                                    "trend_periods", "trend_confirm", "trend_gate",
                                    "osc_instances", "osc_conditions"},
+        # ✅ QUANTUM1: الكمومية — نفس معاملات الترندية حرفياً + قالب المنطقة
+        # (zone_gate: الأنواع المبوّبة بالمنطقة s1/s2/s3 أو "none" للتعطيل)
+        # + ✅ ZONE-EXIT-TF1: فريم هيكل الخروج (zone_exit_resolution/
+        # zone_exit_length — CHoCH LL+LH على أي فريم).
+        "zzfib_e2e_trendy_quantum": {"length", "reverse", "levels", "extend_right",
+                                     "extend_leg_to_live", "mode", "depth", "deviation",
+                                     "backstep", "launch_touch_ticks",
+                                     "trend_periods", "trend_confirm", "trend_gate",
+                                     "zone_gate", "zone_exit_resolution",
+                                     "zone_exit_length"},
+        # ✅ QUANTUMEMA1: الكمومية المتوسطة المتحركة الأسية — نفس معاملات
+        # الكمومية حرفياً + قالب EMA (الأطوال الستة/فريم الساعة/المصدر/الإزاحة/
+        # بوابة الرصة ema_gate: s1/s2/s3 أو "none" للتعطيل)
+        # + ✅ ZONE-EXIT-TF1: فريم هيكل الخروج (zone_exit_resolution/
+        # zone_exit_length — CHoCH LL+LH على أي فريم).
+        "zzfib_e2e_trendy_quantum_ema": {"length", "reverse", "levels", "extend_right",
+                                         "extend_leg_to_live", "mode", "depth", "deviation",
+                                         "backstep", "launch_touch_ticks",
+                                         "trend_periods", "trend_confirm", "trend_gate",
+                                         "zone_gate", "ema_lengths", "ema_resolution",
+                                         "ema_source", "ema_offset", "ema_gate",
+                                         "zone_exit_resolution", "zone_exit_length"},
+        # ✅ MTFEMA1: MTF EMA — معاملات Pine الأربعة + النسخ المتعددة.
+        "mtf_ema": {"length", "source", "offset", "resolution", "instances"},
         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
         "trend_fractal": {"periods", "confirm_mode"},
         "zigzag": {"length", "extend_right"},
@@ -1251,6 +1290,15 @@ def compute_overlays(
             _p = params.get(_b) or {}
             if not (_p.get("osc_instances") or _p.get("osc_conditions")):
                 wanted.discard(_b)
+        # ✅ QUANTUM1 — نفس الحماية: الكمومية محرك استراتيجي (طلبها الصريح
+        # من تكوين الاستراتيجية يحسبها دائماً)؛ في طلب «كل الأنواع» الافتراضي
+        # للوحات الحي نتجاوزها (لا مضاعفة حساب الترندية بلا بيانات مطلوبة).
+        wanted.discard("zzfib_e2e_trendy_quantum")
+        # ✅ QUANTUMEMA1 — نفس الحماية: الكمومية المتوسطة المتحركة الأسية
+        # محرك استراتيجي (طلبها الصريح من تكوين الاستراتيجية يحسبها دائماً)؛
+        # في طلب «كل الأنواع» الافتراضي للوحات الحي نتجاوزها (لا مضاعفة
+        # حساب الكمومية بلا بيانات مطلوبة).
+        wanted.discard("zzfib_e2e_trendy_quantum_ema")
 
     t, o, h, l, c = _norm_candles(candles)
     N = len(c)
@@ -1320,5 +1368,31 @@ def compute_overlays(
         from app.services.indicators.trend_fractals import auto_trendlines_fractal
         trf_params = _normalize_overlay_params("trend_fractal", params.get("trend_fractal") or {})
         out["overlays"]["trend_fractal"] = auto_trendlines_fractal(candles, **trf_params)
+    if "zzfib_e2e_trendy_quantum" in wanted:
+        # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» — استدعاء مؤجل للمحرك
+        # المعزول (الترندية بحذافيرها + بوابة المنطقة الكمومية). السلاسل تحمل
+        # عقدَي التمايز: zzfetq_* (62 كمياً) + zzfet_* (47 تمريراً ترندياً بت-بت
+        # — بيانات الرسم الكاملة كما كانت الترندية ترجعها).
+        from app.services.indicators.overlays_zlf_e2e_trendy_quantum import zigzag_fib_e2e_trendy_quantum
+        q_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum", params.get("zzfib_e2e_trendy_quantum") or {})
+        out["overlays"]["zzfib_e2e_trendy_quantum"] = zigzag_fib_e2e_trendy_quantum(candles, **q_params)
+    if "zzfib_e2e_trendy_quantum_ema" in wanted:
+        # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة
+        # الأسية» — استدعاء مؤجل للمحرك المعزول (الكمومية بحذافيرها + بوابة
+        # رصة EMA الستة على فريم الساعة — MTF EMA بلا استشراف). السلاسل تحمل
+        # عقد التمايز الثلاثة: zzfetqe_* (الجديدة: النهائي + الممنوع بالرصة +
+        # الخطوط الستة + حالة الرصة) + zzfetq_* (62 كمياً) + zzfet_* (47
+        # تمريراً ترندياً بت-بت — بيانات الرسم الكاملة كما كانت الكمومية ترجعها).
+        from app.services.indicators.overlays_zlf_e2e_trendy_quantum_ema import zigzag_fib_e2e_trendy_quantum_ema
+        qe_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum_ema", params.get("zzfib_e2e_trendy_quantum_ema") or {})
+        out["overlays"]["zzfib_e2e_trendy_quantum_ema"] = zigzag_fib_e2e_trendy_quantum_ema(candles, **qe_params)
+    if "mtf_ema" in wanted:
+        # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات — استدعاء مؤجل
+        # للمحرك المعزول الجديد (Pine بحذافيره: length/source/offset/resolution
+        # + نسخ متعددة instances — بلا أي استشراف: قيمة HTF = آخر شريط
+        # مغلق فقط). السلاسل: mtfema_value (الأساسية) + mtfema_<id> لكل نسخة.
+        from app.services.indicators.overlays_mtf_ema import mtf_ema_engine
+        mte_params = _normalize_overlay_params("mtf_ema", params.get("mtf_ema") or {})
+        out["overlays"]["mtf_ema"] = mtf_ema_engine(candles, **mte_params)
 
     return out

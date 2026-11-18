@@ -30,7 +30,8 @@ __all__ = ["CHAMPION_ZIGZAG_HL_V2", "ZLF_TRIPLE_SIGNAL", "ZLF_E2E_TRIPLE_SIGNAL"
            "ZLF_E2E_TRENDY_TRIPLE_SIGNAL", "ZLF_E2E_BLAZING_QUINT_SIGNAL",
            "TRENDY_MACDIZED", "BLAZING_MACDIZED",
            "TRENDY_MACDIZED_RSI_LIGHT", "BLAZING_MACDIZED_RSI_LIGHT",
-           "RSI_LIGHT_INSTANCES", "get_presets", "PRESET_NOTES"]
+           "RSI_LIGHT_INSTANCES", "ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL",
+           "get_presets", "PRESET_NOTES"]
 
 
 CHAMPION_ZIGZAG_HL_V2: Dict[str, Any] = {
@@ -486,6 +487,391 @@ ZLF_E2E_TRENDY_TRIPLE_SIGNAL: Dict[str, Any] = {
     "position_sizing": "percentage",
     "position_size_percent": 100.0,
     "max_positions": 1,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "leverage": 1,
+}
+
+
+# =============================================================================
+# ✅ QUANTUM1 — ZLF-End-To-End-Trendy-Quantum — «الاستراتيجية الترندية الكمومية»
+# =============================================================================
+# مواصفة صاحب القرار: الترندية بحذافيرها + بوابة المنطقة الكمومية فوق إشارات
+# الدخول: زقزاق مؤكد HH+HL (قمة أعلى + قاع أعلى) يفتح منطقة الدخول المسموحة،
+# وLL+LH (قمة أدنى + قاع أدنى) يغلقها ويُخرج أي صفقة مفتوحة (next_open).
+#
+# هذا القالب يعتمد:
+#   - المحرك المعزول: zigzag_fib_e2e_trendy_quantum (overlays_zlf_e2e_trendy_quantum.py
+#     — طبقة فوق المحرك الترندي نفسه: أعمدة الترندية zzfet_* تُمرَّر بت-بت
+#     + أعمدة الكمومية zzfetq_* — 109 أعمدة لكل شمعة: بيانات الرسم الكاملة
+#     كما كانت الترندية ترجعها + بيانات الكمومية نفسها).
+#   - ✅ الأرقام قالبية بالكامل: trend_periods=[7,15,25] وzone_gate=[s1,s2,s3]
+#     هنا في القالب — لا أرقام داخل أي كود.
+#   - الشفافية الرباعية الكاملة: entry_raw_* (خام) / entry_blocked_* (منعه
+#     الترند) / entry_zblocked_* (منعته المنطقة) / entry_* (النهائي).
+#   - الخروج: خروج المنطقة الكمومية LL+LH (zone_exit — أي صفقة مفتوحة تخرج
+#     next_open) + SL القالب.
+ZLF_E2E_TRENDY_QUANTUM_TRIPLE_SIGNAL: Dict[str, Any] = {
+    "name": "ZLF-End-To-End-Trendy-Quantum — الاستراتيجية الترندية الكمومية · 3 Entry Signals — ZERO FEE",
+    "timeframe": "1h",
+    "market": "crypto",
+    "symbols": ["BTCUSDT"],
+    "strategy_config": {
+        "name": "ZLF-End-To-End-Trendy-Quantum (3 Entry Signals — Trend+Zone gated)",
+        "base_timeframe": "1h",
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_trendy_quantum",
+                "type": "support_resistance",
+                "params": {
+                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — كما في الترندية حرفياً
+                    "mode": "luxalgo",
+                    "length": 100,
+                    "touch_level": 0.618,
+                    # ✅ قوالب الترند (الأرقام هنا لا في الكود)
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3"],
+                    # ✅ QUANTUM1 — قالب المنطقة: الأنواع المبوّبة بالمنطقة
+                    # (s1/s2/s3 أو "none" لتعطيل بوابة الدخول — البيانات تبقى).
+                    "zone_gate": ["s1", "s2", "s3"],
+                },
+                "enabled": True,
+                "timeframe": "1h",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "ZLF-E2E-Trendy-Quantum S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s1",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.34,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Trendy-Quantum S2 · الاختراق بدون هيمنة الحجم («ويبرغم عندها لفل حجم سيولتها») + الترند + المنطقة الكمومية (HH+HL)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s2",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Trendy-Quantum S3 · الامتصاص قبل الاختراق + الترند + المنطقة الكمومية (HH+HL)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_entry_s3",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "ZLF-E2E-Trendy-Quantum · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum:zzfetq_zone_exit",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 10000,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
+    "max_positions": 1,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "leverage": 1,
+}
+
+
+# =============================================================================
+# ✅ QUANTUMEMA1 — ZLF-End-To-End-Trendy-Quantum-EMA — «الاستراتيجية الترندية
+# الكمومية المتوسطة المتحركة الأسية»
+# =============================================================================
+# مواصفة صاحب القرار: استنساخ كامل من «الاستراتيجية الترندية الكمومية» +
+# **بوابة ثانية جوار بوابة المنطقة** (قمّة أعلى من قمّة + قاع أعلى من قاع
+# HH+HL): الشرط الثاني للمنطقة المسموحة أن يتخطى السعر المتوسطات الستة
+# لأعلى بترتيب تنازلي تحت السعر — EMA 21 أولاً ثم EMA 50 ثم EMA 100 ثم
+# EMA 200 ثم EMA 350 ثم أسفلهم جميعاً EMA 500 — والمتوسطات تُحسب على
+# فريم الساعة (resolution «60» دائماً في الافتراضي — قابل للتخصيص من
+# الواجهة) عبر نواة MTF EMA (MTFEMA1 — سكربت Pine بحذافيره بلا استشراف).
+#
+# هذا القالب يعتمد:
+#   - المحرك المعزول: zigzag_fib_e2e_trendy_quantum_ema
+#     (overlays_zlf_e2e_trendy_quantum_ema.py — طبقة فوق المحرك الكمي نفسه:
+#     أعمدة الكمومية zzfetq_* والترندية zzfet_* تُمرَّر بت-بت + الخطوط الستة
+#     zzfetqe_ema_* وحالة الرصة والشفافية entry_eblocked — كل بيانات
+#     الكمومية بحذافيرها + بيانات EMA الجديدة).
+#   - ✅ الأرقام قالبية بالكامل: trend_periods=[7,15,25] وzone_gate=[s1,s2,s3]
+#     وema_lengths=[21,50,100,200,350,500] وema_resolution=«60» وema_gate=
+#     [s1,s2,s3] هنا في القالب — لا أرقام داخل أي كود.
+#   - الخروج: خروج المنطقة الكمومية LL+LH (zone_exit — أي صفقة مفتوحة تخرج
+#     next_open) + SL القالب — كما في الكمومية حرفياً.
+ZLF_E2E_TRENDY_QUANTUM_EMA_TRIPLE_SIGNAL: Dict[str, Any] = {
+    "name": "ZLF-End-To-End-Trendy-Quantum-EMA — الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية · 3 Entry Signals — ZERO FEE",
+    "timeframe": "1h",
+    "market": "crypto",
+    "symbols": ["BTCUSDT"],
+    "strategy_config": {
+        "name": "ZLF-End-To-End-Trendy-Quantum-EMA (3 Entry Signals — Trend+Zone+EMA-stack gated)",
+        "base_timeframe": "1h",
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_trendy_quantum_ema",
+                "type": "support_resistance",
+                "params": {
+                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — كما في الكمومية حرفياً
+                    "mode": "luxalgo",
+                    "length": 100,
+                    "touch_level": 0.618,
+                    # ✅ قوالب الترند (الأرقام هنا لا في الكود)
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3"],
+                    # ✅ QUANTUM1 — قالب المنطقة (كما في الكمومية حرفياً)
+                    "zone_gate": ["s1", "s2", "s3"],
+                    # ✅ QUANTUMEMA1 — قالب EMA الستة على فريم الساعة:
+                    # رصة تنازلية تحت السعر (EMA21 أعلى ← EMA500 أسفل) —
+                    # فريم الحساب «60» (ساعة) دائماً في الافتراضي (قرار
+                    # صاحب القرار) وقابل للتخصيص من الواجهة.
+                    "ema_lengths": [21, 50, 100, 200, 350, 500],
+                    "ema_resolution": "60",
+                    "ema_source": "close",
+                    "ema_offset": 0,
+                    # الأنواع المبوّبة برصة EMA (أو "none" لتعطيل البوابة —
+                    # بيانات الرصة والخطوط تبقى محسوبة ومُرجعة).
+                    "ema_gate": ["s1", "s2", "s3"],
+                },
+                "enabled": True,
+                "timeframe": "1h",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "ZLF-E2E-Trendy-Quantum-EMA S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.34,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Trendy-Quantum-EMA S2 · الاختراق بدون هيمنة الحجم + الترند + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+            {
+                "name": "ZLF-E2E-Trendy-Quantum-EMA S3 · الامتصاص قبل الاختراق + الترند + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "ZLF-E2E-Trendy-Quantum-EMA · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 10000,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
+    "max_positions": 1,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "leverage": 1,
+}
+
+
+# =============================================================================
+# 👑 ALMIGHTY1 — «الاستراتيجية الجبّارة» — ZLF-End-To-End-Trendy-Quantum-EMA
+# (نسخة البطولة A226 — من بحث EMA-SEARCH)
+# =============================================================================
+# أمر صاحب القرار (2026-11-17): «اكتب تكوين الاستراتيجية الجبّارة بتكوينها
+# وإعدادها كامل في قالب الاستراتيجيات مع وصفها الكامل والنتائج والفريم
+# التي تدعمه بطلاقة».
+#
+# أصل التكوين: بحث EMA-SEARCH — 7 مراحل · 77 تجربة معزولة العمليات على
+# سيرفر الإنتاج الحي (SOLUSDT · 15m · كامل التاريخ 2020-03-16 → 2026-11-17
+# · 219,657 شمعة) — انطلاقًا من قالب المستخدم #10000439 (+820.44%) ووصولًا
+# إلى المهمة الحية #10000493 (+9402.449654% · تطابق بت-بت مع النسخة
+# المحلية المعزولة).
+#
+# الفروقات الثلاثة عن القالب الأم (ZLF_E2E_TRENDY_QUANTUM_EMA_TRIPLE_SIGNAL
+# أعلاه — عزو نظيف، بُعد واحد لكل تجربة):
+#   1) length: 100 → 226 — «عيار رادار الزقزاق»: يرصد الموجات الكبرى فقط
+#      (~80 موجة عملاقة في 6 سنوات بدل 139 متوسطة). أعلى بُعد منفرد
+#      تأثيرًا (820% → 5528% وحده). خريطة الزقزاق مصدر كل شيء: مستويات
+#      الاختراق (الدخول) وبنية HH+HL/LL+LH (فتح/إغلاق المنطقة =
+#      الدخول والخروج معًا) — فتغييره يمسّ الدخول والخروج عبر حجم
+#      الموجة المرسومة (الرابحة تركض أطول · الخروج لاحقًا).
+#   2) ema_lengths: حذف خط EMA-21 (كان [21,50,100,200,350,500]) — نقص
+#      شرط «close > EMA21» من رصة الدخول: أسرع خط (يقف على ظهر السعر)
+#      كان يُغلق بوابة الرصة عند كل تراجعة تنفس صغيرة فتُمنع الصفقة
+#      الرابحة من الولادة؛ بدونه يبقى الدخول متاحًا خلال التراجعات
+#      الصغيرة (فلتر دخول فقط — منطق الخروج لا يقرأ الرصة أبدًا).
+#      ملاحظة مثبتة: خط EMA-200 خامل فعليًا في هذا التكوين (حذفه لا
+#      يغيّر شيئًا) — أُبقي بحذافيره.
+#   3) zone_gate: ["s1","s2","s3"] → ["s1"] — فحص «المنطقة مفتوحة»
+#      (HH+HL) يُشترط على إشارة s1 (الاختراق الكامل) فقط؛ s2 و s3
+#      يدخلان بلا فحص المنطقة (توزيع بوابة دخول — zone_exit يشتغل
+#      دائمًا غير مبالٍ بالبوابة).
+#
+# الخروج لم يُلمس في أي تجربة من الـ77: باب واحد منذ اليوم الأول —
+# zone_exit (إغلاق المنطقة ببنية LL+LH) — لا SL ولا TP ولا trailing
+# (حقول الجذر الثلاثة غير مُرسَلة إطلاقًا — None = غير مقدَّم).
+# إدارة رأس المال: 300$ · 3 مراكز · تراكم مضاعف (multi_position) ·
+# عمولة وانزلاق صفر · تنفيذ next_open.
+ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL: Dict[str, Any] = {
+    "name": "ALMIGHTY — الاستراتيجية الجبّارة · ZLF-End-To-End-Trendy-Quantum-EMA (A226 Championship) · 3 Entry Signals — ZERO FEE",
+    "timeframe": "15m",
+    "market": "crypto",
+    "symbols": ["SOLUSDT"],
+    "strategy_config": {
+        "name": "ALMIGHTY — الاستراتيجية الجبّارة (A226: 3 Entry Signals — Trend + Zone[s1]-gated + EMA-stack[5]-gated)",
+        "version": "1.0.0",
+        "description": "نسخة البطولة A226 من الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية: "
+                       "ثلاث إشارات دخول (s1 الاختراق الكامل بحجم مهيمن · s2 اختراق بلا هيمنة حجم · "
+                       "s3 امتصاص) فوق بوابة ترند قالبية (7/15/25 majority) + بوابة منطقة كمومية "
+                       "HH+HL مُشترطة على s1 فقط + رصة خمسة متوسطات EMA على فريم الساعة "
+                       "(50>100>200>350>500 تنازليًا تحت السعر — بلا خط 21). الخروج باب واحد: "
+                       "إغلاق المنطقة ببنية LL+LH (zone_exit) — بلا SL/TP/trailing.",
+        "base_timeframe": "15m",
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_trendy_quantum_ema",
+                "type": "support_resistance",
+                "params": {
+                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — كما في الكمومية حرفياً
+                    "mode": "luxalgo",
+                    # 👑 A226 — عيار رادار الموجات الكبرى (كان 100)
+                    "length": 226,
+                    "touch_level": 0.618,
+                    # ✅ قوالب الترند (الأرقام هنا لا في الكود)
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3"],
+                    # 👑 A226 — بوابة المنطقة على الاختراق الكامل s1 فقط
+                    "zone_gate": ["s1"],
+                    # 👑 A226 — رصة خمسة خطوط (حُذف خط 21 الأسرع):
+                    # بلا شرط close>EMA21 تولد الرابحة خلال تراجعات التنفس
+                    "ema_lengths": [50, 100, 200, 350, 500],
+                    "ema_resolution": "60",
+                    "ema_source": "close",
+                    "ema_offset": 0,
+                    "ema_gate": ["s1", "s2", "s3"],
+                },
+                "enabled": True,
+                "timeframe": "15m",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "ALMIGHTY S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL · بوابة s1 فقط) + رصة EMA الخمسة على الساعة",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.34,
+                "enabled": True,
+            },
+            {
+                "name": "ALMIGHTY S2 · الاختراق بدون هيمنة الحجم + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+            {
+                "name": "ALMIGHTY S3 · الامتصاص قبل الاختراق + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "ALMIGHTY · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج · الباب الوحيد)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 300,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
+    "max_positions": 3,
+    "compounding": True,
+    "multi_position_compounding": True,
     "commission_rate": 0,
     "slippage_percent": 0,
     "leverage": 1,
@@ -1338,6 +1724,91 @@ def get_presets() -> List[Dict[str, Any]]:
             "reference_result": "تشغيل حي فعلي على الباك اند المنشور (المهمة 10000286→8d52a695): "
                                 "اكتملت على كامل نافذة البطل وأرجعت 256 عمودًا لكل شمعة",
             "payload": BLAZING_MACDIZED_RSI_LIGHT,
+            "notes": PRESET_NOTES,
+        },
+        # ✅ QUANTUM1 — «الاستراتيجية الترندية الكمومية» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "zlf_e2e_trendy_quantum_triple_signal_zero_fee",
+            "title": "ZLF-E2E-Trendy-Quantum — الاستراتيجية الترندية الكمومية · 3 Entry Signals — ZERO FEE",
+            "description": "المحرك المعزول (QUANTUM1): الترندية بحذافيرها (S1/S2/S3 + بوابة الترند "
+                           "القالبية 7/15/25 majority) + بوابة المنطقة الكمومية: زقزاق مؤكد HH+HL "
+                           "(قمة أعلى + قاع أعلى) يفتح منطقة الدخول المسموحة، وLL+LH يغلقها ويُخرج "
+                           "أي صفقة مفتوحة (next_open). تُرجع 109 أعمدة لكل شمعة: كل بيانات الترندية "
+                           "الأصلية zzfet_* ممرَّرة بت-بت (بيانات الرسم الكاملة: زقزاق/فيبو 8 مستويات/"
+                           "خطوط ترند 7-15-25/سيولة/إشارات) + أعمدة الكمومية zzfetq_* (المنطقة "
+                           "zone_on/enter/exit/struct/hh/hl/lh/ll/last/prev + الشفافية الرباعية "
+                           "entry_raw/entry_blocked ترند/entry_zblocked منطقة/entry النهائي). "
+                           "zone_gate قالب — s1/s2/s3 أو \"none\" (بيانات المنطقة تبقى محسوبة).",
+            "source": "QUANTUM1 — مواصفة صاحب القرار (جلسة الكمومية): «الترندية بحذافيرها + "
+                      "المنطقة الكمومية فوق إشارات الدخول» + إصلاح بيانات الرسم الكاملة "
+                      "(بيانات الترندية الأصلية يجب أن تكون موجودة في استجابة الكمومية "
+                      "بالإضافة إلى بيانات الكمومية نفسها)",
+            "reference_result": "المهمة الحية #10000375 (SOLUSDT · 15m · نافذة القاعدة): "
+                                "+69.338535% · 31 صفقة · WR 87.1% · PF 1.978684 · "
+                                "MaxDD 39.08% — تطابق بت-بت مع تشغيل التحقق",
+            "payload": ZLF_E2E_TRENDY_QUANTUM_TRIPLE_SIGNAL,
+            "notes": PRESET_NOTES,
+        },
+        # ✅ QUANTUMEMA1 — «الاستراتيجية الترندية الكمومية المتوسطة المتحركة
+        # الأسية» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "zlf_e2e_trendy_quantum_ema_triple_signal_zero_fee",
+            "title": "ZLF-E2E-Trendy-Quantum-EMA — الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية · 3 Entry Signals — ZERO FEE",
+            "description": "المحرك المعزول (QUANTUMEMA1): الكمومية بحذافيرها (S1/S2/S3 + بوابة "
+                           "الترند القالبية 7/15/25 majority + بوابة المنطقة الكمومية HH+HL/"
+                           "LL+LH) + **بوابة رصة المتوسطات الستة على فريم الساعة**: الشرط "
+                           "الثاني للمنطقة المسموحة أن يتخطى السعر المتوسطات الستة لأعلى "
+                           "بترتيب تنازلي تحت السعر — EMA 21 أولاً ثم EMA 50 ثم EMA 100 ثم "
+                           "EMA 200 ثم EMA 350 ثم أسفلهم جميعاً EMA 500 — محسوبة على فريم "
+                           "الساعة (resolution «60» افتراضياً — MTF EMA بلا استشراف: قيمة "
+                           "كل شمعة = EMA لآخر شمعة ساعة مغلقة فقط). إذا تحقق الترتيب "
+                           "بالتزامن مع HH+HL يُسمح بالتقاط إشارات الشراء. تُرجع كل "
+                           "بيانات الكمومية (zzfetq_* + zzfet_* — بت-بت: زقزاق/فيبو/ترند/"
+                           "سيولة/منطقة) + الخطوط الستة zzfetqe_ema_{21,50,100,200,350,500} "
+                           "(رسم على فريم الشارت بألوان العقد: أخضر/بنفسجي/أصفر/أحمر/أزرق/"
+                           "رمادي) + حالة الرصة (stack_ok/ready/enter/exit) + الشفافية "
+                           "الخماسية (entry_raw خام / entry_blocked ترند / entry_zblocked "
+                           "منطقة / entry_eblocked رصة / entry النهائي). ema_gate قالب — "
+                           "s1/s2/s3 أو \"none\" (بيانات الرصة تبقى محسوبة).",
+            "source": "QUANTUMEMA1 — مواصفة صاحب القرار (جلسة EMA): «استنساخ من الترندية "
+                      "الكمومية + بوابة ثانية جوار بوابة قمة أعلى من قمة وقاع أعلى من "
+                      "قاع — الشرط الثاني للمنطقة المسموحة أن يتخطى السعر المتوسطات "
+                      "الستة لأعلى بترتيب تنازلي: EMA 21 ثم 50 ثم 100 ثم 200 ثم 350 ثم "
+                      "500 (محسوبة على فريم الساعة عبر MTF EMA)»",
+            "reference_result": "المهمة الحية #10000407 (SOLUSDT · 15m · نافذة القاعدة "
+                                "كموميه حتا شهر 1): الأرضية +38.58% · 6 صفقات · WR 50% · "
+                                "MaxDD 45.48% — مقارنة QUANTUMEMA1 المرجعية تُعاد بعد "
+                                "النشر (بوابة الرصة تعزل صفقات غير الرصة)",
+            "payload": ZLF_E2E_TRENDY_QUANTUM_EMA_TRIPLE_SIGNAL,
+            "notes": PRESET_NOTES,
+        },
+        # ✅ ALMIGHTY1 — «الاستراتيجية الجبّارة» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "zlf_almighty_quantum_ema_a226_zero_fee",
+            "title": "ALMIGHTY — الاستراتيجية الجبّارة · ZLF-End-To-End-Trendy-Quantum-EMA (A226 Championship) · 3 Entry Signals — ZERO FEE",
+            "description": "نسخة البطولة A226 من المحرك المعزول (QUANTUMEMA1) — محسّنة ببحث "
+                           "EMA-SEARCH (7 مراحل · 77 تجربة معزولة على سيرفر الإنتاج): "
+                           "(1) رادار زقزاق عيار 226 يرصد الموجات الكبرى فقط (~80 موجة "
+                           "عملاقة في 6 سنوات بدل 139 متوسطة — من خريطته تُشتق مستويات "
+                           "الاختراق وفتح/إغلاق المنطقة)؛ (2) رصة EMA بخمسة خطوط على فريم "
+                           "الساعة (50>100>200>350>500) — حُذف خط 21 الأسرع فبقي الدخول "
+                           "متاحًا خلال تراجعات التنفس؛ (3) بوابة المنطقة الكمومية HH+HL "
+                           "على إشارة s1 فقط (s2/s3 بلا فحص المنطقة). الخروج باب واحد "
+                           "لم يُلمس: zone_exit (LL+LH) — بلا SL/TP/trailing. إدارة رأس "
+                           "المال: 300$ · 3 مراكز · تراكم مضاعف · عمولة/انزلاق صفر · "
+                           "تنفيذ next_open. ⚠ تحذيرات العرض: أقصى تراجع 44.98% · "
+                           "80 صفقة فقط (عينة صغيرة) · الحقبة الأولى (2020-2023) أعطت "
+                           "+2145% مقابل +248% للثانية (2023-2026) · أرقام بعمولة/انزلاق صفر.",
+            "source": "EMA-SEARCH — بحث صاحب القرار (2026-11-17): «اختبر وابحث أفضل "
+                      "تكوين للاستراتيجية على كامل تاريخ سولانا» — الفروقات الثلاثة "
+                      "مُعزولة بُعد-واحد-في-كل-تجربة وموثقة بتطابق بت-بت محلي/حي",
+            "reference_result": "المهمة الحية #10000493 (SOLUSDT · 15m · كامل التاريخ "
+                                "2020-03-16 → 2026-11-17): +9402.449654% · 80 صفقة "
+                                "(41R/39L) · WR 51.25% · PF 2.0746 · MaxDD 44.98% · "
+                                "Sharpe 3.2805 · Sortino 20.84 · SQN 3.15 · Kelly "
+                                "0.444 · رصيد نهائي $28,507.35 من $300 · math_audit "
+                                "بلا خطأ (تطابق بت-بت)",
+            "payload": ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL,
             "notes": PRESET_NOTES,
         },
     ]

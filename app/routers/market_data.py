@@ -226,7 +226,7 @@ def _candle_page_cache_put(key: str, payload: Dict[str, Any], ttl: float) -> Non
 async def get_candles_paginated(
     market: str,
     symbol: str,
-    timeframe: str = Query("1h", pattern="^(1m|2m|3m|5m|10m|15m|30m|1h|2h|4h|6h|8h|12h|1d|2d|3d|1w|2w|1M)$"),
+    timeframe: str = Query("1h", pattern="^(1s|5s|15s|30s|1m|2m|3m|5m|10m|15m|30m|1h|2h|4h|6h|8h|12h|1d|2d|3d|1w|2w|1M)$"),  # ✅ R76 (B-1): فريمات الثواني في شموع REST
     limit: int = Query(_CANDLE_PAGE_DEFAULT, ge=10, le=_CANDLE_PAGE_MAX),
     before: Optional[int] = Query(
         None, ge=0,
@@ -255,7 +255,9 @@ async def get_candles_paginated(
     fetch_tf = composite_base_tf(timeframe)[0] if composite else timeframe
 
     # طول الشمعة المُجلب بها بالملي ثانية لتحديد نافذة الطلب
-    tf_ms = int(_tf_to_minutes(fetch_tf)) * 60 * 1000
+    # ✅ R76 (B-1): _tf_span_ms تحسب فريمات الثواني بصدق (كانت
+    # _tf_to_minutes ترجع 60 دقيقة لأي ثوانٍ فتضخم نافذة الجلب 3600×).
+    tf_ms = _tf_span_ms(fetch_tf)
 
     # ✅ الجولة 12: كاش الصفحة — التاريخية 5 دقائق (غير قابلة للتغيّر)، الأحدث 10 ثوانٍ
     _pc_key = f"{normalized_market}|{symbol}|{fetch_tf}|{timeframe}|{before}|{limit}"
@@ -453,7 +455,7 @@ _CANDLE_RANGE_MAX = 20000   # حد limit لنقطة النطاق (أكبر من 
 async def get_candles_range(
     market: str,
     symbol: str,
-    timeframe: str = Query("1h", pattern="^(1m|2m|3m|5m|10m|15m|30m|1h|2h|4h|6h|8h|12h|1d|2d|3d|1w|2w|1M)$"),
+    timeframe: str = Query("1h", pattern="^(1s|5s|15s|30s|1m|2m|3m|5m|10m|15m|30m|1h|2h|4h|6h|8h|12h|1d|2d|3d|1w|2w|1M)$"),  # ✅ R76 (B-1): فريمات الثواني في شموع REST
     from_ms: int = Query(..., ge=0, alias="from",
                          description="بداية النطاق epoch-ms (شاملة)"),
     to_ms: int = Query(..., ge=0, alias="to",
@@ -488,7 +490,7 @@ async def get_candles_range(
 
     composite = is_composite_tf(timeframe)
     fetch_tf = composite_base_tf(timeframe)[0] if composite else timeframe
-    tf_ms = int(_tf_to_minutes(fetch_tf)) * 60 * 1000
+    tf_ms = _tf_span_ms(fetch_tf)  # ✅ R76 (B-1): ثواني بصدق (لا 60 دقيقة زوراً)
 
     to_dt = datetime.utcfromtimestamp(to_ms / 1000.0)
     # نافذة الجلب: النطاق المطلوب مقيّداً بما يكفي limit شمعة فقط (×1.3 هامش فجوات)
@@ -623,10 +625,42 @@ async def get_candles_range(
     }
 
 
+def _tf_span_ms(timeframe: str) -> int:
+    """✅ R76 (B-1) — طول الفريم بالملي ثانية بصدق لكل العائلات (s/m/h/d/w).
+
+    _tf_to_minutes القديمة كانت تُسقط أي فريم ثوانٍ إلى 60 دقيقة (فرع
+    الافتراضي) فتضخّم نوافذ الجلب في /candles و/candles/range بمقدار
+    3600× (طلبات 1s بحد 20000 شمعة كانت تطلب نافذة ~33 يوم من الثواني
+    من المزوّد بدل ~5.5 ساعة). الرياضيات بالملي ثانية مباشرة — بلا
+    خسارة دقة ولا التفاف عبر الدقائق.
+    """
+    tf = str(timeframe).strip().lower()
+    try:
+        if tf.endswith("s"):
+            return int(tf[:-1]) * 1_000
+        if tf.endswith("m"):
+            return int(tf[:-1]) * 60_000
+        if tf.endswith("h"):
+            return int(tf[:-1]) * 3_600_000
+        if tf.endswith("d"):
+            return int(tf[:-1]) * 86_400_000
+        if tf.endswith("w"):
+            return int(tf[:-1]) * 604_800_000
+    except ValueError:
+        pass
+    return 60 * 60 * 1000
+
+
 def _tf_to_minutes(timeframe: str) -> int:
-    """Fallback converter (m/h/d/w) used when TimeframeConverter lacks to_minutes."""
+    """Fallback converter (m/h/d/w) used when TimeframeConverter lacks to_minutes.
+
+    ✅ R76 (B-1): فريمات الثواني ترجع أقرب عدد دقائق صحيح (نادراً ما
+    تستدعي — نوافذ الجلب كلها تحولت إلى _tf_span_ms الأمثل).
+    """
     tf = timeframe.strip().lower()
     try:
+        if tf.endswith("s"):
+            return max(1, int(tf[:-1]) // 60)
         if tf.endswith("m"):
             return int(tf[:-1])
         if tf.endswith("h"):

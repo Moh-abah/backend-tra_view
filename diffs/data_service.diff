@@ -1,0 +1,147 @@
+--- tsfix-15m/pristine_check/app_services_data_service.py	2026-11-16 06:16:58.996011243 +0000
++++ project_extracted/app/services/data_service.py	2026-11-16 06:22:18.183799552 +0000
+@@ -52,6 +52,99 @@
+     return _SHARED_PROVIDERS
+ 
+ 
++# ---------------------------------------------------------------------------
++# ✅ TS-FIX-1970 — كاش redis الآمن للزمن لمسار النطاق (get_historical_last_version)
++#
++# العطل المُثبت بالإنتاج (#10000378 — SOL 15m): الكتابة كانت تخزّن
++# df.to_dict('records') بعد set_index('time') فيسقط البعد الزمني كله
++# (to_dict لا يتضمّن الفهرس). أي قراءة خلال ساعة (TTL) تعيد إطاراً بلا زمن
++# (فهرس رقمي 0..n) فيتسمّم المسار: المخطط الملتقط يطرد عمود time عند إعادة
++# البناء فيصل المحرك فهرساً رقمياً يفسّره to_datetime كنانو-ثوانٍ منذ الحقبة
++# فتُولَّد طوابع 1970-01-01 لكل الشموع (15,313 شمعة على 16 طابعاً فقط).
++#
++# الإصلاح (كتابة/قراءة/شفاء ذاتي — بلا أي تغيير في النتائج المالية):
++#   * الكتابة: الفهرس الزمني ⇦ عمود epoch-ms + اسمه داخل الحمولة، ولا
++#     يُخزَّن إطار بلا فهرس زمني أصلاً (لا سمّ بعد اليوم).
++#   * القراءة: إعادة بناء الفهرس الزمني من الحمولة الجديدة (v2).
++#   * الشفاء الذاتي: المدخلات القديمة المسمومة (قائمة سجلات بلا مفتاح
++#     زمني) تُحذف ويُتجاوز الكاش إلى المزوّد — تُصلح نفسها عند أول لمسة.
++# ---------------------------------------------------------------------------
++_RANGE_CACHE_VERSION = 2
++_TIME_KEYS_ORDER = ("time", "timestamp", "open_time", "date", "datetime", "ts", "t")
++
++
++def _range_cache_payload(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
++    """حمولة كاش تحمل البعد الزمني — None يعني «لا تُخزّن» (إطار بلا زمن)."""
++    if df is None or getattr(df, "empty", True):
++        return None
++    if not isinstance(df.index, pd.DatetimeIndex):
++        # لا فهرس زمني ⇦ لا نُخزّن أبداً (الكاش تحسين لا مصدر سمّ)
++        return None
++    idx_col = str(df.index.name) if df.index.name else "time"
++    work = df.reset_index()
++    new_cols = [c for c in work.columns if c not in df.columns]
++    if not new_cols:
++        return None
++    work = work.rename(columns={str(new_cols[0]): idx_col})
++    # epoch-ms أعداد صحيحة — JSON-آمنة تماماً ومطابقة للمزوّد بت-بت
++    work[idx_col] = (work[idx_col].astype("int64") // 1_000_000)
++    return {
++        "_v": _RANGE_CACHE_VERSION,
++        "index_col": idx_col,
++        "records": work.to_dict("records"),
++    }
++
++
++def _df_from_range_cache(cached: Any) -> Optional[pd.DataFrame]:
++    """إعادة بناء الإطار من حمولة الكاش مع فهرسه الزمني.
++
++    يعيد None عندما تكون الحمولة بلا بعد زمني قابل للاستعادة — وهي بصمة
++    المدخلات المسمومة من الإصدار القديم (القائمة بلا مفتاح زمني)
++    فيعاملها المستدعي كإخفاق كاش (تجاوز إلى المزوّد) ويحذفها.
++    """
++    if isinstance(cached, dict):
++        records = cached.get("records")
++        declared = cached.get("index_col")
++    else:
++        records = cached  # الشكل القديم (قائمة سجلات)
++        declared = None
++    if not isinstance(records, list) or not records or not isinstance(records[0], dict):
++        return None
++    try:
++        df = pd.DataFrame(records)
++    except Exception:  # noqa: BLE001
++        return None
++    tcol = None
++    if declared and str(declared) in df.columns:
++        tcol = str(declared)
++    else:
++        for k in _TIME_KEYS_ORDER:
++            if k in df.columns:
++                tcol = k
++                break
++    if tcol is None:
++        # مدخل مسموم (بلا زمن) أو حمولة غير مفهومة — لا زمن ⇦ لا ثقة
++        return None
++    try:
++        if pd.api.types.is_numeric_dtype(df[tcol]):
++            vals = df[tcol].astype("float64")
++            # ثوانٍ (قيم صغيرة) ⇦ ميلي ثانية؛ الكبير ميلي ثانية أصلاً
++            vals = vals.where(vals > 1e11, vals * 1000.0)
++            t = pd.to_datetime(vals, unit="ms", utc=True, errors="coerce")
++        else:
++            t = pd.to_datetime(df[tcol], utc=True, errors="coerce")
++        if not t.notna().all():
++            return None
++        # درس المعقولية: طوابع ما قبل 2000 = سمّ موضعي (0..n) لا زمن حقيقي
++        if len(t) and int(t.astype("int64").min()) < 946684800_000_000_000:
++            return None
++        df = df.drop(columns=[tcol])
++        df.index = pd.DatetimeIndex(t, name=tcol)
++        return df
++    except Exception:  # noqa: BLE001
++        return None
++
++
+ class DataService:
+     """الخدمة الموحدة لإدارة البيانات"""
+     def __init__(self, db: Optional[AsyncSession] = None):
+@@ -370,7 +463,20 @@
+             try:
+                 cached = await redis_client.get_cached(cache_key)
+                 if cached:
+-                    return await asyncio.to_thread(pd.DataFrame, cached)
++                    # ✅ TS-FIX-1970 — إعادة بناء آمنة للزمن: None يعني مدخلاً
++                    # بلا بعد زمني (سمّ الإصدار القديم) ⇦ حذف + تجاوز إلى المزوّد.
++                    df_cached = await asyncio.to_thread(_df_from_range_cache, cached)
++                    if df_cached is not None:
++                        return df_cached
++                    logger.warning(
++                        "[TS-FIX-1970] تجاهل مدخل كاش بلا بعد زمني (مسموم/قديم) "
++                        "للمفتاح %s — حذف وتجاوز إلى المزوّد",
++                        cache_key,
++                    )
++                    try:
++                        await redis_client.delete_cached(cache_key)
++                    except Exception:  # noqa: BLE001
++                        pass
+             except Exception as e:
+                 logger.warning(f"Cache read error: {e}. Continuing without cache.")
+         
+@@ -448,13 +554,17 @@
+ 
+ 
+         # تخزين في الكاش (انتهاء بعد ساعة) — الأطر الكبيرة يغطيها كاش القرص في المزود
++        # ✅ TS-FIX-1970 — الحمولة تحمل البعد الزمني الآن (epoch-ms + اسم
++        # عمود الفهرس)؛ والإطار بلا فهرس زمني لا يُخزَّن أصلاً (منع السمّ من المنبع).
+         if use_cache and not df.empty and len(df) <= 30_000:
+             try:
+-                await redis_client.set_cached(
+-                    cache_key,
+-                    df.to_dict('records'),
+-                    expire=3600
+-                )
++                _payload = await asyncio.to_thread(_range_cache_payload, df)
++                if _payload is not None:
++                    await redis_client.set_cached(
++                        cache_key,
++                        _payload,
++                        expire=3600
++                    )
+             except Exception as e:
+                 logger.warning(f"Cache write error: {e}. Continuing without caching.")
+         

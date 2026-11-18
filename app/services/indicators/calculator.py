@@ -89,6 +89,15 @@ class IndicatorCalculator:
         "zigzag_fib_e2e_trendy_macd": "zzfib_e2e_trendy_macd", "zzfib_e2e_trendy_macd": "zzfib_e2e_trendy_macd",
         # 🔥 PRO73: «الملتهبة الماكدية» — الملتهبة بت-بت + نفس الموشرات والبوابة
         "zigzag_fib_e2e_blazing_macd": "zzfib_e2e_blazing_macd", "zzfib_e2e_blazing_macd": "zzfib_e2e_blazing_macd",
+        # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» — الترندية بحذافيرها +
+        # بوابة المنطقة الكمومية (HH+HL يفتح · LL+LH يغلق ويخرج next_open)
+        # + تمرير أعمدة الترندية zzfet_* كاملة في استجابة الشموع (بيانات الرسم).
+        "zigzag_fib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum", "zzfib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum",
+        # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (رسم قابل
+        # للتخصيص من الواجهة — شروط المرحلة القادمة عبر الجسر نفسه).
+        "mtf_ema": "mtf_ema", "mtfema": "mtf_ema",
+        "multi_timeframe_ema": "mtf_ema",
+        "multi_timeframe_exponential_moving_average": "mtf_ema",
         "trend_fractal": "trend_fractal", "fractal_trendlines": "trend_fractal",
     }
     # العمود التعاقدي الأساسي لكل base (العقد الملزم مع الفرونت — الجولة 11/12)
@@ -105,8 +114,13 @@ class IndicatorCalculator:
         "zzfib_e2e_blazing": "ind_zzfb_entry",
         # ✅ PRO73: الترندية الماكدية = الدخول الجامع النهائي (ترند ∧ موشرات)
         "zzfib_e2e_trendy_macd": "ind_zzfetm_entry",
-        # 🔥 PRO73: الملتهبة الماكدية = الدخول الجامع النهائي (ترند ∧ موشرات)
+        # ✅ PRO73: الملتهبة الماكدية = الدخول الجامع النهائي (ترند ∧ موشرات)
         "zzfib_e2e_blazing_macd": "ind_zzfbm_entry",
+        # ✅ QUANTUM1: الكمومية = الدخول الجامع النهائي (ترند ∧ منطقة مفتوحة)
+        "zzfib_e2e_trendy_quantum": "ind_zzfetq_entry",
+        # ✅ MTFEMA1: MTF EMA = خط النسخة الأساسية (مؤشر رسم — الجسر جاهز
+        # للشروط لاحقاً: indicator:mtf_ema:mtfema_value / mtfema_<id>).
+        "mtf_ema": "ind_mtfema_value",
         "trend_fractal": "ind_trf_trend_ok",
     }
     # مرادفات الأسماء الفرعية → أعمدة ind_* التعاقدية
@@ -433,6 +447,84 @@ class IndicatorCalculator:
                 _v = params.get('trend_gate', params.get('gate'))
                 if _v is not None:
                     kw['trend_gate'] = _v
+            elif base == 'zzfib_e2e_trendy_quantum':
+                # ✅ QUANTUM1 — الكمومية: نفس معاملات الترندية حرفياً + قالب
+                # المنطقة (zone_gate: s1/s2/s3 أو "none" — بيانات المنطقة تبقى
+                # محسوبة ومُرجعة في الحالتين).
+                kw = {}
+                if 'length' in params:
+                    kw['length'] = max(2, int(float(params['length'])))
+                if 'reverse' in params:
+                    kw['reverse'] = bool(params['reverse'])
+                lv = params.get('levels', params.get('level_ratios'))
+                if isinstance(lv, (list, tuple)) and lv:
+                    kw['levels'] = [float(x) for x in lv]
+                for k in ('extend_right', 'extend_leg_to_live'):
+                    if k in params:
+                        kw[k] = bool(params[k])
+                if 'mode' in params:
+                    kw['mode'] = str(params['mode']).strip().lower()
+                _v = params.get('depth')
+                if _v is not None:
+                    try:
+                        kw['depth'] = max(2, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('deviation')
+                if _v is not None:
+                    try:
+                        kw['deviation'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('backstep')
+                if _v is not None:
+                    try:
+                        kw['backstep'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('launch_touch_ticks')
+                if _v is not None:
+                    try:
+                        kw['launch_touch_ticks'] = float(_v)
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('trend_periods', params.get('periods'))
+                if _v is not None:
+                    kw['trend_periods'] = _v
+                if 'trend_confirm' in params:
+                    kw['trend_confirm'] = params['trend_confirm']
+                _v = params.get('trend_gate', params.get('gate'))
+                if _v is not None:
+                    kw['trend_gate'] = _v
+                if 'zone_gate' in params:
+                    kw['zone_gate'] = params['zone_gate']
+            elif base == 'mtf_ema':
+                # ✅ MTFEMA1 — MTF EMA: معاملات Pine بحذافيرها + النسخ المتعددة
+                # (رسم الآن — شروط المرحلة القادمة عبر indicator:mtf_ema:...).
+                kw = {}
+                _v = params.get('length', params.get('ma_len', params.get('len')))
+                if _v is not None:
+                    try:
+                        kw['length'] = max(1, int(float(_v)))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('source', params.get('src'))
+                if _v is not None:
+                    kw['source'] = str(_v)
+                _v = params.get('offset', params.get('ma_offset',
+                                                  params.get('plot_offset')))
+                if _v is not None:
+                    try:
+                        kw['offset'] = int(float(_v))
+                    except (TypeError, ValueError):
+                        pass
+                _v = params.get('resolution', params.get('res', params.get(
+                    'tf', params.get('timeframe'))))
+                if _v is not None:
+                    kw['resolution'] = _v
+                _v = params.get('instances', params.get('mtf_instances'))
+                if _v is not None:
+                    kw['instances'] = _v
             elif base == 'zzfib_e2e_blazing':
                 # 🔥 R69 — الملتهبة: نفس معاملات الترندية حرفياً (بوابة ترند على
                 # s1/s2/s3/n5/n6 — الأنواع الجديدة قالبية كبقية العائلة).
@@ -529,6 +621,22 @@ class IndicatorCalculator:
                         col = 'ind_' + sub_l
                     elif base == 'zzfib_e2e_trendy' and sub_l.startswith('zigzag_fib_e2e_trendy_'):
                         col = 'ind_' + sub_l[len('zigzag_fib_e2e_trendy_'):]
+                # ✅ QUANTUM1: أي اسم فرعي من عائلة الكمومية يُحل بالقاعدة العامة
+                # (zzfetq_X → ind_zzfetq_X — يشمل المنطقة zone_* والشفافية الرباعية
+                # ومرايا الفترات zzfetq_tr_p{n}_* ومستويات zzfetq_level_<L>).
+                if base == 'zzfib_e2e_trendy_quantum':
+                    if sub_l.startswith('zzfetq_'):
+                        col = 'ind_' + sub_l
+                    elif sub_l.startswith('zigzag_fib_e2e_trendy_quantum_'):
+                        col = 'ind_zzfetq_' + sub_l[len('zigzag_fib_e2e_trendy_quantum_'):]
+                # ✅ MTFEMA1: أي اسم فرعي من عائلة MTF EMA يُحل بالقاعدة العامة
+                # (mtfema_X → ind_mtfema_X — يشمل mtfema_value وخطوط النسخ
+                # mtfema_<id> البديناميكية).
+                if base == 'mtf_ema':
+                    if sub_l.startswith('mtfema_'):
+                        col = 'ind_' + sub_l
+                    elif sub_l.startswith('mtf_ema_'):
+                        col = 'ind_mtfema_' + sub_l[len('mtf_ema_'):]
                 # 🔥 R69: أي اسم فرعي من عائلة الملتهبة يُحل بالقاعدة العامة
                 # (سلسلة zzfb_X → عمود ind_zzfb_X — يشمل مستويات zzfb_level_<L>
                 # ومرايا الفترات zzfb_tr_p{n}_* وأعمدة n5/n6 كاملة).

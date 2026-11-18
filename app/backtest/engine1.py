@@ -102,8 +102,8 @@ def _multi_position_compounding_enabled(config: "BacktestConfig") -> "int | None
         _n = 0
     if _n < 1:
         _n = 1
-    if _n > 10:
-        _n = 10
+    if _n > 100:  # ✅ R74 — السقف مُمدَّد من 10 إلى 100
+        _n = 100
     return _n
 
 
@@ -129,7 +129,8 @@ class _NoopStrategyEngine:
         return data
 
     async def run(self, market_context: pd.DataFrame, current_index: int = None,
-                  in_position: bool = False) -> Decision:
+                  in_position: bool = False,
+                  position_context: Optional[Dict[str, Any]] = None) -> Decision:
         from datetime import datetime as _dt
         return Decision(
             timestamp=_dt.utcnow(),
@@ -256,6 +257,142 @@ class BacktestEngine:
             raise
 
 
+    # ------------------------------------------------------------------
+    # ✅ ZONE-EXIT-LTF1 — هيكل الخروج على فريم أدق حقيقي (ZONE-EXIT-TF1
+    # للأدق: مثال شارت 15m وخروج CHoCH محسوب على شموع 5m الحقيقية).
+    # الدخول والمنطقة المسموحة يبقيان على فريم الشارت بلا أي تغيير —
+    # هذا الجلب يخدم أعمدة الخروج فقط. لا طلب ⇒ صفر فرق بت-بت.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _requested_ltf_exit_resolutions(config: "BacktestConfig") -> List[str]:
+        """فريمات الخروج الأدق المطلوبة في تكوين الاستراتيجية (تسميات قانونية).
+
+        يمسح params مؤشرات الاستراتيجية بحثاً عن zone_exit_resolution
+        (ومرادفاتها exit_resolution/zone_exit_tf) بفريم أدق من فريم الشارت.
+        """
+        try:
+            from app.services.indicators.overlays_mtf_ema import _parse_resolution
+        except Exception:
+            return []
+        try:
+            chart_step = _parse_resolution(str(config.timeframe)).get("step_ms")
+        except Exception:
+            return []
+        if chart_step is None:
+            return []
+        wanted: List[str] = []
+        seen = set()
+        try:
+            indicators = (config.strategy_config or {}).get("indicators") or []
+        except Exception:
+            indicators = []
+        for ind_cfg in indicators:
+            try:
+                params = (ind_cfg or {}).get("params") or {}
+            except Exception:
+                continue
+            raw = params.get(
+                "zone_exit_resolution",
+                params.get("exit_resolution", params.get("zone_exit_tf")))
+            if raw is None:
+                continue
+            try:
+                info = _parse_resolution(str(raw))
+                step = info.get("step_ms")
+            except Exception:
+                continue
+            if step is not None and step < chart_step:
+                label = info.get("label") or str(raw)
+                if label not in seen:
+                    seen.add(label)
+                    wanted.append(label)
+        return wanted
+
+    async def _fetch_zone_exit_ltf_candles(
+        self, symbol: str, config: "BacktestConfig", resolutions: List[str]
+    ) -> Dict[str, Any]:
+        """جلب شموع كل فريم أدق مطلوب → {label: قائمة شموع dict}.
+
+        نفس مصدر بيانات الباك-تست (get_historicallastvirsion بنفس النافذة)
+        — بلا تلفيق. فشل جلب فريم ⇒ يُتخطى (التقييد التاريخي يسود له).
+        """
+        out: Dict[str, Any] = {}
+        from app.services.indicators.overlays_mtf_ema import _to_ms
+        for tf in resolutions:
+            try:
+                ltf_df = await self.data_service.get_historicallastvirsion(
+                    symbol=symbol,
+                    timeframe=tf,
+                    market=config.market,
+                    start_date=config.start_date,
+                    end_date=config.end_date,
+                    use_cache=True,
+                    tz_offset_minutes=int(getattr(config, "tz_offset_minutes", 0) or 0),
+                )
+                if ltf_df is None or getattr(ltf_df, "empty", True):
+                    logger.warning(
+                        "ZONE-EXIT-LTF: لا بيانات لفريم الخروج الأدق %s (%s) — "
+                        "سيُستخدم التقييد التاريخي لفريم الشارت", tf, symbol)
+                    continue
+                candles = []
+                has_ts_col = "timestamp" in getattr(ltf_df, "columns", [])
+                for idx, row in ltf_df.iterrows():
+                    try:
+                        candles.append({
+                            "time": _to_ms(row["timestamp"] if has_ts_col else idx),
+                            "open": float(row["open"]),
+                            "high": float(row["high"]),
+                            "low": float(row["low"]),
+                            "close": float(row["close"]),
+                            "volume": float(row.get("volume") or 0),
+                        })
+                    except Exception:
+                        continue
+                if not candles:
+                    logger.warning(
+                        "ZONE-EXIT-LTF: تحويل فريم الخروج %s (%s) أعطى صفر شمعة — "
+                        "سيُستخدم التقييد التاريخي", tf, symbol)
+                    continue
+                out[tf] = candles
+                logger.info(
+                    "ZONE-EXIT-LTF: %s %s — %d شمعة أدق حقيقية لهيكل الخروج",
+                    symbol, tf, len(candles))
+            except Exception:
+                logger.exception(
+                    "ZONE-EXIT-LTF: فشل جلب فريم الخروج الأدق %s (%s) — "
+                    "سيُستخدم التقييد التاريخي", tf, symbol)
+        return out
+
+    async def _prepare_indicators_with_ltf_exit(
+        self,
+        symbol: str,
+        config: "BacktestConfig",
+        data: pd.DataFrame,
+        strategy_engine,
+    ) -> pd.DataFrame:
+        """_prepare_indicators مع سياق فريم أدق لهيكل الخروج (إن طُلب فقط).
+
+        لا فريم أدق مطلوب ⇒ النداء الأصلي مباشرة (سلوك بت-بت بلا أي
+        نداء/جلب/سياق إضافي). فريم أدق مطلوب ⇒ يُجلب ويُسجَّل في السياق ثم
+        يُمسح في finally (لا تسريب حالة بين المهام/الرموز أبداً).
+        """
+        resolutions = self._requested_ltf_exit_resolutions(config)
+        if not resolutions:
+            return await strategy_engine._prepare_indicators(data)
+        ltf_map = await self._fetch_zone_exit_ltf_candles(symbol, config, resolutions)
+        if not ltf_map:
+            return await strategy_engine._prepare_indicators(data)
+        from app.services.indicators.overlays_zone_exit_mtf import (
+            clear_zone_exit_ltf_context,
+            set_zone_exit_ltf_context,
+        )
+        for label, candles in ltf_map.items():
+            set_zone_exit_ltf_context(candles, label)
+        try:
+            return await strategy_engine._prepare_indicators(data)
+        finally:
+            clear_zone_exit_ltf_context()
+
     async def _simulate_with_strategy(
         self,
         symbol: str,
@@ -321,7 +458,12 @@ class BacktestEngine:
             else:
                 strategy_config_obj = StrategyConfigSchema(**config.strategy_config)
                 strategy_engine = StrategyEngine(strategy_config_obj)
-                full_calculated_data = await strategy_engine._prepare_indicators(data)
+                # ✅ ZONE-EXIT-LTF1 — فريم أدق حقيقي لهيكل الخروج (إن طُلب):
+                # جلب شموع الفريم الأدق من طبقة البيانات وتسجيلها في سياق
+                # المؤشر قبل حساب الأعمدة، ومسحها بعده (try/finally). غياب
+                # الطلب ⇒ النداء الأصلي مباشرة بت-بت (لا أي فرق إطلاقاً).
+                full_calculated_data = await self._prepare_indicators_with_ltf_exit(
+                    symbol, config, data, strategy_engine)
                 strategy_engine.full_data = full_calculated_data
 
             render_data = {}
@@ -368,6 +510,13 @@ class BacktestEngine:
         trade_id = None
         sl_price = 0.0
         tp_price = 0.0
+        # ✅ ZONE-EXIT-ARM1 — الأطراف التراكمية منذ الدخول (لبوابة تفعيل قاعدة
+        # الخروج بعد ربح X% فوق سعر الدخول): أقصى قمة/أدنى قاع لشموع ما بعد
+        # فتح الصفقة. تُحدّثان كل شمعة قبل مرحلة التحليل، وتُمرّران ضمن
+        # position_context للمحرك الاستراتيجي. غياب بوابة arm_after_gain_pct
+        # في القواعد ⇒ لا تأثير إطلاقاً (بت-بت).
+        arm_high_since_entry = 0.0
+        arm_low_since_entry = 0.0
         cumulative_pnl = 0.0
         account_balance = initial_capital
 
@@ -393,7 +542,7 @@ class BacktestEngine:
         trail_peak = 0.0  # قمة التريلينق للمركز الأساسي (تبدأ من سعر الدخول)
 
         # ✅ R55 — السقف الرقمي للمراكز المتزامنة (max_positions من الجذر):
-        # None أو 1 = السلوك التاريخي بت-بت (مركز واحد)، 2..10 = إشارة جديدة
+        # None أو 1 = السلوك التاريخي بت-بت (مركز واحد)، 2..100 = إشارة جديدة
         # والمراكز المفتوحة < N ⇒ مركز إضافي مستقل بإدارة مخاطر كاملة.
         # ✅ R60 — وضع التراكم (compounding): مركز واحد فقط إجبارياً —
         # طلب المستخدم الحرفي: «اذا النضام في صفقه ما يقدر يفتح صفقه جديده
@@ -660,6 +809,16 @@ class BacktestEngine:
                 and pending_decision.metadata.get("trigger") == "exit_rule"
             )
 
+            # ✅ SMART-EXIT1 — «إغلاق الخاسر فقط» (طلب صاحب القرار: النظام الذكي
+            # يطلع من الصفقات الخاسرة): عند True تُغلق هذه الإشارة المراكز
+            # الخاسرة عند سعر التنفيذ فقط (الرابحة تركب — مع تجاوب الكل عند
+            # انعكاس الإشارة). افتراضياً False ⇒ دلالات الإغلاق الكامل بت-بت.
+            exit_only_losing = bool(
+                exit_signal_triggered
+                and isinstance(getattr(pending_decision, "metadata", None), dict)
+                and pending_decision.metadata.get("only_losing") is True
+            )
+
             target_state = 'NEUTRAL'
             
             if pending_decision:
@@ -679,6 +838,19 @@ class BacktestEngine:
                 (target_state != 'NEUTRAL' and current_state != 'NEUTRAL' and current_state != target_state)
                 or exit_signal_triggered
             )
+            # ✅ SMART-EXIT1 — الرئيسي الرابح لا يُغلق بإشارة «الخاسر فقط»
+            # (الانعكاس يحتفظ بدلالته الكاملة). الإضافية الخاسرة تُغلق في
+            # الفرع elif أدناه حتى لو بقي الرئيسي مفتوحاً.
+            _smart_keep_primary = bool(
+                exit_only_losing
+                and not (target_state != 'NEUTRAL' and current_state != 'NEUTRAL' and current_state != target_state)
+                and (
+                    (current_state == 'LONG' and entry_price < open_price)
+                    or (current_state == 'SHORT' and entry_price > open_price)
+                )
+            )
+            if _smart_keep_primary:
+                should_close_position = False
             if should_close_position:
                 execution_price = open_price
                 
@@ -733,6 +905,12 @@ class BacktestEngine:
                 # (كل التعرض لاتجاه الاستراتيجية يُقفل عند خروجها)
                 _x_reason_root = f"{exit_reason} (additional position)"
                 for _xp in list(extra_positions):
+                    # ✅ SMART-EXIT1 — الإضافية الرابحة تركب عند «الخاسر فقط»
+                    if exit_only_losing and (
+                        (_xp['direction'] == 'LONG' and _xp['entry_price'] < execution_price)
+                        or (_xp['direction'] == 'SHORT' and _xp['entry_price'] > execution_price)
+                    ):
+                        continue
                     _x_size = _xp['position_size']
                     if _xp['direction'] == 'LONG':
                         _x_pnl = (execution_price - _xp['entry_price']) * _x_size
@@ -771,9 +949,66 @@ class BacktestEngine:
                     extra_positions.remove(_xp)
 
             # فتح مركز جديد (✅ R58: لا دخول برصيد ≤ 0 — الحساب المفلس لا يتداول)
+            # ✅ SMART-EXIT1 — الرئيسي الرابح فبقي مفتوحاً (should_close=False):
+            # المراكز الإضافية الخاسرة تُغلق مع ذلك بمنطوق القاعدة ذاتها عند
+            # سعر تنفيذ الشمعة نفسه (نمط المحاكاة المعتمدة بت-بت).
+            elif _smart_keep_primary and extra_positions:
+                _sx_exec = open_price
+                _x_reason_root = (
+                    f"Exit Signal: {executed_decision.reason} "
+                    f"(additional position · losers-only)"
+                    if executed_decision else "Exit Signal (additional position · losers-only)"
+                )
+                for _xp in list(extra_positions):
+                    if (
+                        (_xp['direction'] == 'LONG' and _xp['entry_price'] < _sx_exec)
+                        or (_xp['direction'] == 'SHORT' and _xp['entry_price'] > _sx_exec)
+                    ):
+                        continue
+                    _x_size = _xp['position_size']
+                    if _xp['direction'] == 'LONG':
+                        _x_pnl = (_sx_exec - _xp['entry_price']) * _x_size
+                    else:
+                        _x_pnl = (_xp['entry_price'] - _sx_exec) * _x_size
+                    _x_inv = _xp['entry_price'] * _x_size
+                    _x_pct = (_x_pnl / _x_inv) * 100 if _x_inv else 0
+                    _net_x = self._close_trade_logic(
+                        trades, _xp['trade_id'], _sx_exec, current_time,
+                        _x_reason_root, _x_pnl, _x_pct, config,
+                    )
+                    account_balance += _net_x
+                    cumulative_pnl += _net_x
+                    equity_curve.append(account_balance)
+                    extra_exits_bar.append({
+                        "timestamp": current_time,
+                        "type": "exit",
+                        "trade_id": _xp['trade_id'],
+                        "price": float(_sx_exec),
+                        "exit_price": float(_sx_exec),
+                        "exit_reason": _x_reason_root,
+                        "pnl": float(_net_x),
+                        "pnl_percentage": float(_x_pct),
+                        "entry_price": float(_xp['entry_price']),
+                        "position_size": float(_x_size),
+                        "position_type": _xp['direction'].lower(),
+                        "stop_loss": None,
+                        "take_profit": None,
+                        "commission": 0.0,
+                        "fill_entry": fill_model_str,
+                        "fill_exit": fill_model_str,
+                        "direction": _xp['direction'].lower(),
+                        "symbol": symbol,
+                        "position_kind": "additional",
+                    })
+                    extra_positions.remove(_xp)
+
             if target_state != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:
                 entry_price = open_price
                 entry_time = current_time
+                # ✅ ZONE-EXIT-ARM1 — بدء الأطراف التراكمية من سعر تنفيذ الدخول
+                # (قمة/قاع شمعة الدخول نفسها تُحتسب بعد الدخول عند open — مشروعة)
+                arm_high_since_entry = entry_price
+                arm_low_since_entry = entry_price
                 
                 # ✅ R58 — دلالة موحّدة: percentage=1 ⇒ 1% فعلاً (كانت تُفهم 100%)
                 risk_amount = account_balance * _risk_frac
@@ -1099,6 +1334,17 @@ class BacktestEngine:
                     extra_positions.remove(_xp)
 
             # ==========================================================
+            # ✅ ZONE-EXIT-ARM1 — تحديث الأطراف التراكمية منذ الدخول (قبل
+            # مرحلة التحليل): قمة/قاع الشمعة الحالية يُحتسبان لأنهما وقعا
+            # قبل إغلاقها (القرار يُتخذ عند الإغلاق — لا استشراف).
+            # ==========================================================
+            if current_state != 'NEUTRAL' and entry_price > 0:
+                if high_price > arm_high_since_entry:
+                    arm_high_since_entry = high_price
+                if low_price < arm_low_since_entry:
+                    arm_low_since_entry = low_price
+
+            # ==========================================================
             # المرحلة 3: التحليل (Strategy Analysis)
             # ==========================================================
             # ✅ السطر الذهبي: نمرر البيانات الكاملة + رقم الشمعة الحالية
@@ -1109,10 +1355,21 @@ class BacktestEngine:
                 t0 = time.perf_counter()
                 # ✅ تمرير حالة المركز: قواعد الخروج تُقيَّم فقط مع مركز مفتوح،
                 # وقواعد الدخول تُقيَّم دائماً (للسماح بانعكاس الاتجاه LONG↔SHORT)
+                # ✅ ZONE-EXIT-ARM1 — سياق المركز (اختياري) لبوابة تفعيل الخروج
+                # بعد ربح X%: يُبنى فقط عند وجود مركز فعلي مفتوح.
+                _position_ctx = None
+                if current_state != 'NEUTRAL' and entry_price > 0:
+                    _position_ctx = {
+                        "entry_price": float(entry_price),
+                        "direction": str(current_state),
+                        "peak_high_since_entry": float(arm_high_since_entry),
+                        "bottom_low_since_entry": float(arm_low_since_entry),
+                    }
                 decision = await strategy_engine.run(
                     strategy_engine.full_data,
                     current_index=i,
                     in_position=(current_state != 'NEUTRAL'),
+                    position_context=_position_ctx,
                 )
                 elapsed = time.perf_counter() - t0
                 t_strategy += elapsed
@@ -1246,6 +1503,10 @@ class BacktestEngine:
                 if target_state_sc != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:  # ✅ R58
                     entry_price = fill_price_sc
                     entry_time = current_time
+                    # ✅ ZONE-EXIT-ARM1 — بدء الأطراف التراكمية من سعر التنفيذ
+                    # (إغلاق الشمعة — قمة/قاع الشمعة نفسها سبقا التنفيذ فلا يُحتسبان)
+                    arm_high_since_entry = entry_price
+                    arm_low_since_entry = entry_price
 
                     risk_amount_sc = account_balance * _risk_frac  # ✅ R58 — دلالة موحّدة
                     position_size = risk_amount_sc / entry_price if entry_price else 0.0
@@ -1933,6 +2194,60 @@ class BacktestEngine:
 
 
 
+    @staticmethod
+    def _capital_deployed_stats(trades: List[Trade]) -> Dict[str, Any]:
+        """✅ R74 — إحصاءات رأس المال المُنشر فعلاً (أساس النسبة الدقيق).
+
+        أحداث فتح/إغلاق الصفقات تُرتب زمنياً (الإغلاق قبل الفتح داخل نفس
+        اللحظة — نفس دلالات بوابة التزامن في المحرك: المركز الذي أُغلق في
+        الشمعة يحرر رأسه قبل فتح مركز جديد فيها)، والمجموع الجاري لأحجام
+        الصفقات المفتوحة يعطي:
+          • peak_deployed_usd  — أقصى رأس مال دخل صفقات في نفس اللحظة
+            (رأس المال العامل الحقيقي — «المبلغ الذي تداول فعلاً»). الصفقة
+            غير المغلقة (إن وجدت) تُحسب منشورة حتى نهاية البيانات.
+          • total_invested_usd — مجموع مبالغ الدخول عبر كل الصفقات
+            (إجمالي المبالغ التي دخلت في الصفقات — ليس رأس مال محجوزاً).
+        """
+        events: List[Tuple[float, int, float]] = []
+        total_invested = 0.0
+        sized_trades = 0
+        for tr in trades:
+            try:
+                if tr.entry_time is None or tr.entry_price is None or tr.position_size is None:
+                    continue
+                invested = abs(float(tr.entry_price) * float(tr.position_size))
+                if invested <= 0:
+                    continue
+                sized_trades += 1
+                total_invested += invested
+                try:
+                    t_in = float(tr.entry_time.timestamp())
+                except (TypeError, ValueError, OSError):
+                    t_in = 0.0
+                events.append((t_in, 1, invested))
+                if tr.exit_time is not None:
+                    try:
+                        t_out = float(tr.exit_time.timestamp())
+                    except (TypeError, ValueError, OSError):
+                        t_out = t_in
+                else:
+                    t_out = float("inf")
+                events.append((t_out, 0, -invested))
+            except Exception:  # noqa: BLE001 — إحصاء عرَضي لا يكسر النتيجة
+                continue
+        events.sort(key=lambda e: (e[0], e[1]))
+        running = 0.0
+        peak = 0.0
+        for _t, _phase, delta in events:
+            running += delta
+            if running > peak:
+                peak = running
+        return {
+            "peak_deployed_usd": round(peak, 6),
+            "total_invested_usd": round(total_invested, 6),
+            "sized_trades": sized_trades,
+        }
+
     async def _create_backtest_result(
         self,
         config: BacktestConfig,
@@ -1956,6 +2271,40 @@ class BacktestEngine:
         final_capital = equity_curve[-1] if equity_curve else config.initial_capital
         total_pnl = final_capital - config.initial_capital
         total_pnl_percent = (total_pnl / config.initial_capital * 100) if config.initial_capital > 0 else 0
+
+        # ✅ R74 — أساس النسبة الدقيق (طلب صاحب القرار — الجلسة الختامية):
+        # «الرصيد الذي ما دخل صفقات قط (بلا إشارات له) لا يجوز أن يُخفّف
+        # النسبة» — مثاله: حساب 1000$ وصفقة 500$ ⇒ الربح ÷ 500 لا ÷ 1000.
+        # الأساس الجديد = أقصى رأس مال دخل صفقات متزامنة (peak deployed)
+        # **بسقف رأس المال الابتدائي**: إن كان الذروة أصغر من الحساب فالخامل
+        # (الفرق) استُبعد والنسبة على العامل فقط؛ وإن بلغ الذروة الحساب أو
+        # تجاوزه (أوضاع التراكم الكاملة) فالأساس = initial بت-بت — أرقام
+        # الأبطال التاريخية (#10000010: ‎+804.77%) محفوظة حرفياً. القيمة
+        # القديمة تبقى مرجعاً صريحاً في total_pnl_percent_on_initial، وكل
+        # الأرقام موثقة في math_audit.capital_deployed.
+        total_pnl_percent_on_initial = total_pnl_percent
+        cap_dep = self._capital_deployed_stats(trades)
+        peak_deployed = float(cap_dep.get("peak_deployed_usd") or 0.0)
+        # ✅ R74 — السقف عند رأس المال الابتدائي: الأرباح المعاد نشرها ليست
+        # «مالاً خاملاً» بل عوائد معاد استثمارها — لا تدخل في الأساس أبداً.
+        deployed_basis_r74 = (
+            min(peak_deployed, float(config.initial_capital))
+            if peak_deployed > 0 else 0.0
+        )
+        if deployed_basis_r74 > 0:
+            total_pnl_percent = (total_pnl / deployed_basis_r74 * 100.0)
+        capital_deployed_view: Dict[str, Any] = {
+            **cap_dep,
+            "initial_capital_usd": float(config.initial_capital),
+            "percent_basis_usd": round(deployed_basis_r74, 6),
+            "idle_capital_usd": round(
+                max(0.0, float(config.initial_capital) - min(peak_deployed, float(config.initial_capital))), 6
+            ),
+            "percent_basis": (
+                "min(peak_deployed_usd, initial_capital) — R74"
+                if deployed_basis_r74 > 0 else "initial_capital (لا صفقات بحجم > 0)"
+            ),
+        }
 
         # ✅ الجولة 13 — التدقيق الحسابي الذاتي (math_audit) بعقد الدقة المتناهية:
         # الصيغة الصافية (بلا أي إشارة إلى commission/slippage — محذوفة من النظام نهائياً):
@@ -2032,6 +2381,14 @@ class BacktestEngine:
             # ✅ R55 — صدى سياسة المخاطر المطبّقة فعلاً + إحصاء التزامن:
             # شفافية كاملة (ما طُبّق من SL/TP/تريلينق/سقف مراكز ومن القيم)
             "risk_echo": self._build_risk_echo(config, trades),
+            # ✅ R74 — أساس النسبة الجديد + إحصاءات رأس المال المُنشر
+            "pnl_percent_basis": (
+                "total_pnl ÷ min(peak_deployed_usd, initial_capital) × 100 — R74 "
+                "(أقصى رأس مال دخل صفقات متزامنة بسقف الحساب — الخامل مستبعد)"
+                if deployed_basis_r74 > 0
+                else "initial_capital (لا صفقات بحجم > 0 — النسبة على الحساب)"
+            ),
+            "capital_deployed": capital_deployed_view,
             # ✅ R58 — أرضية الواقع المالي: هل صُفّي الحساب (رصيد ≤ 0)؟
             "account_liquidated": _r58_liquidated,
             # ✅ R58 — مقدار الخسارة المقطوعة عند التصفية (صفر إن لم تُصفَّ)
@@ -2098,7 +2455,9 @@ class BacktestEngine:
             initial_capital=config.initial_capital,
             final_capital=final_capital,
             total_pnl=total_pnl,
-            total_pnl_percent=total_pnl_percent,  # ★ الاسم الصحيح من schemas.py
+            total_pnl_percent=total_pnl_percent,  # ★ الاسم الصحيح من schemas.py — ✅ R74: على رأس المال المُنشر فعلاً (بسقف الحساب)
+            total_pnl_percent_on_initial=total_pnl_percent_on_initial,  # ✅ R74 — الأساس القديم مرجعاً
+            capital_deployed=capital_deployed_view,  # ✅ R74 — الذروة/الإجمالي/الخامل
             annual_return_percent=metrics.get('annual_return_percent', 0.0),
             
             # ★ العائد المعدل بالمخاطرة

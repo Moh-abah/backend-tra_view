@@ -1,0 +1,98 @@
+--- /home/z/my-project/trading-system/quantum-fix/merge_package/app/services/indicators/overlay_columns.py	2026-11-15 21:21:16.000000000 +0000
++++ app/services/indicators/overlay_columns.py	2026-11-16 13:36:18.616020299 +0000
+@@ -131,6 +131,12 @@
+     # بوابة المنطقة الكمومية (HH+HL يفتح · LL+LH يغلق ويخرج next_open).
+     "zigzag_fib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum",
+     "zzfib_e2e_trendy_quantum": "zzfib_e2e_trendy_quantum",
++    # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (Pine بحذافيره
++    # بلا استشراف — قابل للتخصيص من الواجهة، رسم الآن وشروط لاحقاً).
++    "mtf_ema": "mtf_ema",
++    "mtfema": "mtf_ema",
++    "multi_timeframe_ema": "mtf_ema",
++    "multi_timeframe_exponential_moving_average": "mtf_ema",
+     "trend_fractal": "trend_fractal",
+     "fractal_trendlines": "trend_fractal",
+ }
+@@ -139,6 +145,7 @@
+                        "zzfib_e2e_trendy", "zzfib_e2e_blazing",  # ✅ ROUND32 + 🔥 R69
+                        "zzfib_e2e_trendy_macd", "zzfib_e2e_blazing_macd",  # ✅ PRO73
+                        "zzfib_e2e_trendy_quantum",  # ✅ QUANTUM1 — الاستراتيجية الترندية الكمومية
++                       "mtf_ema",  # ✅ MTFEMA1 — MTF EMA متعدد الفريمات
+                        "trend_fractal")
+ 
+ # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
+@@ -317,6 +324,14 @@
+         "ind_zzfbm_tr_p15_upper", "ind_zzfbm_tr_p15_lower", "ind_zzfbm_tr_p15_bias",
+         "ind_zzfbm_tr_p25_upper", "ind_zzfbm_tr_p25_lower", "ind_zzfbm_tr_p25_bias",
+     ],
++    # ✅ MTFEMA1 — عقد «MTF EMA»: خط النسخة الأساسية + خط كل نسخة (ديناميكي
++    # حسب معرفات instances — البسيطة بلا instances معرفها "main").
++    # ملاحظة رسم: القيمة null أثناء الإحماء (أول length شرائط HTF) — عقد
++    # شموع الباك-تست: null لا مفقود.
++    "mtf_ema": [
++        "ind_mtfema_value",
++        # الديناميكية: ind_mtfema_<id> لكل نسخة (البسيطة: ind_mtfema_main)
++    ],
+     # ✅ ROUND32 — عقد مؤشر الترند المستقل: قيم الخطوط والانحياز والتقاطعات لكل فترة
+     # (ديناميكية حسب القالب — المذكور للفترات الافتراضية) + المجاميع والبوابة.
+     "trend_fractal": [
+@@ -595,6 +610,24 @@
+         zg = p.get("zone_gate")
+         if zg is not None:
+             out["zone_gate"] = zg
++    elif base == "mtf_ema":
++        # ✅ MTFEMA1 — MTF EMA: معاملات Pine بحذافيرها + النسخ المتعددة
++        # (instances — أي عدد نسخ لكل نسخة معاملاتها؛ البسيطة بلا instances
++        # = نسخة واحدة من المعاملات العلوية — نفس نمط osc_instances في PRO73).
++        ln_ = _num(("length", "ma_len", "len"), int)
++        if ln_ is not None:
++            out["length"] = max(1, ln_)
++        if "source" in p or "src" in p:
++            out["source"] = str(p.get("source", p.get("src")))
++        off_ = _num(("offset", "ma_offset", "plot_offset"), int)
++        if off_ is not None:
++            out["offset"] = off_
++        if "resolution" in p or "res" in p or "tf" in p or "timeframe" in p:
++            out["resolution"] = p.get(
++                "resolution", p.get("res", p.get("tf", p.get("timeframe"))))
++        ins_ = p.get("instances", p.get("mtf_instances"))
++        if ins_ is not None:
++            out["instances"] = ins_
+     elif base == "zzfib_e2e_blazing":
+         # 🔥 R69 — الملتهبة: نفس معاملات الترندية حرفياً (بوابة ترند على
+         # s1/s2/s3/n5/n6 — المحرك يطبّعها ويقبل n5/n6 إضافة إلى s1/s2/s3).
+@@ -1054,6 +1087,22 @@
+     return out
+ 
+ 
++def _mtfema_columns(mte: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """✅ MTFEMA1: نتيجة mtf_ema_engine → أعمدة ind_mtfema_* (mtfema_X → ind_mtfema_X).
++
++    «MTF EMA» — عقد تمايز ثامن: خط النسخة الأساسية ind_mtfema_value + خط كل
++    نسخة ind_mtfema_<id> (ديناميكي حسب معرفات instances — البسيطة "main").
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = mte.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("mtfema_"):
++            continue
++        out["ind_" + k] = vals if vals is not None else []
++    return out
++
++
+ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+     """نتيجة compute_overlays → أعمدة ind_* التعاقدية (فقط للأنواع المحسوبة)."""
+     out: Dict[str, List[Optional[float]]] = {}
+@@ -1106,6 +1155,11 @@
+     trf = ovl.get("trend_fractal")
+     if isinstance(trf, dict) and trf.get("series"):
+         out.update(_trf_columns(trf))
++    # ✅ MTFEMA1 — أعمدة MTF EMA (mtfema_X → ind_mtfema_X — خط النسخة
++    # الأساسية + خط كل نسخة)
++    mte = ovl.get("mtf_ema")
++    if isinstance(mte, dict) and mte.get("series"):
++        out.update(_mtfema_columns(mte))
+     return out
+ 
+ 

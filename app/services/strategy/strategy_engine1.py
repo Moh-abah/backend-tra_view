@@ -84,7 +84,7 @@ class StrategyEngine:
 
 
 
-    async def run(self, market_context: pd.DataFrame, current_index: int = None, in_position: bool = False) -> Decision:
+    async def run(self, market_context: pd.DataFrame, current_index: int = None, in_position: bool = False, position_context: Optional[Dict[str, Any]] = None) -> Decision:
         if market_context.empty or len(market_context) < 2:
             return self._create_hold_decision("Insufficient data")
 
@@ -111,15 +111,20 @@ class StrategyEngine:
             # التحقق من شروط الخروج — فقط عندما يوجد مركز مفتوح فعلاً
             # ✅ إصلاح: كان يُفحص الخروج حتى بدون مركز (NEUTRAL) فيُحجب تقييم
             # الدخول نهائياً عندما يبقى شرط الخروج صحيحاً (RSI=100 مثلاً)
+            # ✅ ZONE-EXIT-ARM1 — position_context (اختياري، من محرك الباك-تست):
+            # يحمل سعر الدخول واتجاه المركز وأقصى قمة/أدنى قاع منذ الدخول —
+            # تستخدمه بوابة arm_after_gain_pct لتفعيل قاعدة الخروج فقط بعد
+            # صعود السعر X% فوق سعر الدخول. غيابه (المسارات الأخرى/المعاينة)
+            # ⇒ البوابة معطّلة تلقائياً = السلوك التاريخي بت-بت.
             if in_position:
-                exit_reason = self._check_exit_conditions(df_clean, idx)
+                exit_reason = self._check_exit_conditions(df_clean, idx, position_context)
                 if exit_reason:
                     return Decision(
                         timestamp=df_clean.index[idx],
                         action=DecisionAction.HOLD,
                         confidence=1.0,
                         reason=f"Exit Condition: {exit_reason}",
-                        metadata={"trigger": "exit_rule"}
+                        metadata=self._exit_metadata()
                     )
             
             # التحقق من شروط الدخول
@@ -1316,15 +1321,75 @@ class StrategyEngine:
     #         logger.error(f"Indicator preparation failed: {e}")
     #         return data
 
-    def _check_exit_conditions(self, data: pd.DataFrame, index: int) -> Optional[str]:
+    def _check_exit_conditions(self, data: pd.DataFrame, index: int,
+                               position_context: Optional[Dict[str, Any]] = None) -> Optional[str]:
         if not self.config.exit_rules:
             return None
         for rule in self.config.exit_rules:
             if not rule.enabled:
                 continue
+            # ✅ ZONE-EXIT-ARM1 — قاعدة مؤطّرة ببوابة الربح لم تُفعّل بعد ⇒
+            # تُتخطى كأنها غير موجودة (لا إشارة خروج منها حتى التفعيل)
+            if not self._exit_rule_armed(rule, position_context):
+                continue
             if self._evaluate_rule_condition(rule.condition, data, index):
+                self._last_exit_rule = rule  # ✅ SMART-EXIT1 — للعلم «الخاسر فقط»
                 return rule.name
         return None
+
+    def _exit_metadata(self) -> Dict[str, Any]:
+        """بيانات قرار الخروج: المشغّل (العقد القديم بت-بت) + ✅ SMART-EXIT1 —
+        علم «إغلاق الخاسر فقط» إن ضبطته القاعدة (افتراضياً False ⇒ نفس
+        الدلالات القديمة حرفياً — لا مفتاح يُبث إطلاقاً)."""
+        md: Dict[str, Any] = {"trigger": "exit_rule"}
+        rule = getattr(self, "_last_exit_rule", None)
+        if rule is not None and bool(getattr(rule, "only_losing_positions", False)):
+            md["only_losing"] = True
+        return md
+
+    @staticmethod
+    def _exit_rule_armed(rule: "ExitRule",
+                         position_context: Optional[Dict[str, Any]]) -> bool:
+        """✅ ZONE-EXIT-ARM1 — هل قاعدة الخروج مفعّلة لهذه الصفقة؟
+
+        - arm_after_gain_pct غائبة/None/≤0 ⇒ True دائماً (السلوك التاريخي بت-بت).
+        - رقم > 0 ⇒ True فقط بعد صعود السعر X% على الأقل فوق سعر الدخول
+          منذ فتح الصفقة (اتجاه الحركة الرابحة: LONG قمة/SHORT قاع).
+          بعد التفعيل تبقى مفعّلة لبقية الصفقة (الأطراف منذ الدخول تراكمية
+          تصاعدياً/تنازلياً — لا يمكن «إلغاء التفعيل» بهبوط لاحق).
+        - غياب position_context أو نقصه ⇒ True (توافق خلفي صارم: أي مسار
+          لا يمرر السياق لا يتغير سلوكه إطلاقاً — فشل مفتوح مقصود).
+        """
+        pct = getattr(rule, "arm_after_gain_pct", None)
+        if pct is None or pct <= 0:
+            return True
+        if not position_context:
+            return True
+        try:
+            entry_price = position_context.get("entry_price")
+            if entry_price is None:
+                return True
+            entry_price = float(entry_price)
+            if entry_price <= 0.0:
+                return True
+            direction = str(position_context.get("direction") or "LONG").upper()
+            # تسامح نسبي ضئيل (1e-12) لشمولية «على الأقل X%» عند الحد بالضبط —
+            # دقة الفاصلة العائمة: 100×(1+10/100) = 110.00000000000001
+            _rel_tol = 1e-12
+            if direction == "SHORT":
+                low_since = position_context.get("bottom_low_since_entry")
+                if low_since is None:
+                    return True
+                _thr = entry_price * (1.0 - float(pct) / 100.0)
+                return float(low_since) <= _thr + abs(_thr) * _rel_tol
+            high_since = position_context.get("peak_high_since_entry")
+            if high_since is None:
+                return True
+            _thr = entry_price * (1.0 + float(pct) / 100.0)
+            return float(high_since) >= _thr - abs(_thr) * _rel_tol
+        except (TypeError, ValueError):
+            # دفاعي: أي خلل في السياق لا يكسر الخروج أبداً (فشل مفتوح)
+            return True
 
     def _determine_trend(self, data: pd.DataFrame, index: int) -> Decision:
         long_score = 0.0

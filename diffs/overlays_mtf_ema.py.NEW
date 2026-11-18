@@ -1,0 +1,556 @@
+# =============================================================================
+# ✅ MTFEMA1 — MTF EMA «المتوسط المتحرك الأسي متعدد الفريمات»
+# =============================================================================
+# مواصفة صاحب القرار (نقله الحرفي من Pine v5):
+#   //@version=5
+#   indicator("Multi Time Frame Exponential Moving Average",
+#             shorttitle="MTF EMA", overlay=true)
+#   ma_len    = input.int(title="Length", defval=100)
+#   src       = input.source(title="Source", defval=close)
+#   ma_offset = input.int(title="Offset", defval=0)
+#   res       = input.resolution(title="Resolution", defval="60")
+#   htf_ma    = ta.ema(src, ma_len)
+#   out       = request.security(syminfo.tickerid, res, htf_ma)
+#   plot(out, color=color.red, offset=ma_offset)
+#
+# ✅ هذه النسخة (بناء كامل قابل للتخصيص من الواجهة + بلا أي استشراف):
+#   1) السببية الصارمة (عقد النظام): قيمة الفريم الأعلى «المتاحة» عند شمعة
+#      القاعدة = آخر شريط HTF أُغلق عند لحظة ≤ إغلاق شمعة القاعدة فقط —
+#      الشريط النامي لا يُرى إطلاقاً (نفس عقد نواة الموشرات PRO73
+#      mtf_oscillator_core — أعيد استخدام رياضياتها حرفياً: المراسي،
+#      التجميع، EMA ببذرة SMA بنمط TradingView، والمحاذاة السببية).
+#      (ملاحظة عقد: رسم TradingView التاريخي يعيد «قيمة الشريط عند إغلاقه»
+#      على شموع الفترة كلها — وهو تطلّع مستقبلي في الباك-تست؛ نحن نرجع
+#      القيمة المؤكدة فقط — ما يراه المتداول الحي على الشارت الحي).
+#   2) القالبية الكاملة — لا أرقام داخل الكود:
+#        length     : طول EMA على الفريم الأعلى (افتراضي 100 كما في Pine)
+#        source     : مصدر السعر على شموع الفريم الأعلى — close (افتراضي
+#                     كما في Pine) / open / high / low / hl2 / hlc3 / ohlc4
+#        offset     : إزاحة الرسم بالشموع (Pine plot offset — موجبة فقط:
+#                     إزاحة يمين بصرية؛ السالبة تُصفَّر مع تحذير لأنها
+#                     تطلّع مستقبلي ممنوع بعقد السببية)
+#        resolution : فريم HTF بصيغة Pine — "60" (افتراضي) · "240" ·
+#                     "1"/"5"/"15"/"30" · "120"/"480"/"720" · "1S"/"5S"/"30S"
+#                     · "D"/"1D"/"2D"/"3D"/"5D" · "W"/"1W"/"2W" ·
+#                     "M"/"1M"/"3M"/"12M" — أو صيغ النظام 1m/5m/15m/1h/4h/
+#                     1d/2d/3d/1w/2w/1M — أي خطوة دقائق/ساعات/أيام مخصصة
+#                     أيضاً مقبولة (تُجمَّع بمرساة epoch).
+#   3) نسخ متعددة (جاهزة للمرحلة القادمة «الترندية الكمومية المتحركة» —
+#      بنفس نمط osc_instances في PRO73): instances = [
+#        {"id": "fast", "length": 21,  "resolution": "15"},
+#        {"id": "slow", "length": 100, "resolution": "240"},
+#        {"id": "day",  "length": 50,  "resolution": "D", "source": "hlc3"},
+#      ] — أي عدد نسخ، لكل نسخة معاملاتها الكاملة.
+#      بلا instances → نسخة واحدة من المعاملات العلوية (id="main").
+#   4) النسخة بفريم أدنى من فريم شموع القاعدة → غير متاحة (قيم None +
+#      تقرير why=tf_below_base — لا انهيار، مثل نواة الموشرات تماماً).
+#
+# العقد مع الفرونت (الأعمدة — كلها اختيارية القيمة عند الإحماء → null):
+#   ind_mtfema_value : خط النسخة الأساسية (المعاملات العلوية / أول نسخة
+#                      مفعلة عند التعدد) — عمود الرسم الافتراضي.
+#   ind_mtfema_<id>  : خط كل نسخة (mtfema_X → ind_mtfema_X — ديناميكي حسب
+#                      المعرفات؛ النسخة الضمنية معرفها "main" →
+#                      ind_mtfema_main = ind_mtfema_value بت-بت).
+# المرجع في الشروط (لاحقاً — جاهز الآن عبر جسر الحاسبة):
+#   indicator:mtf_ema:mtfema_value · indicator:mtf_ema:mtfema_<id>
+#
+# الأسماء: mtf_ema / mtfema / multi_timeframe_ema → base "mtf_ema"
+# (صفر تداخل مع أي محرك قائم — ملف جديد كلياً + إضافة تسجيل فقط).
+# =============================================================================
+
+from __future__ import annotations
+
+import logging
+import math
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+
+from app.services.indicators.zigzag_fib_core import norm_candles
+from app.services.indicators.mtf_oscillator_core import (
+    TF_REGISTRY,
+    TF_DURATIONS,
+    resample_ohlcv,
+    infer_base_step_ms,
+    _ema_sma_seed,
+)
+
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "mtf_ema_engine",
+    "MTF_EMA_ENGINE_NAME",
+    "MTF_EMA_SPEC",
+    "normalize_resolution",
+]
+
+# ---------------------------------------------------------------------------
+# هوية المحرك المنفصل (عقد تمايز كامل)
+# ---------------------------------------------------------------------------
+MTF_EMA_ENGINE_NAME = "MTF-EMA"
+MTF_EMA_SPEC = "MTFEMA1"
+
+_M_S = 1000
+_M_H = 60 * _M_S
+_DAY = 24 * 60 * _M_H
+_WEEK = 7 * _DAY
+
+_SOURCES = ("open", "high", "low", "close", "hl2", "hlc3", "ohlc4")
+
+
+def _clean_id(raw: Any, fallback: str) -> str:
+    """معرّف نسخة مطبّع: [A-Za-z0-9_] فقط (أسماء الأعمدة التعاقدية)."""
+    s = "".join(ch if (ch.isalnum() or ch == "_") else "_" for ch in str(raw or ""))
+    s = s.strip("_") or ""
+    return s[:40] if s else fallback
+
+
+def _tf_of_ms(ms: int, anchor: str) -> Optional[str]:
+    for k, d in TF_REGISTRY.items():
+        if int(d["ms"]) == ms and d.get("anchor") == anchor:
+            return k
+    return None
+
+
+def normalize_resolution(raw: Any) -> Dict[str, Any]:
+    """صيغة Pine للفريم → {tf, step_ms, anchor, label}.
+
+    tf = مفتاح نواة الموشرات (إن طابق) وإلا None مع step_ms/anchor مخصصين:
+      epoch (خطوة ثابتة) · monday (أسابيع بمرساة الاثنين) · month (أشهر
+      تقويمية — step_ms = عدد الأشهر).
+    حساسية حالة الأحرف (مطابقة Pine): "1M" شهر ≠ "1m" دقيقة ·
+    "3M" ثلاثة أشهر · "30" ثلاثون دقيقة (رقم مجرد = دقائق في Pine) ·
+    "6h" ست ساعات · "D"/"W"/"M"/"H" رموز مجردة.
+    """
+    if raw is None:
+        raw = "60"
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        minutes = float(raw)
+        if minutes <= 0:
+            return {"tf": "1h", "step_ms": _M_H, "anchor": "epoch",
+                    "label": "60"}
+        s = str(raw).strip()
+    else:
+        s = str(raw).strip()
+    if not s:
+        s = "60"
+
+    # (1) مفاتيح النظام كما هي (حساسة لحالة الأحرف: "1M" شهر ≠ "1m" دقيقة)
+    if s in TF_REGISTRY:
+        d = TF_REGISTRY[s]
+        return {"tf": s, "step_ms": int(d["ms"]),
+                "anchor": str(d["anchor"]), "label": s}
+
+    low = s.lower()
+
+    def _num(tok: str) -> Optional[float]:
+        try:
+            return float(tok)
+        except (TypeError, ValueError):
+            return None
+
+    # (2) رموز Pine المجردة: D يوم · W أسبوع · M شهر · H ساعة
+    if low == "d":
+        return {"tf": "1d", "step_ms": _DAY, "anchor": "epoch", "label": s}
+    if low == "w":
+        return {"tf": "1w", "step_ms": _WEEK, "anchor": "monday",
+                "label": s}
+    if low in ("m", "mo", "month"):
+        return {"tf": "1M", "step_ms": 0, "anchor": "month", "label": s}
+    if low == "h":
+        return {"tf": "1h", "step_ms": _M_H, "anchor": "epoch", "label": s}
+
+    # (3) لواحق رقمية — الحالة الأصلية للفصل بين أشهر Pine (M) ودقائق النظام (m)
+    if len(s) >= 2 and s[:-1].isdigit():
+        n = int(s[:-1])
+        suf = s[-1]
+        if n >= 1:
+            if suf == "S":  # ثوانٍ (Pine)
+                ms = n * _M_S
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "H":  # ساعات (Pine)
+                ms = n * _M_H
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "D":  # أيام (Pine)
+                ms = n * _DAY
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "W":  # أسابيع (Pine — مرساة الاثنين)
+                ms = n * _WEEK
+                k = _tf_of_ms(ms, "monday")
+                return {"tf": k, "step_ms": ms, "anchor": "monday",
+                        "label": s}
+            if suf == "M":  # أشهر تقويمية (Pine)
+                if n == 1:
+                    return {"tf": "1M", "step_ms": 0, "anchor": "month",
+                            "label": s}
+                return {"tf": None, "step_ms": n, "anchor": "month",
+                        "label": s}
+            if suf == "s":  # ثوانٍ بنمط النظام
+                ms = n * _M_S
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "m":  # دقائق بنمط النظام ("30m"="10m"...)
+                ms = n * _M_H
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "h":  # ساعات بنمط النظام ("6h"="12h"...)
+                ms = n * _M_H
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "d":  # أيام بنمط النظام
+                ms = n * _DAY
+                k = _tf_of_ms(ms, "epoch")
+                return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+            if suf == "w":  # أسابيع بنمط النظام
+                ms = n * _WEEK
+                k = _tf_of_ms(ms, "monday")
+                return {"tf": k, "step_ms": ms, "anchor": "monday",
+                        "label": s}
+
+    # (4) رقم مجرد = دقائق (نمط Pine: "60" = ساعة، "240" = 4 ساعات، "1" = دقيقة)
+    n = _num(low)
+    if n is not None and n > 0:
+        ms = int(n * _M_H)
+        k = _tf_of_ms(ms, "epoch")
+        return {"tf": k, "step_ms": ms, "anchor": "epoch", "label": s}
+
+    # غير معروف → الافتراضي 60 دقيقة (نمط Pine defval="60")
+    logger.warning("mtf_ema: resolution '%s' غير مفهوم — استخدم الافتراضي 60", s)
+    return {"tf": "1h", "step_ms": _M_H, "anchor": "epoch", "label": "60"}
+
+
+# ---------------------------------------------------------------------------
+# تجميع مخصص (خارج نطاق نواة الموشرات) — نفس رياضيات resample_ohlcv
+# ---------------------------------------------------------------------------
+def _resample_custom(t: np.ndarray, o: np.ndarray, h: np.ndarray, l: np.ndarray,
+                     c: np.ndarray, step_ms: int,
+                     anchor: str) -> Dict[str, np.ndarray]:
+    """تجميع OHLC لخطوة epoch ثابتة أو n أشهر تقويمية — بلا نظر مستقبلية.
+
+    يعيد: open_ms (زمن فتح الشريط) · close_ms (زمن إغلاقه) · OHLC —
+    نفس عقد resample_ohlcv لكن لخطوات غير مسجلة في نواة الموشرات
+    (2m/10m/20m/2h/6h/8h/12h/5D/3M/12M…).
+    """
+    n = len(t)
+    empty_i = np.zeros(0, dtype=np.int64)
+    empty_f = np.zeros(0, dtype=np.float64)
+    if n == 0:
+        return {"open_ms": empty_i, "close_ms": empty_i, "open": empty_f,
+                "high": empty_f, "low": empty_f, "close": empty_f}
+    if anchor == "month":
+        months = t.astype("datetime64[s]").astype("datetime64[M]")
+        keys = months.astype(np.int64) // step_ms  # n أشهر تقويمية
+        starts = np.concatenate(([0], np.nonzero(np.diff(keys))[0] + 1))
+        ends = np.concatenate((starts[1:], [n]))
+        open_ms = (keys[starts] * step_ms).astype(
+            "datetime64[M]").astype("datetime64[s]").astype(np.int64)
+        close_ms = ((keys[starts] + 1) * step_ms).astype(
+            "datetime64[M]").astype("datetime64[s]").astype(np.int64)
+    else:  # epoch ثابتة
+        keys = t // step_ms
+        starts = np.concatenate(([0], np.nonzero(np.diff(keys))[0] + 1))
+        ends = np.concatenate((starts[1:], [n]))
+        open_ms = keys[starts] * step_ms
+        close_ms = open_ms + step_ms
+    return {
+        "open_ms": open_ms.astype(np.int64),
+        "close_ms": close_ms.astype(np.int64),
+        "open": o[starts],
+        "high": np.maximum.reduceat(h, starts),
+        "low": np.minimum.reduceat(l, starts),
+        "close": c[ends - 1],
+    }
+
+
+def _htf_source_series(bars: Dict[str, np.ndarray], source: str) -> np.ndarray:
+    """سلسلة المصدر على شرائط HTF (Pine src — الافتراضي close)."""
+    s = str(source or "close").strip().lower()
+    if s == "open":
+        return bars["open"]
+    if s == "high":
+        return bars["high"]
+    if s == "low":
+        return bars["low"]
+    if s == "hl2":
+        return (bars["high"] + bars["low"]) / 2.0
+    if s == "hlc3":
+        return (bars["high"] + bars["low"] + bars["close"]) / 3.0
+    if s == "ohlc4":
+        return (bars["open"] + bars["high"] + bars["low"] + bars["close"]) / 4.0
+    return bars["close"]
+
+
+# ---------------------------------------------------------------------------
+# المحرك الرئيسي — MTF EMA (نسخ متعددة قالبية + سببية صارمة)
+# ---------------------------------------------------------------------------
+def mtf_ema_engine(
+    candles: Any,
+    length: int = 100,
+    source: str = "close",
+    offset: int = 0,
+    resolution: Any = "60",
+    instances: Any = None,
+) -> Dict[str, Any]:
+    """«المتوسط المتحرك الأسي متعدد الفريمات» — Pine MTF EMA بحذافيره.
+
+    المعاملات (بلا instances = نسخة واحدة منها):
+      length     : طول EMA على الفريم الأعلى (افتراضي 100 — كما في Pine).
+      source     : المصدر على شموع HTF — close/open/high/low/hl2/hlc3/ohlc4.
+      offset     : إزاحة الرسم يميناً بالشموع (Pine ma_offset — 0 افتراضياً).
+      resolution : فريم HTF بصيغة Pine ("60" افتراضياً — نفس defval Pine).
+      instances  : قائمة نسخ [{id, length, source, offset, resolution,
+                   enabled}] — أي عدد نسخ (نمط osc_instances في PRO73).
+
+    المخرجات: series {mtfema_value (النسخة الأساسية), mtfema_<id> لكل نسخة}
+    + تقارير instances (التوفر والسبب وأول قيمة) + current (القيم الحية).
+    """
+    t, o, h, l, c = norm_candles(candles)
+    N = len(c)
+    t_i = (np.asarray([int(x) for x in t], dtype=np.int64) if N
+           else np.zeros(0, dtype=np.int64))
+    o_f = (np.asarray([float(x) if x is not None else np.nan for x in o],
+                      dtype=np.float64) if N else np.zeros(0))
+    h_f = (np.asarray([float(x) if x is not None else np.nan for x in h],
+                      dtype=np.float64) if N else np.zeros(0))
+    l_f = (np.asarray([float(x) if x is not None else np.nan for x in l],
+                      dtype=np.float64) if N else np.zeros(0))
+    c_f = (np.asarray([float(x) if x is not None else np.nan for x in c],
+                      dtype=np.float64) if N else np.zeros(0))
+
+    base_step = infer_base_step_ms(t_i) if N else 60_000
+    base_tf = next((k for k, d in TF_DURATIONS.items()
+                    if int(d) == base_step), f"{base_step}ms")
+    # لحظة إغلاق شمعة القاعدة i (القيمة لا تُعرف قبلها — عقد السببية)
+    eval_ms = (t_i + base_step).astype(np.int64) if N else np.zeros(0, np.int64)
+
+    # ----------------------------- تطبيع النسخ -----------------------------
+    insts: List[Dict[str, Any]] = []
+    if instances:
+        raw_list = instances if isinstance(instances, (list, tuple)) else [instances]
+        for r in raw_list:
+            if not isinstance(r, dict):
+                r = {"resolution": r}
+            insts.append(r)
+    if not insts:
+        insts = [{"id": "main"}]  # نسخة واحدة ضمنية من المعاملات العلوية
+
+    norm_insts: List[Dict[str, Any]] = []
+    seen_ids: set = set()
+    for k, r in enumerate(insts):
+        rid = _clean_id(r.get("id") or r.get("label") or "", f"inst{k + 1}")
+        while rid in seen_ids:
+            rid = f"{rid}_{k + 1}"
+        seen_ids.add(rid)
+        try:
+            ln = int(float(r.get("length", r.get("ma_len", r.get("len", length)) or 100)))
+        except (TypeError, ValueError):
+            ln = 100
+        ln = max(1, ln)
+        src = str(r.get("source", r.get("src", source)) or "close").strip().lower()
+        if src not in _SOURCES:
+            src = "close"
+        try:
+            off = int(float(r.get("offset", r.get("ma_offset", offset)) or 0))
+        except (TypeError, ValueError):
+            off = 0
+        if off < 0:
+            logger.warning("mtf_ema: offset سالب (%s) للنسخة '%s' — تُصفَّر "
+                           "(تطلّع مستقبلي ممنوع بعقد السببية)", off, rid)
+            off = 0
+        reso = normalize_resolution(
+            r.get("resolution", r.get("res", r.get("tf", r.get(
+                "timeframe", resolution)))))
+        norm_insts.append({
+            "id": rid, "length": ln, "source": src, "offset": off,
+            "resolution": reso, "enabled": bool(r.get("enabled", True)),
+        })
+
+    warnings: List[str] = []
+    series: Dict[str, List[Optional[float]]] = {}
+    reports: List[Dict[str, Any]] = []
+    tf_cache: Dict[str, Dict[str, np.ndarray]] = {}
+
+    def _htf_bars(reso: Dict[str, Any]) -> Dict[str, np.ndarray]:
+        key = reso["label"]
+        if key not in tf_cache:
+            if reso["tf"] is not None:
+                tf_cache[key] = resample_ohlcv(t_i, o_f, h_f, l_f, c_f, None,
+                                               reso["tf"])
+            else:
+                tf_cache[key] = _resample_custom(
+                    t_i, o_f, h_f, l_f, c_f, int(reso["step_ms"]),
+                    str(reso["anchor"]))
+        return tf_cache[key]
+
+    def _map_to_base(vals: np.ndarray, close_ms: np.ndarray) -> np.ndarray:
+        """آخر شريط HTF مغلق فقط عند إغلاق شمعة القاعدة — searchsorted right."""
+        if N == 0 or len(vals) == 0:
+            return np.full(N, np.nan)
+        idx = np.searchsorted(close_ms, eval_ms, side="right") - 1
+        out = np.full(N, np.nan)
+        ok = idx >= 0
+        out[ok] = vals[idx[ok]]
+        return out
+
+    def _apply_offset(vals: np.ndarray, off: int) -> np.ndarray:
+        """إزاحة الرسم يميناً (Pine plot offset): قيمة الشمعة i من الشمعة i−off."""
+        if off <= 0 or N == 0:
+            return vals
+        out = np.full(N, np.nan)
+        if off < N:
+            out[off:] = vals[:N - off]
+        return out
+
+    first_enabled_id: Optional[str] = None
+    for inst in norm_insts:
+        rid = inst["id"]
+        if not inst["enabled"]:
+            series[f"mtfema_{rid}"] = [None] * N
+            reports.append({**inst, "available": False, "why": "disabled",
+                            "htf_bars": 0, "first_value_time": None})
+            continue
+        reso = inst["resolution"]
+        is_month = str(reso["anchor"]) == "month"
+        tf_ms = int(TF_DURATIONS.get(reso["tf"], 0) or 0) if reso["tf"] else 0
+        if not is_month:
+            eff_ms = tf_ms if tf_ms else int(reso["step_ms"])
+            if eff_ms and eff_ms < base_step:
+                warnings.append(
+                    f"النسخة '{rid}' (EMA {inst['length']} @ {reso['label']}): الفريم "
+                    f"أدنى من فريم شموع القاعدة ({base_tf}) — لا يمكن بناؤه من بيانات "
+                    f"أسمك؛ القيم None (مرر شموعاً أدق لبنائه)")
+                series[f"mtfema_{rid}"] = [None] * N
+                reports.append({**inst, "available": False,
+                                "why": "tf_below_base", "htf_bars": 0,
+                                "first_value_time": None})
+                continue
+
+        bars = _htf_bars(reso)
+        src_series = _htf_source_series(bars, inst["source"])
+        ema_htf = _ema_sma_seed(np.asarray(src_series, dtype=np.float64),
+                                int(inst["length"]))
+        mapped = _map_to_base(ema_htf, np.asarray(bars["close_ms"],
+                                                  dtype=np.int64))
+        mapped = _apply_offset(mapped, int(inst["offset"]))
+        jsonable: List[Optional[float]] = []
+        first_time = None
+        for i, v in enumerate(np.asarray(mapped, dtype=np.float64)):
+            fv = float(v)
+            ok = math.isfinite(fv)
+            jsonable.append(fv if ok else None)
+            if ok and first_time is None:
+                first_time = (t[i] if i < len(t) else None)
+        series[f"mtfema_{rid}"] = jsonable
+        if first_enabled_id is None:
+            first_enabled_id = rid
+        reports.append({**inst, "available": True, "why": None,
+                        "htf_bars": int(len(bars["close_ms"])),
+                        "first_value_time": first_time})
+
+    # العمود الأساسي = النسخة الأولى المتاحة (البسيطة: mtfema_main)
+    if first_enabled_id:
+        series["mtfema_value"] = list(series[f"mtfema_{first_enabled_id}"])
+    else:
+        series["mtfema_value"] = [None] * N
+
+    current: Dict[str, Any] = {}
+    if N:
+        for k, vals in series.items():
+            last = None
+            for v in reversed(vals):
+                if v is not None:
+                    last = float(v)
+                    break
+            if last is not None:
+                current[k] = last
+
+    return {
+        "name": "Multi Time Frame Exponential Moving Average (MTF EMA)",
+        "engine": MTF_EMA_ENGINE_NAME,
+        "spec": MTF_EMA_SPEC,
+        "params": {
+            "length": length, "source": str(source), "offset": int(offset),
+            "resolution": str(resolution), "instances": norm_insts,
+        },
+        "base_tf": base_tf,
+        "bars": int(N),
+        "window": {"from": t[0] if N else None, "to": t[-1] if N else None},
+        "series": series,
+        "instances": reports,
+        "current": current,
+        "notes": "MTF EMA — Pine MTF EMA بحذافيره بلا استشراف: قيمة الفريم "
+                 "الأعلى عند شمعة القاعدة = EMA آخر شريط HTF مغلق فقط (الشريط "
+                 "النامي لا يُرى) · EMA بنمط TradingView (بذرة SMA) · إزاحة "
+                 "الرسم يميناً فقط · نسخ متعددة عبر instances (نمط PRO73) "
+                 "للمرحلة القادمة. الأعمدة: ind_mtfema_value + ind_mtfema_<id>.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# ✅ التسجيل الذاتي كمؤشر منفصل — mtf_ema (يُستورد مرة واحدة من __init__)
+# ---------------------------------------------------------------------------
+def _register_mtf_ema_indicator() -> None:
+    try:
+        from .base import BaseIndicator, IndicatorResult, IndicatorType
+        from .registry import IndicatorRegistry
+        import pandas as pd
+
+        class MTFExponentialMovingAverageIndicator(BaseIndicator):
+            """MTF EMA — المتوسط الأسي متعدد الفريمات (رسم + جاهز للشروط)."""
+
+            @classmethod
+            def get_required_columns(cls):
+                return ["open", "high", "low", "close"]
+
+            def calculate(self, data: pd.DataFrame) -> IndicatorResult:
+                from .overlay_columns import config_to_overlay_params
+                conv = config_to_overlay_params({
+                    "name": "mtf_ema",
+                    "params": dict(self.params or {}),
+                }) or {"mtf_ema": {}}
+                params = conv.get("mtf_ema") or {}
+                res = mtf_ema_engine(data, **params)
+                values = res["series"].get("mtfema_value") or [None] * len(data)
+                series = pd.Series(values, index=data.index, dtype=object)
+                return IndicatorResult(
+                    name=self.name,
+                    values=series,
+                    signals=None,
+                    metadata={
+                        "engine": MTF_EMA_ENGINE_NAME,
+                        "overlay": "mtf_ema",
+                        "primary_column": "ind_mtfema_value",
+                        "available_columns": sorted(res["series"].keys()),
+                    },
+                )
+
+        IndicatorRegistry.register(
+            "mtf_ema",
+            display_name="MTF EMA — المتوسط المتحرك الأسي متعدد الفريمات",
+            description="EMA(length) على فريم أعلى (resolution) يُرسَم على فريم "
+                        "الاستراتيجية بلا أي استشراف (آخر شريط HTF مغلق فقط — "
+                        "الشريط النامي لا يُرى). معاملات Pine بحذافيرها: length "
+                        "(100) · source (close) · offset (0) · resolution "
+                        "(\"60\") — ونسخ متعددة عبر instances لكل نسخة "
+                        "معاملاتها (للمرحلة القادمة: بوابات الاستراتيجية "
+                        "المتحركة). العمود الأساسي ind_mtfema_value · كل نسخة "
+                        "ind_mtfema_<id>. الفريم الأدنى من فريم الشموع → قيم "
+                        "None مع تقرير (لا انهيار).",
+            category=IndicatorType.TREND,
+        )(MTFExponentialMovingAverageIndicator)
+
+        # مرادفات قصيرة — نفس الفئة
+        info = IndicatorRegistry._indicators.get("mtf_ema")
+        if info is not None:
+            IndicatorRegistry._indicators.setdefault("mtfema", info)
+            IndicatorRegistry._indicators.setdefault("multi_timeframe_ema", info)
+    except Exception:  # pragma: no cover — التسجيل لا يعطل المحرك أبداً
+        import logging as _lg
+        _lg.getLogger(__name__).exception(
+            "MTF EMA indicator registration failed")
+
+
+_register_mtf_ema_indicator()

@@ -232,6 +232,14 @@ async def _execute_backtest(config_dict: dict, task_ref=None, session_maker=None
                 "final_capital": result.final_capital,
                 "total_pnl": result.total_pnl,
                 "total_pnl_percent": result.total_pnl_percent,
+                # ✅ R74 — أساس النسبة الدقيق (رأس المال المُنشر فعلاً):
+                # النسبة الرئيسية أعلاه صارت ÷ min(الذروة المُنشرة، رأس المال
+                # الابتدائي) — الخامل مستبعد وأوضاع التراكم الكاملة بت-بت،
+                # والأساس القديم مرجع صريح + كتلة الذروة/الإجمالي/الخامل.
+                "total_pnl_percent_on_initial": getattr(
+                    result, "total_pnl_percent_on_initial", None
+                ),
+                "capital_deployed": getattr(result, "capital_deployed", None) or {},
                 "total_trades": result.total_trades,
                 "winning_trades": result.winning_trades,
                 "losing_trades": result.losing_trades,

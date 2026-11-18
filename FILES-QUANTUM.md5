@@ -1,0 +1,6 @@
+21bcde4844105d1b0f76aa64b05e9b40  app/services/indicators/overlays_zlf_e2e_trendy_quantum.py
+486b126f8ba218ccaa60182b80da4db6  app/services/indicators/overlays.py
+731aded9a3fdd66a05101abb90e143b4  app/services/indicators/overlay_columns.py
+ab69f2f721ca2ecd31ce13cfb32848d6  app/services/indicators/calculator.py
+7feb0953a027e74d9fac70838bc3df34  app/services/indicators/__init__.py
+324f70e1d28d9794f1e1f65a7f236f7c  app/services/strategy/presets.py

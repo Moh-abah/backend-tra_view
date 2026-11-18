@@ -375,7 +375,14 @@ def _schema_is_usable(schema: Optional[Dict[str, Any]]) -> bool:
 
 
 def _capture_df_schema(df) -> Optional[Dict[str, Any]]:
-    """التقاط مخطط الإطار: الأعمدة، الأنواع، والفهرس — لإعادة بناء مطابقة."""
+    """التقاط مخطط الإطار: الأعمدة، الأنواع، والفهرس — لإعادة بناء مطابقة.
+
+    ✅ TS-FIX-1970 — البعد الزمني إلزامي في المخطط المقبول: إطار بلا فهرس
+    زمني وبلا عمود زمني (بصمة كاش redis المسموم — فهرس رقمي 0..n) يعيد
+    None فيُعامَل كشكل غير معروف بدل التقاط مخطط بلا زمن يطرد عمود
+    time من سجلات جيدة عند إعادة البناء فيصل المحرك فهرساً رقمياً
+    يفسّره to_datetime كنانو-ثوانٍ منذ الحقبة (طوابع 1970 لكل الشموع).
+    """
     try:
         import pandas as pd
 
@@ -389,6 +396,11 @@ def _capture_df_schema(df) -> Optional[Dict[str, Any]]:
             if not new_cols:
                 return None
             index_col = str(new_cols[0])
+        # ✅ TS-FIX-1970 — مخطط بلا بعد زمني مرفوض (لا يُلتقط ولا يُخزَّن)
+        if not had_index:
+            work_cols_lower = {str(c).lower() for c in work.columns}
+            if not any(k in work_cols_lower for k in _TIME_KEYS):
+                return None
         return {
             "columns": [str(c) for c in work.columns],
             "dtypes": {str(c): str(work[c].dtype) for c in work.columns},
@@ -397,6 +409,16 @@ def _capture_df_schema(df) -> Optional[Dict[str, Any]]:
         }
     except Exception:  # noqa: BLE001
         return None
+
+
+def _schema_carries_time(schema: Optional[Dict[str, Any]]) -> bool:
+    """✅ TS-FIX-1970 — هل يحمل المخطط بعداً زمنياً (فهرساً أو عموداً)؟"""
+    if not schema:
+        return False
+    if schema.get("had_index") and schema.get("index_col"):
+        return True
+    dtypes = schema.get("dtypes") or {}
+    return any(str(k).lower() in _TIME_KEYS for k in dtypes)
 
 
 def _records_from_df(df) -> Optional[List[Dict[str, Any]]]:
@@ -411,10 +433,59 @@ def _records_from_df(df) -> Optional[List[Dict[str, Any]]]:
         return None
 
 
+def _recover_time_column(df, columns: List[str]):
+    """✅ TS-FIX-1970 — استرجاع مفتاح زمني موجود في السجلات خارج أعمدة المخطط.
+
+    مخطط بلا زمن (بصمة جلبٍ من كاش redis المسموم في إصدار سابق) كان يطرد
+    عمود time من سجلات جيدة عبر df[columns] فيصل الإطار فهرساً رقمياً.
+    يعيد اسم المفتاح الزمني الموجود فعلاً في الإطار والمفقود من الأعمدة،
+    أو None إن لم يوجد.
+    """
+    try:
+        if not columns:
+            return None
+        cols_set = {str(c) for c in columns}
+        for k in _TIME_KEYS:
+            if k in df.columns and k not in cols_set:
+                return k
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _to_datetime_plausible(series):
+    """تحويل عمود زمني (ISO أو epoch-ms) — None عند الفشل أو اللا معقولية.
+
+    «اللا معقولية» = كل الطوابع قبل 2000 — بصمة الأعداد الموضعية (0..n)
+    التي تفسّر كنانو-ثوانٍ فتولّد 1970 (منع إعادة السمّ من أي طريق).
+    """
+    import pandas as pd
+
+    try:
+        if pd.api.types.is_numeric_dtype(series):
+            vals = series.astype("float64")
+            vals = vals.where(vals > 1e11, vals * 1000.0)  # ثوانٍ ⇦ ميلي ثانية
+            t = pd.to_datetime(vals, unit="ms", utc=True, errors="coerce")
+        else:
+            t = pd.to_datetime(series, utc=True, errors="coerce")
+        if not t.notna().all():
+            return None
+        if len(t) and int(t.astype("int64").min()) < 946684800_000_000_000:
+            return None  # قبل 2000 — سمّ موضعي لا زمن حقيقي
+        return t
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _df_from_records(
     records: List[Dict[str, Any]], schema: Optional[Dict[str, Any]]
 ) -> Optional[Any]:
-    """إعادة بناء DataFrame بنفس أعمدة وأنواع وفهرس الأصل."""
+    """إعادة بناء DataFrame بنفس أعمدة وأنواع وفهرس الأصل.
+
+    ✅ TS-FIX-1970 — درع البعد الزمني: مفتاح زمني في السجلات خارج أعمدة
+    المخطط لا يُسقط أبداً — يُدرَج في الأعمدة ويُرفع فهرساً زمنياً عند
+    غياب فهرس المخطط (بدل تسليم فهرس رقمي يسمّم المحرك بطوابع 1970).
+    """
     if not schema:
         return None
     try:
@@ -422,6 +493,12 @@ def _df_from_records(
 
         df = pd.DataFrame(records)
         columns = schema.get("columns") or []
+        # ✅ TS-FIX-1970 — استرجاع أي مفتاح زمني يوشك المخطط على طرده
+        _recovered_time = _recover_time_column(df, columns)
+        if _recovered_time is not None:
+            columns = [_recovered_time] + [
+                c for c in columns if str(c) != _recovered_time
+            ]
         for c in columns:
             if c not in df.columns:
                 df[c] = None
@@ -445,6 +522,14 @@ def _df_from_records(
                 df[col] = pd.to_numeric(df[col], errors="coerce")
         if schema.get("had_index") and schema.get("index_col") in df.columns:
             df = df.set_index(schema["index_col"])
+            return df
+        # ✅ TS-FIX-1970 — لا فهرس في المخطط والسجلات تحمل زمناً مسترجَعاً
+        # ⇦ الفهرس الزمني منه (المخطط الأصلي فقد بُعده الزمني فنحميه هنا).
+        if _recovered_time is not None and _recovered_time in df.columns:
+            t = _to_datetime_plausible(df[_recovered_time])
+            if t is not None:
+                df = df.drop(columns=[_recovered_time])
+                df.index = pd.DatetimeIndex(t, name=_recovered_time)
         return df
     except Exception:  # noqa: BLE001
         return None
@@ -1013,12 +1098,36 @@ class CandleCacheService:
                 self._captured_schema,
                 (entry or {}).get("schema"),
             ]
-            schema = next((s for s in candidates if _schema_is_usable(s)), None)
+            # ✅ TS-FIX-1970 — المخطط الحامل للبعد الزمني يُقدَّم دائماً على
+            # المخطط بلا زمن (مخطط مسموم يطرد عمود time عند إعادة البناء)؛
+            # وإن لم يوجد حامل زمن فالدرع داخل _df_from_records يحمي الزمن.
+            schema = next(
+                (s for s in candidates
+                 if _schema_is_usable(s) and _schema_carries_time(s)),
+                None,
+            )
+            if schema is None:
+                schema = next((s for s in candidates if _schema_is_usable(s)), None)
             if not schema:
                 raise ValueError("missing df schema for namespace d")
             df = _df_from_records(out_records, schema)
             if df is None:
                 raise ValueError("df rebuild failed")
+            # ✅ TS-FIX-1970 — عقد الخروج: الإطار المسلَّم للمحرك يجب أن يحمل
+            # فهرساً زمنياً (أو عمود زمن) — إطار بلا بعد زمني يُرفض صراحة
+            # بدل تسليمه فهرساً رقمياً يفسّره المحرك طوابع 1970 (#10000378).
+            import pandas as _pd
+
+            _has_time = isinstance(
+                getattr(df, "index", None), _pd.DatetimeIndex
+            ) or any(
+                str(c).lower() in _TIME_KEYS for c in getattr(df, "columns", [])
+            )
+            if not _has_time:
+                raise ValueError(
+                    "df rebuild lost the time dimension — refusing to hand "
+                    "a time-less frame to the engine (TS-FIX-1970)"
+                )
             extra["_df"] = df
             result.extra = extra
         return result
