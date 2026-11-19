@@ -1,0 +1,140 @@
+--- basis/app/backtest/schemas.py	2026-11-16 22:24:00.000000000 +0000
++++ runtime/app/backtest/schemas.py	2026-11-19 11:40:12.373413812 +0000
+@@ -73,6 +73,47 @@
+     LONG = "long"
+     SHORT = "short"
+ 
++class TakeProfitSplit(BaseModel):
++    """✅ SPLIT-TP1 — مستوى واحد من مستويات «التيك بروفت المقسم» (جني جزئي).
++
++    طلب صاحب القرار الحرفي: «شروط مركبه للتيك بروفت المقسم ... بيع ربع
++    الكميه عند ارتفاع 5% وربع ثاني بعد 7% والباقي كذا كذا» — كل مستوى:
++
++      gain_percent : نسبة الارتفاع فوق سعر الدخول (LONG) / الهبوط تحته
++                    (SHORT) التي عند لمسها داخل الشمعة تُباع حصة فوراً
++                    عند سعر المستوى بالضبط (نفس دلالات which_high >= tp
++                    في التيبي الكامل — لمسة داخل الشمعة).
++      size_percent : نسبة الكمية التي تُباع عند هذا المستوى من الكمية
++                    الأصلية للمركز (ربع الكمية = 25). الباقي يبقى راكباً
++                    تحت تصرف بقية المخارج (exit_rules / SL / TP / التريلينق
++                    / نهاية البيانات) — «والباقي كذا كذا».
++
++    مستويات متعددة تُرتب تصاعدياً (gain أدنى أولاً) وتُنفذ كل واحدة مرة
++    واحدة لكل صفقة (Latch) — المستوى الأعلى لا يُشترط لمسُه قبله.
++    """
++    gain_percent: float = Field(..., gt=0.0, le=10000.0,
++                                description="نسبة الربح التي عند لمسها يُجنى المستوى (مثال: 5 = +5% فوق الدخول)")
++    size_percent: float = Field(..., gt=0.0, le=100.0,
++                                description="نسبة الكمية التي تُباع عند المستوى من الكمية الأصلية (ربع = 25)")
++    name: Optional[str] = Field(None, description="تسمية اختيارية للمستوى (تظهر في أسباب الخروج)")
++
++    @field_validator("gain_percent", "size_percent", mode="before")
++    @classmethod
++    def _coerce_numeric(cls, v):
++        """تطبيع دفاعي: نصوص رقمية وأي عدد تُقبل (نفس فلسفة رقع الأنظمة السابقة)."""
++        if v is None:
++            return v
++        if isinstance(v, bool):
++            raise ValueError("قيمة غير رقمية")
++        if isinstance(v, str):
++            s = v.strip()
++            try:
++                return float(s)
++            except ValueError:
++                raise ValueError(
++                    f"قيمة غير رقمية '{v}' — استخدم رقماً (مثال: 5 أو 25)")
++        return v
++
+ class Trade(BaseModel):
+     """صفقة تداول"""
+     id: str
+@@ -108,6 +149,11 @@
+     pnl_gross: Optional[float] = None         # = pnl دائماً (بلا خصم)
+     fill_entry: Optional[str] = None          # next_open | signal_close
+     fill_exit: Optional[str] = None           # next_open | signal_close
++    # ✅ SPLIT-TP1 — سجل الجني المقسم للصفقة (فارغ/None للصفقات غير المجزأة):
++    # كل حدث {time, gain_percent, size_percent, size_sold, price, pnl,
++    # remaining_size} — يُملأ عند كل جني جزئي ويُسلّم كاملاً عند الختام.
++    # pnl الصفقة = إجمالي (جني مقسم + الختامي على المتبقي) — عقد الشفافية.
++    partial_exits: Optional[List[Dict[str, Any]]] = None
+ 
+     pnl_percent: Optional[float] = Field(None, alias="pnl_percent")
+     class Config:
+@@ -278,6 +324,77 @@
+     stop_loss_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+     # take_profit_percent: عدم الإرسال أو 0 = تعطيل جني الربح
+     take_profit_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
++    # ✅ SPLIT-TP1 — «التيك بروفت المقسم» (جني جزئي متعدد المستويات):
++    # قائمة مستويات [{gain_percent, size_percent}, ...] — كل مستوى عند لمس
++    # الربح gain% يبيع size% من الكمية الأصلية عند سعر المستوى، والباقي
++    # يبقى راكباً تحت تصرف بقية المخارج. غياب الحقل/قائمة فارغة ⇒ الميزة
++    # معطلة والسلوك التاريخي بت-بت (لا مفتاح يُبث في risk_echo إطلاقاً).
++    # مثال طلب صاحب القرار: ربع عند +5% ثم ربع عند +7% ⇒
++    #   "take_profit_splits": [{"gain_percent": 5, "size_percent": 25},
++    #                           {"gain_percent": 7, "size_percent": 25}]
++    take_profit_splits: Optional[List[TakeProfitSplit]] = Field(
++        None,
++        description="SPLIT-TP1 — مستويات الجني المقسم: كل مستوى يبيع نسبة من "
++                    "الكمية عند لمس نسبة ربح محددة (ربع عند +5% · ربع عند +7% ...) "
++                    "والباقي يبقى لبقية المخارج.",
++    )
++
++    @model_validator(mode="before")
++    @classmethod
++    def accept_split_tp_pairs(cls, data: Any) -> Any:
++        """SPLIT-TP1 — قبول أشكال مريحة لكل مستوى (توافق الفرونت):
++
++        • [5, 25] / (5, 25)  → {gain_percent: 5, size_percent: 25}
++        • {"5": 25} (dict)   → مستوى واحد
++        • الشكل القانوني {gain_percent, size_percent} يمر كما هو.
++        أي شكل آخر غير مفهوم يُرفض برسالة عربية واضحة (لا تجاهل صامت).
++        """
++        if not isinstance(data, dict) or "take_profit_splits" not in data:
++            return data
++        raw = data.get("take_profit_splits")
++        if raw is None:
++            return data
++        if isinstance(raw, dict):
++            raw = [raw]
++        if not isinstance(raw, (list, tuple)):
++            raise ValueError(
++                "take_profit_splits يجب أن تكون قائمة مستويات "
++                '[{"gain_percent": 5, "size_percent": 25}, ...]')
++        out: List[Any] = []
++        for it in raw:
++            if isinstance(it, dict) and "gain_percent" in it or (
++                    isinstance(it, dict) and "size_percent" in it):
++                out.append(it)
++            elif isinstance(it, (list, tuple)) and len(it) == 2:
++                out.append({"gain_percent": it[0], "size_percent": it[1]})
++            elif isinstance(it, dict) and len(it) == 1:
++                (k, v), = it.items()
++                out.append({"gain_percent": k, "size_percent": v})
++            else:
++                raise ValueError(
++                    "مستوى جني مقسم غير مفهوم: " + repr(it) +
++                    ' — الشكل القانوني: {"gain_percent": 5, "size_percent": 25} '
++                    "أو الزوج [5, 25])")
++        d = dict(data)
++        d["take_profit_splits"] = out
++        return d
++
++    @model_validator(mode="after")
++    def validate_split_tp_total(self):
++        """SPLIT-TP1 — مجموع أحجام المستويات لا يتجاوز 100% من الكمية
++        الأصلية (رفع صريح 422 برسالة عربية — لا قصّ صامت عند الحد).
++        """
++        splits = getattr(self, "take_profit_splits", None)
++        if splits:
++            total = 0.0
++            for lvl in splits:
++                total += float(lvl.size_percent)
++            if total > 100.0 + 1e-9:
++                raise ValueError(
++                    "مجموع أحجام مستويات التيك بروفت المقسم = "
++                    f"{total:.4f}% > 100% من الكمية الأصلية — لا يمكن بيع أكثر "
++                    "من الكمية. صحّح الأحجام (مثال: 25+25+50 = 100).")
++        return self
+     # ✅ R55 — التريلينق من الجذر يعمل فعلياً في المحرك الرئيسي (engine1)
+     # ويُلغي SL/TP عند تفعيله (نفس دلالات محرك الخروج الموحد).
+     # السقف مرفوع من 10 إلى 50 — كان يرفض 20% بـ422.

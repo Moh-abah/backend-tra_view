@@ -45,6 +45,10 @@ class StrategyEngine:
         # مجموعة بيانات (فحص هوية مثل full_data).
         self._ind_dict_cache_data = None
         self._ind_dict_cache: Dict[str, Any] = {}
+        # ✅ R77 — صدى أقسام الموشرات (osc echo) من الأنبوب: يقرؤه محرك
+        # الباك-تست ليكتبه في summary.math_audit.momentum_gate (عقد
+        # التقرير الكامل — FRONTEND-AGENT-BRIEF-QMOM1 §3ب).
+        self.indicator_sections: Dict[str, Any] = {}
 
     # async def run(self, market_context: pd.DataFrame) -> Decision:
     #     if market_context.empty or len(market_context) < 2:
@@ -1023,7 +1027,20 @@ class StrategyEngine:
                     nm = str(getattr(c, 'name', '') or '')
                     if nm and not is_known_indicator_name(nm):
                         logger.warning("unknown_indicator=%s — غير مسجل في السجل ولا في مؤشرات البنية — سيُتجاهل", nm)
-                ovl_cols = columns_for_configs(data, ovl_configs)
+                # ✅ R77 (عقد التقرير الكامل): نطلب مع الأعمدة أقسام الموشرات
+                # (osc echo — عدادات البوابة + التحذيرات + حالات النسخ) ونخزنها
+                # على المحرك كي يصل صدى بوابة الزخم إلى نتيجة الباك-تست
+                # (summary.math_audit.momentum_gate) بدل ضياعه داخل الأنبوب.
+                try:
+                    ovl_cols, ovl_sections = columns_for_configs(
+                        data, ovl_configs, return_sections=True)
+                except TypeError:  # نسخة overlay_columns أقدم (بلا الوسيط)
+                    ovl_cols = columns_for_configs(data, ovl_configs)
+                    ovl_sections = {}
+                if getattr(self, 'indicator_sections', None) is None:
+                    self.indicator_sections = {}
+                if ovl_sections:
+                    self.indicator_sections.update(ovl_sections)
                 if ovl_cols:
                     for _col, _vals in ovl_cols.items():
                         df[_col] = pd.Series(_vals, index=data.index, dtype=object)
@@ -1031,6 +1048,11 @@ class StrategyEngine:
                         "🧩 overlay ind_* columns injected: %d (%s)",
                         len(ovl_cols), ",".join(sorted(ovl_cols.keys())),
                     )
+                    if ovl_sections:
+                        logger.info(
+                            "🧩 overlay osc sections captured: %s",
+                            ",".join(sorted(ovl_sections.keys())),
+                        )
             except Exception:
                 logger.exception("overlay ind_* columns merger failed — متابعة بلا أعمدة البنية")
 

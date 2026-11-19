@@ -1,0 +1,9 @@
+# FILES-SPLIT-ZZ1.md5 — بصمات ملفات حزمة الدمج (SPLIT-ZZ1 + الشرط الخامس)
+# الأساس: backend-SPLIT-TP1-MERGE.zip المنشور الحي (2026-11-19)
+# التعديلات: 4 ملفات فقط — إضافات نقية فوق الأساس (هوية بت-بت عند الغياب)
+047f46e4dcac4bf0a442831f47371368  app/services/indicators/overlays_zone_exit_mtf.py
+c62b4ef87320776e69f81b98b6d4f272  app/backtest/schemas.py
+d4f93083bfcd4500df6d2163c35bae00  app/backtest/engine1.py
+121f3103e04f41e52446d54d7bbdd108  app/services/strategy/presets.py
+f746ff3032d70753d843a89b2afa869e  payloads/payload_qmom1_mmt_5cond.json
+576056590bd03fb3ab7a722bd30c9ff5  payloads/payload_qmom1_mmt_5cond_splitzz.json

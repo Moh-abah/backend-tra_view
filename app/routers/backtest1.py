@@ -1058,7 +1058,7 @@ async def get_chart_data(
 @router.get("/list")
 async def list_backtests(
     db: AsyncSession = Depends(get_db),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=100000),
     offset: int = Query(0, ge=0)
 ):
     """
@@ -1068,6 +1068,12 @@ async def list_backtests(
     chart_data (52-208MB لكل صف!) — الآن أعمدة العرض فقط (نفس الرد
     بالضبط). القياس الفعلي قبل الإصلاح: 2.9 ثانية لكل استدعاء مع
     تجميد كامل للنظام خلفه.
+
+    ✅ جولة المكتبة الكاملة (طلب صاحب القرار): سقف limit رُفع من
+    100 إلى 100000 — الآن يمكن طلب كل عمليات الباك-تست المخزنة
+    دفعة واحدة (مثال: /list?limit=100000). السلوك الافتراضي (20)
+    لم يتغير، والترقيم offset كما هو — تعديل إضافي نقي بلا أي تغيير
+    على القائم.
     """
     try:
         # الاستعلام عن الباك测试 مرتبة من الأحدث للأقدم
@@ -1318,9 +1324,16 @@ async def run_monte_carlo_simulation(
 # ==========================================
 @router.get("/tasks")
 async def list_task_registry(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=100000),
     offset: int = Query(0, ge=0),
     state: Optional[str] = Query(None, description="فلترة: PROGRESS | SUCCESS | FAILURE"),
+    fetch_all: bool = Query(
+        False,
+        alias="all",
+        description="✅ جولة المكتبة الكاملة (طلب صاحب القرار): "
+                    "all=true يرجع كل سجل العمليات دفعة واحدة "
+                    "(limit يُتجاوز ويُحسب من العدد الكلي للسجل)",
+    ),
 ):
     """قائمة كل عمليات الباك-تست (المنتهية والجارية) من السجل الدائم.
 
@@ -1329,16 +1342,32 @@ async def list_task_registry(
     ولقطتها السطحية (نسبة الربح/النجاح/عدد الصفقات) — كلها من قاعدة
     البيانات، تبقى بعد إعادة التشغيل، وتُسترجع أي عملية سابقة عبر
     GET /get/{backtest_id} بحقل backtest_id المرتبط.
+
+    ✅ جولة المكتبة الكاملة (طلب صاحب القرار — «جلب الباك-تستات كاملة
+    وليس آخر 200 فقط»):
+      * سقف limit رُفع من 200 إلى 100000 — يمكن الآن طلب أي عدد.
+      * معامل جديد all=true — يرجع السجل كاملًا دفعة واحدة بلا ترقيم
+        (يُحسب limit من العدد الكلي، بسقف أمان 100000).
+      * السلوك الافتراضي (limit=50) والترقيم offset كما هما بلا أي
+        تغيير — تعديل إضافي نقي فوق القائم، الطلبات القديمة تعمل
+        حرفيًا كما كانت (بما فيها limit=200 التي كانت السقف الأقصى).
     """
     from app.services.task_registry import TaskRegistry
 
     reg = TaskRegistry()
+    if fetch_all:
+        # العدد الكلي للسجل (مع فلترة state إن وُجدت) ثم دفعة واحدة
+        probe = await reg.list_tasks(limit=1, offset=0, state=state)
+        total = int((probe.get("stats") or {}).get("total") or 0)
+        limit = min(max(total, 1), 100000)
     result = await reg.list_tasks(limit=limit, offset=offset, state=state)
     # إثراء الجارية بـ ETA (متوسط تاريخي أو استقراء تقدم)
     enriched = []
     for row in result.get("data", []):
         enriched.append(await reg.enrich_live(row))
     result["data"] = enriched
+    if fetch_all:
+        result["all"] = True
     return result
 
 

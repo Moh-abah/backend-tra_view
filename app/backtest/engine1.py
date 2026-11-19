@@ -25,6 +25,102 @@ logger = logging.getLogger(__name__)
 MAX_WALK_FORWARD_WINDOWS = 20
 MAX_MONTE_CARLO_SIMULATIONS = 500
 
+# ✅ SPLIT-TP1 — إبسلون الكمية (لا بيع كسري هامشي)
+_EPS_SIZE = 1e-12
+
+
+def _normalize_split_tp_levels(config: "BacktestConfig") -> List[Dict[str, float]]:
+    """✅ SPLIT-TP1 — تطبيع مستويات «التيك بروفت المقسم» من التكوين.
+
+    take_profit_splits: [{gain_percent, size_percent}, ...] — كل مستوى عند
+    لمس السعر ربح gain% فوق سعر الدخول (LONG) / هبوطه تحته (SHORT) تُباع
+    size% من الكمية الأصلية عند سعر المستوى بالضبط (نفس دلالات لمسة
+    الشمعة في التيبي الكامل — high >= tp).
+
+    • غياب الحقل / قائمة فارغة ⇒ [] (الميزة معطلة — السلوك بت-بت).
+    • المستويات تُرتب تصاعدياً حسب gain (مستوى أعلى لا يُشترط لمسُه قبله).
+    • مجموع الأحجام > 100% يُرفض مسبقاً في schemas (422 عند الطلب) —
+      وهنا دفاعياً: كل جني يُقصّ إلى المتبقي المتاح (لا بيع فوق الكمية).
+    """
+    raw = getattr(config, "take_profit_splits", None)
+    if not raw:
+        return []
+    levels: List[Dict[str, float]] = []
+    for it in raw:
+        if isinstance(it, dict):
+            g = it.get("gain_percent")
+            s = it.get("size_percent")
+        else:
+            g = getattr(it, "gain_percent", None)
+            s = getattr(it, "size_percent", None)
+        try:
+            gf = float(g)
+            sf = float(s)
+        except (TypeError, ValueError):
+            continue
+        if gf > 0.0 and sf > 0.0:
+            levels.append({"gain": gf, "size_pct": sf})
+    levels.sort(key=lambda l: l["gain"])
+    return levels
+
+
+def _normalize_structure_split_rules(config: "BacktestConfig") -> List[Dict[str, Any]]:
+    """✅ SPLIT-ZZ1 — تطبيع قواعد «الخروج المقسم بانعكاس هيكل الزقزاق».
+
+    structure_split_exits: [{resolution, length, size_percent, enabled}, ...] —
+    كل قاعدة تحسب انعكاس هيكل الزقزاق (LL+LH) على فريمها (same = فريم
+    الشارت · فريم أدق (بيانات حقيقية) · فريم أعلى (تجميع صاعد)) وعند كل
+    انعكاس أثناء فتح الصفقة تُباع size% من الكمية الأصلية عند open
+    الشمعة التالية (Next-Open — نفس دلالات exit_rules).
+
+    • غياب الحقل / قائمة فارغة / قواعد كلها enabled=false ⇒ [] (الميزة
+      معطلة — السلوك بت-بت، لا مفتاح يُبث في risk_echo إطلاقاً).
+    • length الغائب ⇒ 100. length < 2 ⇒ 2 (دفاعي).
+    • القواعد المعطّلة (enabled=false) تُحذف هنا (محايدة كأنها غير موجودة).
+    """
+    raw = getattr(config, "structure_split_exits", None)
+    if not raw:
+        return []
+    rules: List[Dict[str, Any]] = []
+    for it in raw:
+        if isinstance(it, dict):
+            res = it.get("resolution")
+            size = it.get("size_percent")
+            ln = it.get("length")
+            en = it.get("enabled", True)
+            nm = it.get("name")
+        else:
+            res = getattr(it, "resolution", None)
+            size = getattr(it, "size_percent", None)
+            ln = getattr(it, "length", None)
+            en = getattr(it, "enabled", True)
+            nm = getattr(it, "name", None)
+        if en is False:
+            continue
+        try:
+            sf = float(size)
+        except (TypeError, ValueError):
+            continue
+        if not (sf > 0.0):
+            continue
+        try:
+            res_s = str(res or "same").strip().lower() or "same"
+        except Exception:  # noqa: BLE001 — تطبيع عرَضي
+            res_s = "same"
+        try:
+            ln_i = int(ln) if ln is not None else 100
+        except (TypeError, ValueError):
+            ln_i = 100
+        if ln_i < 2:
+            ln_i = 2
+        rules.append({
+            "resolution": res_s,
+            "length": ln_i,
+            "size_pct": sf,
+            "name": (str(nm) if nm else None),
+        })
+    return rules
+
 
 def _resolve_risk_fraction(config: "BacktestConfig") -> float:
     """✅ R58 — توحيد دلالات حجم المركز بين الواجهة والمحرك.
@@ -225,7 +321,12 @@ class BacktestEngine:
             trade_points_all = []
 
             current_capital = config.initial_capital
-            
+
+            # ✅ R77 — قناة صدى بوابة الزخم (لكل رمز على حدة): يملؤها
+            # _simulate_with_strategy من indicator_sections لمحرك الاستراتيجية،
+            # وتقرأها _create_backtest_result في math_audit.momentum_gate.
+            self._r77_osc_echo_by_symbol: Dict[str, Any] = {}
+
             for symbol, data in all_data.items():
  
                 symbol_trades, symbol_equity, symbol_visual_candles, symbol_trade_points = await self._simulate_with_strategy(
@@ -363,6 +464,126 @@ class BacktestEngine:
                     "سيُستخدم التقييد التاريخي", tf, symbol)
         return out
 
+    async def _compute_structure_split_events(
+        self,
+        symbol: str,
+        config: "BacktestConfig",
+        data: pd.DataFrame,
+        rules: List[Dict[str, Any]],
+    ) -> Tuple[List[Optional[List[float]]], List[Optional[Dict[str, Any]]]]:
+        """✅ SPLIT-ZZ1 — حساب أحداث انعكاس هيكل الزقزاق لكل قاعدة (بأطوال data).
+
+        لكل قاعدة (resolution/length):
+          · «same» أو فريم مساوٍ لفريم الشارت ⇒ compute_zone_exit_same —
+            نفس آلة الكمومية (زقزاق ترندي + آلة المنطقة) على شموع الشارت
+            مباشرة (مطابقة بت-بت لأحداث zone_exit الأصلية عند نفس العيار).
+          · فريم أعلى ⇒ compute_zone_exit_mtf (تجميع صاعد من شموع الشارت).
+          · فريم أدق ⇒ شموع حقيقية من طبقة البيانات (سياق
+            set_zone_exit_ltf_context حول الحساب فقط — بلا تسريب).
+        الفريمات الأدق المطلوبة تُجلب هنا مباشرة (هذا الحساب يجري داخل
+        _simulate_with_strategy بعد إعداد المؤشرات — خارج نافذة سياق
+        _prepare_indicators_with_ltf_exit) — كل الحساب داخل try/finally
+        يمسح السياق دائماً (لا حالة بين المهام/الرموز أبداً).
+
+        يرجع (أعلام الأحداث لكل قاعدة بأطوال شموع القاعدة، ميتا لكل قاعدة).
+        الفشل الدفاعي لقاعدة ⇒ (None, None) — المستدعي يسقطها بأعلام صفرية
+        (قاعدة ميتة — لا بيع جزئي منها، ولا كسر للمحرك أبداً).
+        """
+        from app.services.indicators.overlays_mtf_ema import _parse_resolution
+        from app.services.indicators.overlays_zone_exit_mtf import (
+            clear_zone_exit_ltf_context,
+            compute_zone_exit_mtf,
+            compute_zone_exit_same,
+            set_zone_exit_ltf_context,
+        )
+
+        chart_step: Optional[int] = None
+        try:
+            chart_step = _parse_resolution(str(config.timeframe)).get("step_ms")
+        except Exception:  # noqa: BLE001 — تحليل عرَضي
+            chart_step = None
+
+        # فريمات أدق مطلوبة (سياق بيانات حقيقية) — فقط للفريمات المفهومة
+        ltf_labels: List[str] = []
+        seen: set = set()
+        classified: List[Tuple[bool, str, int]] = []  # (is_same, label, step|None)
+        for r in rules:
+            res = str(r["resolution"])
+            if res == "same" or chart_step is None:
+                classified.append((True, "same", None))
+                continue
+            try:
+                info = _parse_resolution(res)
+                step = info.get("step_ms")
+                label = info.get("label") or res
+            except Exception:  # noqa: BLE001 — فريم غير مفهوم ⇒ دفاعي: same
+                logger.warning(
+                    "SPLIT-ZZ1: resolution '%s' غير مفهومة — القاعدة تُحسب على "
+                    "فريم الشارت نفسه (same) دفاعياً", res)
+                classified.append((True, "same", None))
+                continue
+            if step is not None and chart_step is not None and step == chart_step:
+                classified.append((True, "same", None))
+            else:
+                classified.append((False, label, step))
+                if (step is not None and chart_step is not None
+                        and step < chart_step and label not in seen):
+                    seen.add(label)
+                    ltf_labels.append(label)
+
+        # جلب شموع الفريمات الأدق الحقيقية + تسجيل السياق حول الحساب فقط
+        events_out: List[Optional[List[float]]] = []
+        meta_out: List[Optional[Dict[str, Any]]] = []
+        ltf_map: Dict[str, Any] = {}
+        if ltf_labels:
+            ltf_map = await self._fetch_zone_exit_ltf_candles(
+                symbol, config, ltf_labels)
+        for label, candles in ltf_map.items():
+            set_zone_exit_ltf_context(candles, label)
+        try:
+            for idx, r in enumerate(rules):
+                is_same, label, _step = classified[idx]
+                try:
+                    if is_same:
+                        zx = compute_zone_exit_same(
+                            data, length=int(r["length"]))
+                    else:
+                        zx = compute_zone_exit_mtf(
+                            data, resolution=label, length=int(r["length"]))
+                except Exception:  # noqa: BLE001 — لا تكسر المحرك أبداً
+                    logger.exception(
+                        "SPLIT-ZZ1: فشل حساب قاعدة الانعكاس %s (L%s) — القاعدة "
+                        "تُسقط دفاعياً", label, r["length"])
+                    events_out.append(None)
+                    meta_out.append({
+                        "resolution": label, "length": int(r["length"]),
+                        "dropped_reason": "compute_exception",
+                    })
+                    continue
+                if zx is None:
+                    events_out.append(None)
+                    meta_out.append({
+                        "resolution": label, "length": int(r["length"]),
+                        "dropped_reason": "compute_returned_none",
+                    })
+                    continue
+                events_out.append(list(zx["zone_exit"]))
+                meta_out.append({
+                    "resolution": (label if not is_same else
+                                  (zx.get("meta") or {}).get("resolution", "same")),
+                    "length": int(r["length"]),
+                    "size_percent": float(r["size_pct"]),
+                    "rule_label": (r.get("name") or
+                                   f"structure:{label}·L{int(r['length'])}"),
+                    "mode": "same" if is_same else "mtf",
+                    "events_total": int(sum(
+                        (v or 0.0) for v in zx["zone_exit"])),
+                    "meta": (zx.get("meta") or {}),
+                })
+            return events_out, meta_out
+        finally:
+            clear_zone_exit_ltf_context()
+
     async def _prepare_indicators_with_ltf_exit(
         self,
         symbol: str,
@@ -465,6 +686,21 @@ class BacktestEngine:
                 full_calculated_data = await self._prepare_indicators_with_ltf_exit(
                     symbol, config, data, strategy_engine)
                 strategy_engine.full_data = full_calculated_data
+                # ✅ R77 — التقاط صدى بوابة الزخم لهذا الرمز (قسم osc كامل):
+                # عدادات خام/نهائي/ممنوع + التحذيرات + حالات النسخ — يصل
+                # إلى math_audit.momentum_gate في النتيجة النهائية.
+                # (self-initializing: يعمل حتى لو لم يمرّ run_backest —
+                # استدعاء مباشر للدالة/اختبارات محلية.)
+                try:
+                    _echo_map = getattr(self, "_r77_osc_echo_by_symbol", None)
+                    if not isinstance(_echo_map, dict):
+                        _echo_map = {}
+                        self._r77_osc_echo_by_symbol = _echo_map
+                    _echo_map[symbol] = (
+                        getattr(strategy_engine, "indicator_sections", None) or {}
+                    ).get("zzfib_e2e_trendy_quantum_ema_mom") or None
+                except Exception:
+                    pass
 
             render_data = {}
             volume_bars_dict = {}
@@ -541,6 +777,56 @@ class BacktestEngine:
         trail_frac = (float(_trail_cfg) / 100.0) if trail_active else None
         trail_peak = 0.0  # قمة التريلينق للمركز الأساسي (تبدأ من سعر الدخول)
 
+        # ✅ SPLIT-TP1 — مستويات جني الربح المقسم (اختيارية — عزل نظيف):
+        # غيابها ⇒ [] ⇒ لا فرق بت-بت مع أي تكوين قائم (لا مفتاح يُبث إطلاقاً).
+        split_tp_levels: List[Dict[str, float]] = _normalize_split_tp_levels(config)
+        split_tp_active = bool(split_tp_levels)
+        # المستويات المعلقة للمركز الأساسي (نسخة مستقلة لكل صفقة) + الكمية
+        # المرجعية الأصلية (النسب تُحسب منها — الربع ربع الكمية الأصلية)
+        split_tp_pending: List[Dict[str, float]] = []
+        split_tp_original_size = 0.0
+
+        # ✅ SPLIT-ZZ1 — قواعد الخروج المقسم بانعكاس هيكل الزقزاق (اختيارية —
+        # عزل نظيف): غيابها ⇒ [] ⇒ لا فرق بت-بت مع أي تكوين قائم (لا مفتاح
+        # يُبث إطلاقاً). كل قاعدة: أحداث انعكاس (LL+LH) على فريمها + حصة
+        # تُباع من الكمية الأصلية عند كل انعكاس أثناء فتح الصفقة.
+        structure_split_rules: List[Dict[str, Any]] = _normalize_structure_split_rules(config)
+        structure_split_active = bool(structure_split_rules)
+        # لكل قاعدة فعّالة: أعلام أحداث الانعكاس بأطوال شموع القاعدة
+        # (1.0 عند شمعة الحدث — قرار إغلاق الشمعة، تنفيذ open التالية)
+        structure_split_events: List[Optional[List[float]]] = []
+        structure_split_meta: List[Optional[Dict[str, Any]]] = []
+        if structure_split_active:
+            try:
+                structure_split_events, structure_split_meta = (
+                    await self._compute_structure_split_events(
+                        symbol, config, data, structure_split_rules))
+            except Exception:  # noqa: BLE001 — لا تكسر المحرك أبداً
+                logger.exception(
+                    "SPLIT-ZZ1: فشل حساب أحداث انعكاس الهيكل — القواعد تُسقط "
+                    "دفاعياً (السلوك التاريخي يسود بت-بت)")
+                structure_split_rules = []
+                structure_split_active = False
+                structure_split_events = []
+                structure_split_meta = []
+            # قاعدة بلا أحداث صالحة = قاعدة ميتة (بلا بيع جزئي منها أبداً)
+            for _ri in range(len(structure_split_rules)):
+                _ev = structure_split_events[_ri]
+                if _ev is None or len(_ev) != len(data):
+                    structure_split_events[_ri] = [0.0] * len(data)
+                    structure_split_meta[_ri] = dict(
+                        structure_split_meta[_ri] or {},
+                        dropped_reason="compute_failed_or_length_mismatch")
+            _dead = all(
+                int(sum((v or 0.0) for v in structure_split_events[_ri])) == 0
+                for _ri in range(len(structure_split_rules))
+            ) if structure_split_rules else True
+            if _dead and structure_split_rules:
+                logger.warning(
+                    "SPLIT-ZZ1: لا أحداث انعكاس لأي قاعدة (%d قاعدة) على %s — "
+                    "لا بيع جزئي سيقع", len(structure_split_rules), symbol)
+
+
         # ✅ R55 — السقف الرقمي للمراكز المتزامنة (max_positions من الجذر):
         # None أو 1 = السلوك التاريخي بت-بت (مركز واحد)، 2..100 = إشارة جديدة
         # والمراكز المفتوحة < N ⇒ مركز إضافي مستقل بإدارة مخاطر كاملة.
@@ -585,6 +871,41 @@ class BacktestEngine:
                 f"(حتى {_multi_n} مراكز متزامنة، الحجم يتجدد بعد كل إقفال)"
                 if _multi_n is not None else None
             ),
+            # ✅ SPLIT-TP1 — صدى الجني المقسم (شفافية كاملة للفرونت والمكتبة)
+            "take_profit_splits": (
+                [{"gain_percent": float(l["gain"]), "size_percent": float(l["size_pct"])}
+                 for l in split_tp_levels] if split_tp_active else None),
+            "split_tp_active": bool(split_tp_active),
+            "split_tp_total_size_percent": (
+                float(sum(l["size_pct"] for l in split_tp_levels))
+                if split_tp_active else None),
+            "split_tp_semantics": (
+                "SPLIT-TP1: كل مستوى يبيع نسبته من الكمية الأصلية عند سعر"
+                " gain% (لمسة داخل الشمعة) — مرة واحدة لكل صفقة؛ الباقي يبقى"
+                " تحت تصرف بقية المخارج"
+                if split_tp_active else None),
+            # ✅ SPLIT-ZZ1 — صدى الخروج المقسم بانعكاس الهيكل (شفافية كاملة)
+            "structure_split_exits": (
+                [{"resolution": str(r["resolution"]),
+                  "length": int(r["length"]),
+                  "size_percent": float(r["size_pct"]),
+                  **({"name": str(r["name"])} if r.get("name") else {})}
+                 for r in structure_split_rules] if structure_split_active else None),
+            "structure_split_active": bool(structure_split_active),
+            "structure_split_total_size_percent": (
+                float(sum(r["size_pct"] for r in structure_split_rules))
+                if structure_split_active else None),
+            "structure_split_semantics": (
+                "SPLIT-ZZ1: كل قاعدة تحسب انعكاس هيكل الزقزاق (LL+LH) على "
+                "فريمها (same=فريم الشارت · أدق=بيانات حقيقية · أعلى=تجميع "
+                "صاعد) وعند كل انعكاس أثناء فتح الصفقة تُباع حصتها من الكمية "
+                "الأصلية عند open الشمعة التالية (Next-Open)؛ الكمية تنفد "
+                "بالقص الدفاعي والختام عند الاستنفاد سببه Structure Split "
+                "Exit (Full)"
+                if structure_split_active else None),
+            "structure_split_rules_meta": (
+                [dict(m) for m in structure_split_meta]
+                if structure_split_active else None),
         }
 
         # ✅ الجولة 12: نموذج التنفيذ المطبق فعلياً (next_open افتراضياً)
@@ -615,6 +936,7 @@ class BacktestEngine:
             nonlocal current_state, trade_id, entry_price, position_size
             nonlocal sl_price, tp_price, trail_peak, account_balance
             nonlocal cumulative_pnl, account_blown, _liquidation_truncated
+            nonlocal split_tp_pending, split_tp_original_size  # ✅ SPLIT-TP1
             if current_state != 'NEUTRAL' and trade_id:
                 _pnl_fc = ((price - entry_price) * position_size
                            if current_state == 'LONG'
@@ -627,6 +949,10 @@ class BacktestEngine:
                 account_balance += _net_fc
                 cumulative_pnl += _net_fc
                 equity_curve.append(account_balance)
+                # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                _fc_tot = _split_tp_display_totals(trade_id)
+                if _fc_tot:
+                    _net_fc, _pct_fc = _fc_tot[0], _fc_tot[1]
                 trade_points.append({
                     "timestamp": ts,
                     "type": "exit",
@@ -652,6 +978,7 @@ class BacktestEngine:
                 sl_price = 0.0
                 tp_price = 0.0
                 trail_peak = 0.0
+                split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
             for _xp in list(extra_positions):
                 _xs = _xp['position_size']
                 if _xp['direction'] == 'LONG':
@@ -666,6 +993,10 @@ class BacktestEngine:
                 account_balance += _xnet
                 cumulative_pnl += _xnet
                 equity_curve.append(account_balance)
+                # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                _fc_tot_x = _split_tp_display_totals(_xp['trade_id'])
+                if _fc_tot_x:
+                    _xnet, _xpct = _fc_tot_x[0], _fc_tot_x[1]
                 trade_points.append({
                     "timestamp": ts,
                     "type": "exit",
@@ -695,6 +1026,246 @@ class BacktestEngine:
                 equity_curve.append(0.0)
             if reason.startswith("Liquidation"):
                 account_blown = True
+
+        # ------------------------------------------------------------------
+        # ✅ SPLIT-TP1 — تشغيل مستويات الجني المقسم لمركز واحد عند الشمعة الحالية
+        # ------------------------------------------------------------------
+        def _fire_split_tp_levels(
+            pos_trade_id, direction, entry_price_val, size_now, original_size,
+            pending, ts, hi, lo,
+        ):
+            """يشغّل المستويات الملموسة هذه الشمعة (تصاعدياً — لمسة ⇐ بيع جزئي).
+
+            يُقيَّد الجني لحظة تنفيذه على كائن الصفقة نفسه (metadata.split_tp:
+            أحداث + رصيد محقق + المتبقي) — والختام لاحقاً في _close_trade_logic
+            يُسوّي pnl الصفقة إلى الإجمالي الكلي (جني مقسم + ختامي على المتبقي).
+
+            يرجع (الحجم الجديد، نقاط الجني المنفذة، هل استُنفد المركز كله،
+            سعر آخر مستوى جُني). أولوية داخل الشمعة: الستوب الحامي أولاً (يفحصه
+            المستدعي قبلنا) ثم الجني المقسم ثم التيبي الكامل على المتبقي.
+            """
+            nonlocal account_balance, cumulative_pnl
+            executed: List[Dict[str, Any]] = []
+            new_size = float(size_now)
+            fully_closed = False
+            last_trig = None
+            if not (pos_trade_id and pending):
+                return new_size, executed, fully_closed, last_trig
+            _orig = float(original_size) if original_size else float(size_now)
+            for lvl in list(pending):
+                g = float(lvl["gain"])
+                sp = float(lvl["size_pct"])
+                if direction == 'LONG':
+                    trig = entry_price_val * (1.0 + g / 100.0)
+                    touched = (hi is not None and hi >= trig)
+                else:
+                    trig = entry_price_val * (1.0 - g / 100.0)
+                    touched = (lo is not None and lo <= trig)
+                if not touched:
+                    break  # تصاعدي — ما بعده أعلى ولم يُلمس بعد
+                pending.remove(lvl)  # كل مستوى مرة واحدة لكل صفقة (Latch)
+                want = _orig * sp / 100.0
+                part = want if want < new_size else new_size  # لا بيع فوق المتاح
+                if part <= _EPS_SIZE:
+                    continue
+                if direction == 'LONG':
+                    p_pnl = (trig - entry_price_val) * part
+                else:
+                    p_pnl = (entry_price_val - trig) * part
+                new_size -= part
+                # ✅ التقييد على كائن الصفقة (المصدر الوحيد للحقيقة عند الختام)
+                for _tr in trades:
+                    if _tr.id == pos_trade_id:
+                        _md = _tr.metadata if isinstance(_tr.metadata, dict) else {}
+                        _st = _md.get("split_tp")
+                        if _st is None:
+                            _st = {
+                                "original_size": _orig,
+                                "realized_pnl": 0.0,
+                                "events": [],
+                                "levels_config": [
+                                    {"gain_percent": float(l["gain"]),
+                                     "size_percent": float(l["size_pct"])}
+                                    for l in split_tp_levels],
+                            }
+                            _md["split_tp"] = _st
+                        _st["realized_pnl"] = float(
+                            _st.get("realized_pnl") or 0.0) + p_pnl
+                        _st["remaining_size"] = float(new_size)
+                        _st["events"].append({
+                            "time": str(ts),
+                            "gain_percent": g,
+                            "size_percent": sp,
+                            "size_sold": float(part),
+                            "price": float(trig),
+                            "pnl": float(p_pnl),
+                            "remaining_size": float(new_size),
+                        })
+                        break
+                account_balance += p_pnl
+                cumulative_pnl += p_pnl
+                equity_curve.append(account_balance)
+                executed.append({
+                    "timestamp": ts,
+                    "type": "partial_exit",
+                    "trade_id": pos_trade_id,
+                    "price": float(trig),
+                    "exit_price": float(trig),
+                    "exit_reason": f"Split TP +{g:g}% ({sp:g}%)",
+                    "pnl": float(p_pnl),
+                    "pnl_percentage": (p_pnl / (entry_price_val * part) * 100.0)
+                                      if part else 0.0,
+                    "entry_price": float(entry_price_val),
+                    "position_size": float(part),
+                    "position_type": str(direction).lower(),
+                    "position_kind": "partial",
+                    "size_percent": float(sp),
+                    "gain_percent": float(g),
+                    "remaining_size": float(new_size),
+                    "remaining_percent_of_original": (
+                        float(new_size / _orig * 100.0) if _orig else 0.0),
+                    "stop_loss": None,
+                    "take_profit": None,
+                    "commission": 0.0,
+                    "fill_entry": fill_model_str,
+                    "fill_exit": fill_model_str,
+                    "direction": str(direction).lower(),
+                    "symbol": symbol,
+                })
+                last_trig = trig
+                if new_size <= _EPS_SIZE:
+                    fully_closed = True
+                    break
+            return new_size, executed, fully_closed, last_trig
+
+        def _split_tp_display_totals(pos_trade_id):
+            """✅ SPLIT-TP1 + ✅ SPLIT-ZZ1 — إجماليات العرض بعد الختام.
+
+            يرجع (pnl الكلي، pnl_percentage الكلي، الكمية الأصلية) من كائن
+            الصفقة بعد مصالحة _close_trade_logic — أو None إن لم تُجزأ الصفقة
+            بأي نوع من الجني الجزئي (split_tp و/أو structure_split)
+            (السلوك التاريخي بت-بت: المتغيرات المحلية تُستخدم كما هي).
+            """
+            if not pos_trade_id:
+                return None
+            for _tr in trades:
+                if _tr.id == pos_trade_id and _tr.exit_time is not None:
+                    _md = (_tr.metadata or {})
+                    _st_tp = _md.get("split_tp")
+                    _st_zz = _md.get("structure_split")
+                    _has_tp = bool(_st_tp and _st_tp.get("events"))
+                    _has_zz = bool(_st_zz and _st_zz.get("events"))
+                    if _has_tp or _has_zz:
+                        _orig = float(
+                            ((_st_tp or {}).get("original_size")
+                             or (_st_zz or {}).get("original_size")
+                             or _tr.position_size or 0.0))
+                        return (float(_tr.pnl or 0.0),
+                                float(_tr.pnl_percentage or 0.0),
+                                _orig)
+                    return None
+            return None
+
+        # ------------------------------------------------------------------
+        # ✅ SPLIT-ZZ1 — تشغيل بيع جزئي بانعكاس هيكل الزقزاق لمركز واحد
+        # ------------------------------------------------------------------
+        def _fire_structure_split_exit(
+            pos_trade_id, direction, entry_price_val, size_now,
+            original_size, rule, rule_idx, exec_price, ts,
+        ):
+            """يبيع حصة القاعدة (rule) من الكمية الأصلية عند exec_price.
+
+            يُستدعى من نقطة التنفيذ (open الشمعة) عند وجود حدث انعكاس مؤكد
+            على إغلاق الشمعة السابقة لأي قاعدة فعّالة — الحدث مرة واحدة
+            (علم الشمعة السابقة يُستهلك بمعالجتها). يُقيّد الجني لحظة تنفيذه
+            على كائن الصفقة نفسه (metadata.structure_split) والختام لاحقاً
+            في _close_trade_logic يُسوّي pnl الصفقة إلى الإجمالي الكلي.
+
+            يرجع (الحجم الجديد، نقطة الجني، هل استُنفد المركز كله).
+            """
+            nonlocal account_balance, cumulative_pnl
+            if not pos_trade_id:
+                return float(size_now), None, False
+            _orig = float(original_size) if original_size else float(size_now)
+            sp = float(rule["size_pct"])
+            want = _orig * sp / 100.0
+            part = want if want < float(size_now) else float(size_now)
+            if part <= _EPS_SIZE:
+                return float(size_now), None, False
+            new_size = float(size_now) - part
+            if direction == 'LONG':
+                p_pnl = (exec_price - entry_price_val) * part
+            else:
+                p_pnl = (entry_price_val - exec_price) * part
+            _res_label = str(rule["resolution"])
+            _len = int(rule["length"])
+            _rule_label = (rule.get("name") or
+                           f"{_res_label}·L{_len}")
+            # ✅ التقييد على كائن الصفقة (المصدر الوحيد للحقيقة عند الختام)
+            for _tr in trades:
+                if _tr.id == pos_trade_id:
+                    _md = _tr.metadata if isinstance(_tr.metadata, dict) else {}
+                    _sz = _md.get("structure_split")
+                    if _sz is None:
+                        _sz = {
+                            "original_size": _orig,
+                            "realized_pnl": 0.0,
+                            "events": [],
+                            "rules_config": [
+                                {"resolution": str(r["resolution"]),
+                                 "length": int(r["length"]),
+                                 "size_percent": float(r["size_pct"])}
+                                for r in structure_split_rules],
+                        }
+                        _md["structure_split"] = _sz
+                    _sz["realized_pnl"] = float(
+                        _sz.get("realized_pnl") or 0.0) + p_pnl
+                    _sz["remaining_size"] = float(new_size)
+                    _sz["events"].append({
+                        "time": str(ts),
+                        "resolution": _res_label,
+                        "length": _len,
+                        "rule": _rule_label,
+                        "size_percent": sp,
+                        "size_sold": float(part),
+                        "price": float(exec_price),
+                        "pnl": float(p_pnl),
+                        "remaining_size": float(new_size),
+                    })
+                    break
+            account_balance += p_pnl
+            cumulative_pnl += p_pnl
+            equity_curve.append(account_balance)
+            point = {
+                "timestamp": ts,
+                "type": "partial_exit",
+                "trade_id": pos_trade_id,
+                "price": float(exec_price),
+                "exit_price": float(exec_price),
+                "exit_reason": f"Structure Split {_rule_label} ({sp:g}%)",
+                "pnl": float(p_pnl),
+                "pnl_percentage": (p_pnl / (entry_price_val * part) * 100.0)
+                                  if part else 0.0,
+                "entry_price": float(entry_price_val),
+                "position_size": float(part),
+                "position_type": str(direction).lower(),
+                "position_kind": "partial",
+                "resolution": _res_label,
+                "length": _len,
+                "size_percent": float(sp),
+                "remaining_size": float(new_size),
+                "remaining_percent_of_original": (
+                    float(new_size / _orig * 100.0) if _orig else 0.0),
+                "stop_loss": None,
+                "take_profit": None,
+                "commission": 0.0,
+                "fill_entry": fill_model_str,
+                "fill_exit": fill_model_str,
+                "direction": str(direction).lower(),
+                "symbol": symbol,
+            }
+            fully_closed = new_size <= _EPS_SIZE
+            return new_size, point, fully_closed
 
         # متغيرات النموذج المتقدم (Pending Decision)
         pending_decision = None  # سيحمل القرار من الشمعة السابقة للتنفيذه الآن
@@ -758,6 +1329,8 @@ class BacktestEngine:
             # ✅ R55 — أحداث المراكز الإضافية في هذه الشمعة (دخول/خروج)
             extra_entries_bar: List[Dict[str, Any]] = []
             extra_exits_bar: List[Dict[str, Any]] = []
+            # ✅ SPLIT-TP1 — نقاط الجني المقسم لهذه الشمعة (المركز الأساسي + الإضافي)
+            split_exits_bar: List[Dict[str, Any]] = []
 
             # ✅ الجولة 12: بيانات الصفقة المغلقة محفوظة قبل التصفير — كانت
             # entry_price/position_size تعود 0.0 في نقاط الخروج (bug قديم)
@@ -892,6 +1465,13 @@ class BacktestEngine:
                 pnl_percentage = (net_pnl_closed / initial_investment) * 100 if initial_investment != 0 else 0
                 equity_curve.append(account_balance)
                 
+                # ✅ SPLIT-TP1 — مصالحة عرض الإجمالي (للعرض فقط — الرصيد صحيح)
+                _sp_tot_ex = _split_tp_display_totals(closed_trade_id)
+                if _sp_tot_ex:
+                    pnl = _sp_tot_ex[0]
+                    pnl_gross = _sp_tot_ex[0]
+                    pnl_percentage = _sp_tot_ex[1]
+                
                 # تصفير الحالة
                 current_state = 'NEUTRAL'
                 trade_id = None
@@ -900,6 +1480,8 @@ class BacktestEngine:
                 sl_price = 0.0
                 tp_price = 0.0
                 trail_peak = 0.0  # ✅ R55
+                split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                split_tp_original_size = 0.0
 
                 # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً
                 # (كل التعرض لاتجاه الاستراتيجية يُقفل عند خروجها)
@@ -925,6 +1507,10 @@ class BacktestEngine:
                     account_balance += _net_x
                     cumulative_pnl += _net_x
                     equity_curve.append(account_balance)
+                    # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                    _sx_tot_x = _split_tp_display_totals(_xp['trade_id'])
+                    if _sx_tot_x:
+                        _net_x, _x_pct = _sx_tot_x[0], _sx_tot_x[1]
                     extra_exits_bar.append({
                         "timestamp": current_time,
                         "type": "exit",
@@ -979,6 +1565,10 @@ class BacktestEngine:
                     account_balance += _net_x
                     cumulative_pnl += _net_x
                     equity_curve.append(account_balance)
+                    # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                    _sx_tot_k = _split_tp_display_totals(_xp['trade_id'])
+                    if _sx_tot_k:
+                        _net_x, _x_pct = _sx_tot_k[0], _sx_tot_k[1]
                     extra_exits_bar.append({
                         "timestamp": current_time,
                         "type": "exit",
@@ -1001,6 +1591,143 @@ class BacktestEngine:
                         "position_kind": "additional",
                     })
                     extra_positions.remove(_xp)
+
+            # ==============================================================
+            # ✅ SPLIT-ZZ1 — الخروج المقسم بانعكاس هيكل الزقزاق (نقطة التنفيذ):
+            # حدث انعكاس (LL+LH) أُكّد على إغلاق الشمعة السابقة (علم عند
+            # i-1) ⇒ عند open هذه الشمعة تُباع حصة القاعدة من الكمية
+            # الأصلية — نفس دلالات exit_rules القائمة (قرار إغلاق، تنفيذ
+            # Next-Open). الموقع: بعد معالجة خروج/انعكاس pending_decision —
+            # أي الخروج الكامل له أولوية على التقسيم (لو ستحصل الصفقة على
+            # خروج كامل بنفس الشمعة فلا معنى للبيع الجزئي عنده) وقبل فتح
+            # المراكز الجديدة (مركز لم يفتح بعد لا يُقسم على أحداث قبله).
+            # كل قاعدة مستقلة؛ الاستنفاد الكامل = ختام المركز عنده.
+            # ==============================================================
+            if structure_split_active and i > 0 and (
+                    current_state != 'NEUTRAL' or extra_positions):
+                _zz_prev = i - 1
+                _zz_hit_rules = [
+                    (_ri, _rl) for _ri, _rl in enumerate(structure_split_rules)
+                    if (structure_split_events[_ri][_zz_prev] or 0.0) > 0.5
+                ]
+                if _zz_hit_rules:
+                    # ---- (1) المركز الأساسي (إن نجا من خروج هذه الشمعة) ----
+                    if current_state != 'NEUTRAL' and trade_id and position_size > 0.0:
+                        for _ri, _rl in _zz_hit_rules:
+                            _nsz_z, _pt_z, _full_z = _fire_structure_split_exit(
+                                trade_id, current_state, entry_price,
+                                position_size,
+                                (split_tp_original_size or position_size),
+                                _rl, _ri, open_price, current_time)
+                            if _pt_z:
+                                split_exits_bar.append(_pt_z)
+                                position_size = _nsz_z
+                            if _full_z:
+                                # استنفاد كامل بالانعكاس المقسم = الختام نفسه
+                                _zz_inv = entry_price * max(position_size, 0.0)
+                                _zz_pnl = ((open_price - entry_price) * position_size
+                                           if current_state == 'LONG'
+                                           else (entry_price - open_price) * position_size)
+                                _zz_pct = ((_zz_pnl / _zz_inv) * 100.0
+                                           if _zz_inv else 0.0)
+                                exiting_trade = True
+                                pnl = _zz_pnl
+                                pnl_gross = _zz_pnl
+                                exit_price = open_price
+                                exit_reason = "Structure Split Exit (Full)"
+                                balance_before_exit = account_balance
+                                closed_trade_id = trade_id
+                                closed_position_type = current_state
+                                closed_entry_price = entry_price
+                                closed_entry_time = entry_time
+                                closed_sl = sl_price
+                                closed_tp = tp_price
+                                closed_size = max(position_size, 0.0)
+                                _zz_net = self._close_trade_logic(
+                                    trades, trade_id, open_price, current_time,
+                                    exit_reason, _zz_pnl, _zz_pct, config)
+                                account_balance += _zz_net
+                                cumulative_pnl += _zz_net
+                                pnl = _zz_net
+                                equity_curve.append(account_balance)
+                                # ✅ مصالحة عرض الإجمالي (جني مقسم + ختامي)
+                                _sz_tot = _split_tp_display_totals(closed_trade_id)
+                                if _sz_tot:
+                                    pnl = _sz_tot[0]
+                                    pnl_gross = _sz_tot[0]
+                                    pnl_percentage = _sz_tot[1]
+                                current_state = 'NEUTRAL'
+                                trade_id = None
+                                entry_price = 0.0
+                                position_size = 0.0
+                                sl_price = 0.0
+                                tp_price = 0.0
+                                trail_peak = 0.0
+                                split_tp_pending = []
+                                split_tp_original_size = 0.0
+                                pending_decision = None
+                                break  # المركز انتهى — لا قواعد بعده
+                    # ---- (2) المراكز الإضافية الناجية (كل مركز على حدة) ----
+                    if extra_positions:
+                        for _xp in list(extra_positions):
+                            if not (_xp['trade_id'] and _xp['position_size'] > 0.0):
+                                continue
+                            for _ri, _rl in _zz_hit_rules:
+                                _nsz_zx, _pt_zx, _full_zx = _fire_structure_split_exit(
+                                    _xp['trade_id'], _xp['direction'],
+                                    _xp['entry_price'], _xp['position_size'],
+                                    _xp.get('splits_original_size',
+                                            _xp['position_size']),
+                                    _rl, _ri, open_price, current_time)
+                                if _pt_zx:
+                                    split_exits_bar.append(_pt_zx)
+                                    _xp['position_size'] = _nsz_zx
+                                if _full_zx:
+                                    _zx_size = max(_xp['position_size'], 0.0)
+                                    if _xp['direction'] == 'LONG':
+                                        _zx_pnl = (open_price - _xp['entry_price']) * _zx_size
+                                    else:
+                                        _zx_pnl = (_xp['entry_price'] - open_price) * _zx_size
+                                    _zx_inv = _xp['entry_price'] * _zx_size
+                                    _zx_pct = ((_zx_pnl / _zx_inv) * 100.0
+                                               if _zx_inv else 0.0)
+                                    _zx_reason = ("Structure Split Exit (Full) "
+                                                  "(additional position)")
+                                    _zx_net = self._close_trade_logic(
+                                        trades, _xp['trade_id'], open_price,
+                                        current_time, _zx_reason, _zx_pnl,
+                                        _zx_pct, config)
+                                    account_balance += _zx_net
+                                    cumulative_pnl += _zx_net
+                                    equity_curve.append(account_balance)
+                                    _sx_tot_z = _split_tp_display_totals(
+                                        _xp['trade_id'])
+                                    if _sx_tot_z:
+                                        _zx_net, _zx_pct = (_sx_tot_z[0],
+                                                            _sx_tot_z[1])
+                                    extra_exits_bar.append({
+                                        "timestamp": current_time,
+                                        "type": "exit",
+                                        "trade_id": _xp['trade_id'],
+                                        "price": float(open_price),
+                                        "exit_price": float(open_price),
+                                        "exit_reason": _zx_reason,
+                                        "pnl": float(_zx_net),
+                                        "pnl_percentage": float(_zx_pct),
+                                        "entry_price": float(_xp['entry_price']),
+                                        "position_size": float(_zx_size),
+                                        "position_type": _xp['direction'].lower(),
+                                        "stop_loss": None,
+                                        "take_profit": None,
+                                        "commission": 0.0,
+                                        "fill_entry": fill_model_str,
+                                        "fill_exit": fill_model_str,
+                                        "direction": _xp['direction'].lower(),
+                                        "symbol": symbol,
+                                        "position_kind": "additional",
+                                    })
+                                    extra_positions.remove(_xp)
+                                    break
 
             if target_state != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:
                 entry_price = open_price
@@ -1076,6 +1803,11 @@ class BacktestEngine:
                 )
                 trades.append(trade)
 
+                # ✅ SPLIT-TP1 — تهيئة مستويات الجني المقسم للمركز الجديد
+                # (نسخة مستقلة لكل صفقة — كل مستوى يُجنى مرة واحدة)
+                split_tp_pending = [dict(_l) for _l in split_tp_levels]
+                split_tp_original_size = float(position_size)
+
                 # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي)
                 _open_now = 1 + len(extra_positions)
                 if _open_now > max_open_observed:
@@ -1135,6 +1867,7 @@ class BacktestEngine:
                     },
                 )
                 trades.append(_x_trade)
+                # ✅ SPLIT-TP1 — تهيئة مستويات الجني المقسم (مركز إضافي)
                 extra_positions.append({
                     'trade_id': _x_id,
                     'trade': _x_trade,
@@ -1145,6 +1878,8 @@ class BacktestEngine:
                     'sl_price': _x_sl,
                     'tp_price': _x_tp,
                     'trail_peak': _x_entry,  # قمة التريلينق تبدأ من سعر الدخول
+                    'splits_pending': [dict(_l) for _l in split_tp_levels],
+                    'splits_original_size': float(_x_size),
                 })
                 _open_now = (1 if current_state != 'NEUTRAL' else 0) + len(extra_positions)
                 if _open_now > max_open_observed:
@@ -1204,19 +1939,54 @@ class BacktestEngine:
                         exit_price = sl_price
                         exit_reason = "Stop Loss Hit"
                         stop_hit = True
-                    elif tp_active and high_price >= tp_price:
-                        exit_price = tp_price
-                        exit_reason = "Take Profit Hit"
-                        take_profit_hit = True
+                    else:
+                        # ✅ SPLIT-TP1 — الجني المقسم (جزئي) قبل التيبي الكامل:
+                        # الستوب الحامي فُحص أولاً (إن لمسه فلا جني — إغلاق كامل
+                        # عنده)؛ الآن المستويات الملموسة تُجنى جزئياً، وإن
+                        # استُنفدت الكمية كاملة بالجني فهو الختام نفسه.
+                        if (split_tp_active and split_tp_pending
+                                and position_size > 0.0 and entry_price > 0):
+                            _nsz, _pts, _full, _ltrig = _fire_split_tp_levels(
+                                trade_id, current_state, entry_price,
+                                position_size, split_tp_original_size,
+                                split_tp_pending, current_time,
+                                high_price, low_price)
+                            if _pts:
+                                split_exits_bar.extend(_pts)
+                                position_size = _nsz
+                            if _full:
+                                exit_price = _ltrig
+                                exit_reason = "Split TP Hit (Full)"
+                                take_profit_hit = True
+                        if (not take_profit_hit) and tp_active and high_price >= tp_price:
+                            exit_price = tp_price
+                            exit_reason = "Take Profit Hit"
+                            take_profit_hit = True
                 elif not trail_hit and current_state == 'SHORT':
                     if sl_active and high_price >= sl_price:
                         exit_price = sl_price
                         exit_reason = "Stop Loss Hit"
                         stop_hit = True
-                    elif tp_active and low_price <= tp_price:
-                        exit_price = tp_price
-                        exit_reason = "Take Profit Hit"
-                        take_profit_hit = True
+                    else:
+                        # ✅ SPLIT-TP1 — الجني المقسم (جزئي) — SHORT: ربح = هبوط
+                        if (split_tp_active and split_tp_pending
+                                and position_size > 0.0 and entry_price > 0):
+                            _nsz, _pts, _full, _ltrig = _fire_split_tp_levels(
+                                trade_id, current_state, entry_price,
+                                position_size, split_tp_original_size,
+                                split_tp_pending, current_time,
+                                high_price, low_price)
+                            if _pts:
+                                split_exits_bar.extend(_pts)
+                                position_size = _nsz
+                            if _full:
+                                exit_price = _ltrig
+                                exit_reason = "Split TP Hit (Full)"
+                                take_profit_hit = True
+                        if (not take_profit_hit) and tp_active and low_price <= tp_price:
+                            exit_price = tp_price
+                            exit_reason = "Take Profit Hit"
+                            take_profit_hit = True
                 
                 if stop_hit or take_profit_hit or trail_hit:
                     if current_state == 'LONG':
@@ -1250,6 +2020,16 @@ class BacktestEngine:
                     pnl_percentage = (net_pnl_closed / initial_investment) * 100 if initial_investment != 0 else 0
                     equity_curve.append(account_balance)
                     
+                    # ✅ SPLIT-TP1 — مصالحة عرض الإجمالي (للعرض فقط — الرصيد
+                    # حُدّث بالمتبقي الصحيح أعلاه؛ الجني أُضيف لحظة تنفيذه):
+                    # نقطة/شمعة الختام تعرض pnl الإجمالي (جني مقسم + ختامي)
+                    # وتبقي position_size = المتبقي المُغلق (اتساقاً مع نقاط الجني)
+                    _sp_tot = _split_tp_display_totals(closed_trade_id)
+                    if _sp_tot:
+                        pnl = _sp_tot[0]
+                        pnl_gross = _sp_tot[0]
+                        pnl_percentage = _sp_tot[1]
+                    
                     # تصفير المتغيرات
                     trade_id = None
                     entry_price = 0.0
@@ -1257,6 +2037,8 @@ class BacktestEngine:
                     sl_price = 0.0
                     tp_price = 0.0
                     trail_peak = 0.0  # ✅ R55
+                    split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                    split_tp_original_size = 0.0
                     
                     # ✅ تمت إزالة 'continue' للسماح بتسجيل البيانات البصرية للشمعة الحالية
                     # إذا أردت منع فتح صفقة جديدة في نفس الشمعة بعد إغلاق، يمكن إضافة flag هنا.
@@ -1278,6 +2060,22 @@ class BacktestEngine:
                     if _x_exit is None and sl_active and low_price <= _xp['sl_price']:
                         _x_exit = _xp['sl_price']
                         _x_reason = "Stop Loss Hit (additional position)"
+                    # ✅ SPLIT-TP1 — الجني المقسم للمركز الإضافي (بين الستوب
+                    # والتيبي — نفس أولوية المركز الأساسي داخل الشمعة)
+                    if (_x_exit is None and split_tp_active
+                            and _xp.get('splits_pending')):
+                        _nsz_x, _pts_x, _full_x, _ltrig_x = _fire_split_tp_levels(
+                            _xp['trade_id'], _xp['direction'], _xp['entry_price'],
+                            _xp['position_size'],
+                            _xp.get('splits_original_size', _xp['position_size']),
+                            _xp['splits_pending'], current_time,
+                            high_price, low_price)
+                        if _pts_x:
+                            split_exits_bar.extend(_pts_x)
+                            _xp['position_size'] = _nsz_x
+                        if _full_x:
+                            _x_exit = _ltrig_x
+                            _x_reason = "Split TP Hit (Full) (additional position)"
                     if _x_exit is None and tp_active and high_price >= _xp['tp_price']:
                         _x_exit = _xp['tp_price']
                         _x_reason = "Take Profit Hit (additional position)"
@@ -1291,6 +2089,21 @@ class BacktestEngine:
                     if _x_exit is None and sl_active and high_price >= _xp['sl_price']:
                         _x_exit = _xp['sl_price']
                         _x_reason = "Stop Loss Hit (additional position)"
+                    # ✅ SPLIT-TP1 — الجني المقسم للمركز الإضافي — SHORT
+                    if (_x_exit is None and split_tp_active
+                            and _xp.get('splits_pending')):
+                        _nsz_x, _pts_x, _full_x, _ltrig_x = _fire_split_tp_levels(
+                            _xp['trade_id'], _xp['direction'], _xp['entry_price'],
+                            _xp['position_size'],
+                            _xp.get('splits_original_size', _xp['position_size']),
+                            _xp['splits_pending'], current_time,
+                            high_price, low_price)
+                        if _pts_x:
+                            split_exits_bar.extend(_pts_x)
+                            _xp['position_size'] = _nsz_x
+                        if _full_x:
+                            _x_exit = _ltrig_x
+                            _x_reason = "Split TP Hit (Full) (additional position)"
                     if _x_exit is None and tp_active and low_price <= _xp['tp_price']:
                         _x_exit = _xp['tp_price']
                         _x_reason = "Take Profit Hit (additional position)"
@@ -1310,6 +2123,10 @@ class BacktestEngine:
                     account_balance += _net_x
                     cumulative_pnl += _net_x
                     equity_curve.append(account_balance)
+                    # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                    _sx_tot = _split_tp_display_totals(_xp['trade_id'])
+                    if _sx_tot:
+                        _net_x, _x_pct = _sx_tot[0], _sx_tot[1]
                     extra_exits_bar.append({
                         "timestamp": current_time,
                         "type": "exit",
@@ -1452,6 +2269,13 @@ class BacktestEngine:
                     pnl_percentage = (net_pnl_closed_sc / initial_investment_sc) * 100 if initial_investment_sc != 0 else 0
                     equity_curve.append(account_balance)
 
+                    # ✅ SPLIT-TP1 — مصالحة عرض الإجمالي (للعرض فقط)
+                    _sp_tot_sc = _split_tp_display_totals(closed_trade_id)
+                    if _sp_tot_sc:
+                        pnl = _sp_tot_sc[0]
+                        pnl_gross = _sp_tot_sc[0]
+                        pnl_percentage = _sp_tot_sc[1]
+
                     current_state = 'NEUTRAL'
                     trade_id = None
                     entry_price = 0.0
@@ -1459,6 +2283,8 @@ class BacktestEngine:
                     sl_price = 0.0
                     tp_price = 0.0
                     trail_peak = 0.0  # ✅ R55
+                    split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                    split_tp_original_size = 0.0
 
                     # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً (مسار signal_close)
                     _x_reason_root = f"{exit_reason} (additional position)"
@@ -1477,6 +2303,10 @@ class BacktestEngine:
                         account_balance += _net_x
                         cumulative_pnl += _net_x
                         equity_curve.append(account_balance)
+                        # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                        _sx_tot_sc = _split_tp_display_totals(_xp['trade_id'])
+                        if _sx_tot_sc:
+                            _net_x, _x_pct = _sx_tot_sc[0], _sx_tot_sc[1]
                         extra_exits_bar.append({
                             "timestamp": current_time,
                             "type": "exit",
@@ -1565,6 +2395,10 @@ class BacktestEngine:
                     )
                     trades.append(trade_sc)
 
+                    # ✅ SPLIT-TP1 — تهيئة مستويات الجني المقسم (مسار signal_close)
+                    split_tp_pending = [dict(_l) for _l in split_tp_levels]
+                    split_tp_original_size = float(position_size)
+
                     # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي — مسار signal_close)
                     _open_now = 1 + len(extra_positions)
                     if _open_now > max_open_observed:
@@ -1621,6 +2455,7 @@ class BacktestEngine:
                         },
                     )
                     trades.append(_x_trade)
+                    # ✅ SPLIT-TP1 — تهيئة مستويات الجني المقسم (إضافي — signal_close)
                     extra_positions.append({
                         'trade_id': _x_id,
                         'trade': _x_trade,
@@ -1631,6 +2466,8 @@ class BacktestEngine:
                         'sl_price': _x_sl,
                         'tp_price': _x_tp,
                         'trail_peak': _x_entry,
+                        'splits_pending': [dict(_l) for _l in split_tp_levels],
+                        'splits_original_size': float(_x_size),
                     })
                     _open_now = (1 if current_state != 'NEUTRAL' else 0) + len(extra_positions)
                     if _open_now > max_open_observed:
@@ -1667,6 +2504,7 @@ class BacktestEngine:
                 or (i % visual_step == 0)
                 or entering_trade or exiting_trade
                 or extra_entries_bar or extra_exits_bar  # ✅ R55 — شموع أحداث المراكز الإضافية دائماً مرئية
+                or split_exits_bar  # ✅ SPLIT-TP1 — شموع الجني المقسم دائماً مرئية
                 or i == 0 or i == len(data) - 1
             )
             if create_visual:
@@ -1819,6 +2657,11 @@ class BacktestEngine:
                         "symbol": symbol,
                     })
             
+                # ✅ SPLIT-TP1 — نقاط الجني المقسم لهذه الشمعة (تُسبق نقطة الختام
+                # زمنياً داخل الشمعة نفسها: الجني يقع أولًا داخل برايس أكشن الشمعة)
+                for _sp in split_exits_bar:
+                    trade_points.append(_sp)
+
                 # تسجيل صفقات الإغلاق (مع استخدام المتغيرات المحفوظة)
                 if exiting_trade:
                     # استخدام المتغيرات المحفوظة إذا كنا أغلقنا الصفقة في هذه الدورة
@@ -1887,6 +2730,21 @@ class BacktestEngine:
                 for _xx in extra_exits_bar:
                     trade_points.append(_xx)
                 
+                # ✅ SPLIT-TP1 — وسم شمعة الجني المقسم (إن لم تكن شمعة دخول/ختام
+                # — للدخول والختام الأولوية): علامة PARTIAL_EXIT على الشارت
+                if split_exits_bar and not entering_trade and not exiting_trade:
+                    _sp0 = split_exits_bar[0]
+                    visual_candle.trade_action = (
+                        f"PARTIAL_EXIT_{current_state}" if current_state != 'NEUTRAL'
+                        else "PARTIAL_EXIT")
+                    visual_candle.trade_id = _sp0.get("trade_id")
+                    visual_candle.trade_price = float(_sp0.get("price") or 0.0)
+                    visual_candle.trade_size = float(_sp0.get("position_size") or 0.0)
+                    visual_candle.pnl = float(sum(
+                        p.get("pnl") or 0.0 for p in split_exits_bar))
+                    visual_candle.pnl_percentage = float(
+                        _sp0.get("pnl_percentage") or 0.0)
+                
                 visual_candles.append(visual_candle)
                 t_visual += time.perf_counter() - t0
                 t_loop += time.perf_counter() - t_loop_start
@@ -1911,6 +2769,16 @@ class BacktestEngine:
             pnl = net_pnl_closed
             pnl_percentage = (net_pnl_closed / initial_investment) * 100 if initial_investment != 0 else 0
             equity_curve.append(account_balance)
+            
+            # ✅ SPLIT-TP1 — مصالحة عرض الإجمالي (للعرض فقط — الرصيد صحيح):
+            # نقطة/شمعة الختام عند نهاية البيانات تعرض pnl الإجمالي وتبقي
+            # position_size = المتبقي المُغلق (اتساقاً مع نقاط الجني)
+            _sp_tot_eod = _split_tp_display_totals(trade_id)
+            if _sp_tot_eod:
+                pnl = _sp_tot_eod[0]
+                pnl_gross = _sp_tot_eod[0]
+                pnl_percentage = _sp_tot_eod[1]
+            split_tp_pending = []  # ✅ SPLIT-TP1 — الختام
             
             # تحديث آخر شمعة بالبيانات
             if visual_candles:
@@ -1981,6 +2849,10 @@ class BacktestEngine:
                 account_balance += _net_x
                 cumulative_pnl += _net_x
                 equity_curve.append(account_balance)
+                # ✅ SPLIT-TP1 — مصالحة إجمالي الجني المقسم (للعرض فقط)
+                _sx_tot_e = _split_tp_display_totals(_xp['trade_id'])
+                if _sx_tot_e:
+                    _net_x, _x_pct = _sx_tot_e[0], _sx_tot_e[1]
                 trade_points.append({
                     "timestamp": _eod_time,
                     "type": "exit",
@@ -2103,6 +2975,44 @@ class BacktestEngine:
             "account_liquidated": any(
                 (tr.exit_reason or "").startswith("Liquidation") for tr in trades
             ),
+            # ✅ SPLIT-TP1 — صدى الجني المقسم في effective_config (يصل للفرونت
+            # والمكتبة) — غياب الحقل ⇒ الميزة معطلة (السلوك التاريخي بت-بت)
+            "take_profit_splits": (
+                [{"gain_percent": float(l["gain"]), "size_percent": float(l["size_pct"])}
+                 for l in _normalize_split_tp_levels(config)]
+                if _normalize_split_tp_levels(config) else None),
+            "split_tp_active": bool(_normalize_split_tp_levels(config)),
+            "split_tp_total_size_percent": (
+                float(sum(l["size_pct"] for l in _normalize_split_tp_levels(config)))
+                if _normalize_split_tp_levels(config) else None),
+            "split_tp_trades": sum(
+                1 for tr in trades
+                if isinstance(getattr(tr, "metadata", None), dict)
+                and (tr.metadata or {}).get("split_tp")),
+            "split_tp_partial_exits": sum(
+                len((tr.metadata or {}).get("split_tp", {}).get("events") or [])
+                for tr in trades
+                if isinstance(getattr(tr, "metadata", None), dict)),
+            # ✅ SPLIT-ZZ1 — صدى الخروج المقسم بانعكاس الهيكل في effective_config
+            # (يصل للفرونت والمكتبة) — غياب الحقل ⇒ الميزة معطلة (بت-بت)
+            "structure_split_exits": (
+                [{"resolution": str(r["resolution"]), "length": int(r["length"]),
+                  "size_percent": float(r["size_pct"]),
+                  **({"name": str(r["name"])} if r.get("name") else {})}
+                 for r in _normalize_structure_split_rules(config)]
+                if _normalize_structure_split_rules(config) else None),
+            "structure_split_active": bool(_normalize_structure_split_rules(config)),
+            "structure_split_total_size_percent": (
+                float(sum(r["size_pct"] for r in _normalize_structure_split_rules(config)))
+                if _normalize_structure_split_rules(config) else None),
+            "structure_split_trades": sum(
+                1 for tr in trades
+                if isinstance(getattr(tr, "metadata", None), dict)
+                and (tr.metadata or {}).get("structure_split")),
+            "structure_split_partial_exits": sum(
+                len((tr.metadata or {}).get("structure_split", {}).get("events") or [])
+                for tr in trades
+                if isinstance(getattr(tr, "metadata", None), dict)),
         }
 
     def _convert_to_serializable(self, obj):
@@ -2167,6 +3077,61 @@ class BacktestEngine:
                 trade.pnl_gross = _delta_tr * float(trade.position_size) * _sign_tr
                 trade.fill_entry = fill_m
                 trade.fill_exit = fill_m
+
+                # ==============================================================
+                # ✅ SPLIT-TP1 + ✅ SPLIT-ZZ1 — مصالحة الجني الجزئي (جوهر
+                # المحاسبة): pnl الصفقة = الختامي (المتبقي) + إجمالي الجني
+                # الجزئي المحقق (مستويات الجني المقسم +/أو بيع انعكاس الهيكل).
+                # إعادة الحساب بالصيغة الموحدة (Δ×كمية) غير صالحة للصفقات
+                # المجزأة (أسعار جني مختلفة) ⇒ pnl_gross = pnl بالضبط.
+                # pnl_percentage على الكمية الأصلية (الاستثمار الحقيقي).
+                # (غياب المفتاحين معاً = السلوك التاريخي بت-بت بالضبط.)
+                # ==============================================================
+                _md_tr = trade.metadata if isinstance(trade.metadata, dict) else {}
+                _st_tp = _md_tr.get("split_tp")
+                _st_zz = _md_tr.get("structure_split")
+                _has_tp = bool(_st_tp and _st_tp.get("events"))
+                _has_zz = bool(_st_zz and _st_zz.get("events"))
+                if _has_tp or _has_zz:
+                    _realized_part = 0.0
+                    _n_partials = 0
+                    if _has_tp:
+                        _realized_part += float(_st_tp.get("realized_pnl") or 0.0)
+                        _n_partials += len(_st_tp.get("events") or [])
+                    if _has_zz:
+                        _realized_part += float(_st_zz.get("realized_pnl") or 0.0)
+                        _n_partials += len(_st_zz.get("events") or [])
+                    _orig_size_part = float(
+                        ((_st_tp or {}).get("original_size")
+                         or (_st_zz or {}).get("original_size")
+                         or trade.position_size or 0.0))
+                    trade.pnl = float(pnl) + _realized_part
+                    _inv_total_part = float(trade.entry_price) * _orig_size_part
+                    trade.pnl_percentage = (
+                        (trade.pnl / _inv_total_part * 100.0)
+                        if _inv_total_part else 0.0)
+                    trade.pnl_gross = trade.pnl  # الإجمالي بالضبط (لا إعادة صيغة)
+                    trade.partial_exits = list(
+                        ((_st_tp or {}).get("events") or [])) + list(
+                        ((_st_zz or {}).get("events") or []))
+                    if (not str(reason or "").startswith("Split")) and (
+                            not str(reason or "").startswith("Structure")) and (
+                            not str(reason or "").startswith("End of Data")):
+                        trade.exit_reason = (
+                            f"{reason} (+{_n_partials} "
+                            "جني مقسم)")
+                    trade.metadata["split_tp_summary"] = {
+                        "levels_executed": _n_partials,
+                        "realized_pnl_splits": _realized_part,
+                        "realized_pnl_gain_levels": (
+                            float(_st_tp.get("realized_pnl") or 0.0)
+                            if _has_tp else 0.0),
+                        "realized_pnl_structure_reversals": (
+                            float(_st_zz.get("realized_pnl") or 0.0)
+                            if _has_zz else 0.0),
+                        "original_size": _orig_size_part,
+                        "remaining_closed_pnl": float(pnl),
+                    }
                 break
         return net_pnl
 
@@ -2360,6 +3325,39 @@ class BacktestEngine:
                 "والمقطوع %.6f موثق في liquidation_truncated",
                 sum_pnl - total_pnl,
             )
+
+        # ✅ R77 (عقد التقرير الكامل — «التقرير يصف كل شيء»): صدى بوابة الزخم
+        # (قسم osc كاملاً من محرك كموميه الزخم الاولى) إلى summary.math_audit.
+        # momentum_gate: {counts: {خام، نهائي، ممنوع}، warmup_neutral_bars،
+        # instances[] بحالات كل نسخة، warnings/warning_codes/warnings_v2،
+        # base_tf + time_source + n/input_rows + mode} — عقد
+        # FRONTEND-AGENT-BRIEF-QMOM1 §3ب (بطاقات بوابة الزخم في شاشة النتائج).
+        # القناة: _simulate_with_strategy يلتقط indicator_sections من محرك
+        # الاستراتيجية (لكل رمز) ويخزنها على المحرك هنا تقرأها النتيجة —
+        # بلا أي تغيير تواقيع/عقود قائمة.
+        _mom_osc_echo = None
+        try:
+            _by_sym = getattr(self, "_r77_osc_echo_by_symbol", None) or {}
+            _secs = [(s, v) for s, v in _by_sym.items() if v]
+            if len(_secs) == 1:
+                _mom_osc_echo = (_secs[0][1] or {}).get("osc") or None
+            elif _secs:
+                _mom_osc_echo = {
+                    s: ((v or {}).get("osc") or None) for s, v in _by_sym.items()
+                }
+        except Exception:
+            _mom_osc_echo = None
+        if _mom_osc_echo is not None:
+            try:
+                logger.info(
+                    "🟣 momentum gate echo: raw=%s final=%s blocked=%s warn=%s",
+                    (_mom_osc_echo.get("counts") or {}).get("quantum_ema_entries"),
+                    (_mom_osc_echo.get("counts") or {}).get("final_entries"),
+                    (_mom_osc_echo.get("counts") or {}).get("osc_blocked_entries"),
+                    _mom_osc_echo.get("warning_codes"),
+                )
+            except Exception:
+                pass
         math_audit = {
             "checked_trades": checked,
             # ✅ الجولة 13: قيمة خام بلا تقريب (عقد الدقة المتناهية)
@@ -2395,6 +3393,11 @@ class BacktestEngine:
             "liquidation_truncated": (
                 max(0.0, sum_pnl - total_pnl) if _r58_liquidated else 0.0
             ),
+            # ✅ R77 — صدى بوابة الزخم (قسم osc كاملاً) — بطاقات بوابة الزخم
+            # للفرونت: عدادات خام/نهائي/ممنوع + حياد الإحماء + حالات النسخ +
+            # التحذيرات + مصدر الأزمنة/فريم القاعدة. None عند عدم وجود
+            # محرك زخم في الاستراتيجية (استراتيجيات أخرى = العقد القديم بت-بت).
+            "momentum_gate": _mom_osc_echo,
         }
         
         # 3. حساب منحنى الانخفاض

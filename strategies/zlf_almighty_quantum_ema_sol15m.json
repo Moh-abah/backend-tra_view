@@ -1,87 +1,111 @@
 {
-  "name": "ALMIGHTY — الاستراتيجية الجبّارة (A226 Championship)",
-  "version": "1.0.0",
-  "description": "نسخة البطولة A226 من ZLF-End-To-End-Trendy-Quantum-EMA: ثلاث إشارات دخول (s1 اختراق كامل بحجم مهيمن · s2 بلا هيمنة · s3 امتصاص) فوق بوابة ترند 7/15/25 majority + بوابة منطقة كمومية HH+HL على s1 فقط + رصة خمسة متوسطات EMA على فريم الساعة (50>100>200>350>500 بلا خط 21). الخروج باب واحد: zone_exit (LL+LH) — بلا SL/TP/trailing. النتيجة المرجعية الحية: المهمة #10000493 (SOLUSDT · 15m · كامل التاريخ): +9402.449654% · 80 صفقة · WR 51.25% · PF 2.0746 · MaxDD 44.98% · Sharpe 3.2805.",
-  "author": "EMA-SEARCH — بحث صاحب القرار (7 مراحل · 77 تجربة معزولة · 2026-11-17)",
-  "base_timeframe": "15m",
-  "allowed_timeframes": ["15m"],
-  "position_side": "long",
-  "indicators": [
-    {
-      "id": "zzfetqe",
-      "name": "zigzag_fib_e2e_trendy_quantum_ema",
-      "type": "support_resistance",
-      "params": {
-        "mode": "luxalgo",
-        "length": 226,
-        "touch_level": 0.618,
-        "trend_periods": [7, 15, 25],
-        "trend_confirm": "majority",
-        "trend_gate": ["s1", "s2", "s3"],
-        "zone_gate": ["s1"],
-        "ema_lengths": [50, 100, 200, 350, 500],
-        "ema_resolution": "60",
-        "ema_source": "close",
-        "ema_offset": 0,
-        "ema_gate": ["s1", "s2", "s3"]
-      },
-      "enabled": true,
-      "timeframe": "15m"
-    }
-  ],
-  "entry_rules": [
-    {
-      "name": "ALMIGHTY S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL · بوابة s1 فقط) + رصة EMA الخمسة على الساعة",
-      "condition": {
-        "type": "indicator_value",
-        "operator": ">",
-        "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
-        "right_value": 0
-      },
-      "position_side": "long",
-      "weight": 0.34,
-      "enabled": true
-    },
-    {
-      "name": "ALMIGHTY S2 · الاختراق بدون هيمنة الحجم + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
-      "condition": {
-        "type": "indicator_value",
-        "operator": ">",
-        "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
-        "right_value": 0
-      },
-      "position_side": "long",
-      "weight": 0.33,
-      "enabled": true
-    },
-    {
-      "name": "ALMIGHTY S3 · الامتصاص قبل الاختراق + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
-      "condition": {
-        "type": "indicator_value",
-        "operator": ">",
-        "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
-        "right_value": 0
-      },
-      "position_side": "long",
-      "weight": 0.33,
-      "enabled": true
-    }
-  ],
-  "exit_rules": [
-    {
-      "name": "ALMIGHTY · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج · الباب الوحيد)",
-      "condition": {
-        "type": "indicator_value",
-        "operator": ">",
-        "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
-        "right_value": 0
-      },
-      "exit_type": "signal_exit",
-      "enabled": true
-    }
-  ],
-  "risk_management": {
-    "stop_loss_percentage": 2.0,
-    "take_profit_percentage": 99.0
+ "name": "ALMIGHTY — الاستراتيجية الجبّارة (A226 Championship)",
+ "version": "1.0.0",
+ "description": "نسخة البطولة A226 من ZLF-End-To-End-Trendy-Quantum-EMA: ثلاث إشارات دخول (s1 اختراق كامل بحجم مهيمن · s2 بلا هيمنة · s3 امتصاص) فوق بوابة ترند 7/15/25 majority + بوابة منطقة كمومية HH+HL على s1 فقط + رصة خمسة متوسطات EMA على فريم الساعة (50>100>200>350>500 بلا خط 21). الخروج باب واحد: zone_exit (LL+LH) — بلا SL/TP/trailing. النتيجة المرجعية الحية: المهمة #10000493 (SOLUSDT · 15m · كامل التاريخ): +9402.449654% · 80 صفقة · WR 51.25% · PF 2.0746 · MaxDD 44.98% · Sharpe 3.2805.",
+ "author": "EMA-SEARCH — بحث صاحب القرار (7 مراحل · 77 تجربة معزولة · 2026-11-17)",
+ "base_timeframe": "15m",
+ "allowed_timeframes": [
+  "15m"
+ ],
+ "position_side": "long",
+ "indicators": [
+  {
+   "id": "zzfetqe",
+   "name": "zigzag_fib_e2e_trendy_quantum_ema",
+   "type": "support_resistance",
+   "params": {
+    "mode": "luxalgo",
+    "length": 226,
+    "touch_level": 0.618,
+    "trend_periods": [
+     7,
+     15,
+     25
+    ],
+    "trend_confirm": "majority",
+    "trend_gate": [
+     "s1",
+     "s2",
+     "s3"
+    ],
+    "zone_gate": [
+     "s1"
+    ],
+    "ema_lengths": [
+     50,
+     100,
+     200,
+     350,
+     500
+    ],
+    "ema_resolution": "60",
+    "ema_source": "close",
+    "ema_offset": 0,
+    "ema_gate": [
+     "s1",
+     "s2",
+     "s3"
+    ],
+    "ema_stack_mode": "hierarchical",
+    "ema_stack_base": 21
+   },
+   "enabled": true,
+   "timeframe": "15m"
   }
+ ],
+ "entry_rules": [
+  {
+   "name": "ALMIGHTY S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL · بوابة s1 فقط) + رصة EMA الخمسة على الساعة",
+   "condition": {
+    "type": "indicator_value",
+    "operator": ">",
+    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+    "right_value": 0
+   },
+   "position_side": "long",
+   "weight": 0.34,
+   "enabled": true
+  },
+  {
+   "name": "ALMIGHTY S2 · الاختراق بدون هيمنة الحجم + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
+   "condition": {
+    "type": "indicator_value",
+    "operator": ">",
+    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+    "right_value": 0
+   },
+   "position_side": "long",
+   "weight": 0.33,
+   "enabled": true
+  },
+  {
+   "name": "ALMIGHTY S3 · الامتصاص قبل الاختراق + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة)",
+   "condition": {
+    "type": "indicator_value",
+    "operator": ">",
+    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+    "right_value": 0
+   },
+   "position_side": "long",
+   "weight": 0.33,
+   "enabled": true
+  }
+ ],
+ "exit_rules": [
+  {
+   "name": "ALMIGHTY · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج · الباب الوحيد)",
+   "condition": {
+    "type": "indicator_value",
+    "operator": ">",
+    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+    "right_value": 0
+   },
+   "exit_type": "signal_exit",
+   "enabled": true
+  }
+ ],
+ "risk_management": {
+  "stop_loss_percentage": 2.0,
+  "take_profit_percentage": 99.0
+ }
 }

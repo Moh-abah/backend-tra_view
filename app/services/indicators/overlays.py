@@ -1161,6 +1161,20 @@ OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib",
                  # الساعة (EMA 21/50/100/200/350/500 تنازلياً تحت السعر) — محرك
                  # معزول جديد كلياً (أسماء zzfetqe_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
                  "zzfib_e2e_trendy_quantum_ema",
+                 # QMOM1: "quantum momentum first" — quantum-EMA in full
+                 # (zzfetqe_* renamed zzfetqem_* + pass-through zzfetq_*/zzfet_*)
+                 # + flexible multi-timeframe oscillator conditions gate
+                 # (macd/rsi/mom any instance any tf 1s..1mo + and/or/not tree
+                 # — PRO76 core) over the entry signals — isolated new engine
+                 # (zzfetqem_* names) — registration only, no existing touched.
+                 "zzfib_e2e_trendy_quantum_ema_mom",
+                 # ✅ QMOM1: «كموميه الزخم الاولى» — الكمومية-EMA بحذافيرها
+                 # (أعمدتها zzfetqe_* تُعاد تسميتها zzfetqem_* + تمرير zzfetq_*/zzfet_*)
+                 # + بوابة الشروط المرنة للموشرات متعددة الفريمات (macd/rsi/mom
+                 # بأي نسخ وأي فريم 1s..1mo + شجرة and/or/not قابلة للتركيب —
+                 # نواة PRO76) فوق إشارات الدخول — محرك معزول جديد كلياً
+                 # (أسماء zzfetqem_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
+                 "zzfib_e2e_trendy_quantum_ema_mom",
                  # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (Pine
                  # بحذافيره بلا استشراف — آخر شريط HTF مغلق فقط) — محرك
                  # معزول جديد كلياً (أعمدة mtfema_*) — إضافة تسجيل فقط.
@@ -1240,6 +1254,9 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
         # ✅ QUANTUMEMA1: الكمومية المتوسطة المتحركة الأسية — نفس معاملات
         # الكمومية حرفياً + قالب EMA (الأطوال الستة/فريم الساعة/المصدر/الإزاحة/
         # بوابة الرصة ema_gate: s1/s2/s3 أو "none" للتعطيل)
+        # + ✅ EMAGATE-UNIFIED: وضع الرصة الهرمي ema_stack_mode
+        # (hierarchical الافتراضي — الشروط السبعة / strict للوضع التاريخي)
+        # وقاعدة الإعفاء ema_stack_base (افتراضي 21).
         # + ✅ ZONE-EXIT-TF1: فريم هيكل الخروج (zone_exit_resolution/
         # zone_exit_length — CHoCH LL+LH على أي فريم).
         "zzfib_e2e_trendy_quantum_ema": {"length", "reverse", "levels", "extend_right",
@@ -1248,7 +1265,22 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
                                          "trend_periods", "trend_confirm", "trend_gate",
                                          "zone_gate", "ema_lengths", "ema_resolution",
                                          "ema_source", "ema_offset", "ema_gate",
+                                         "ema_stack_mode", "ema_stack_base",
                                          "zone_exit_resolution", "zone_exit_length"},
+        # QMOM1: quantum momentum first — same quantum-EMA params verbatim
+        # + the flexible conditions gate template (osc_instances: macd/rsi/mom
+        # copies, any count, 22 timeframes · osc_conditions: composable
+        # and/or/not tree — both passed through as-is to the engine)
+        # + ✅ EMAGATE-UNIFIED ema_stack_mode/ema_stack_base (pass-through).
+        "zzfib_e2e_trendy_quantum_ema_mom": {"length", "reverse", "levels", "extend_right",
+                                              "extend_leg_to_live", "mode", "depth", "deviation",
+                                              "backstep", "launch_touch_ticks",
+                                              "trend_periods", "trend_confirm", "trend_gate",
+                                              "zone_gate", "ema_lengths", "ema_resolution",
+                                              "ema_source", "ema_offset", "ema_gate",
+                                              "ema_stack_mode", "ema_stack_base",
+                                              "zone_exit_resolution", "zone_exit_length",
+                                              "osc_instances", "osc_conditions"},
         # ✅ MTFEMA1: MTF EMA — معاملات Pine الأربعة + النسخ المتعددة.
         "mtf_ema": {"length", "source", "offset", "resolution", "instances"},
         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
@@ -1299,6 +1331,11 @@ def compute_overlays(
         # في طلب «كل الأنواع» الافتراضي للوحات الحي نتجاوزها (لا مضاعفة
         # حساب الكمومية بلا بيانات مطلوبة).
         wanted.discard("zzfib_e2e_trendy_quantum_ema")
+        # QMOM1 — same protection: quantum momentum first is a strategy
+        # engine (explicit request from strategy config always computes it —
+        # with or without the osc template); in the default "all types" live
+        # panels request we skip it (no duplicate quantum-EMA compute).
+        wanted.discard("zzfib_e2e_trendy_quantum_ema_mom")
 
     t, o, h, l, c = _norm_candles(candles)
     N = len(c)
@@ -1386,6 +1423,19 @@ def compute_overlays(
         from app.services.indicators.overlays_zlf_e2e_trendy_quantum_ema import zigzag_fib_e2e_trendy_quantum_ema
         qe_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum_ema", params.get("zzfib_e2e_trendy_quantum_ema") or {})
         out["overlays"]["zzfib_e2e_trendy_quantum_ema"] = zigzag_fib_e2e_trendy_quantum_ema(candles, **qe_params)
+    if "zzfib_e2e_trendy_quantum_ema_mom" in wanted:
+        # QMOM1: "quantum momentum first" — deferred call to the isolated new
+        # engine (quantum-EMA verbatim + flexible multi-timeframe oscillator
+        # conditions gate — PRO76 core — over the final entry signals). With
+        # no template (osc_instances/osc_conditions) it is bit-identical mirror
+        # mode of quantum-EMA with the gate always open (no oscillator compute
+        # at all — memory-safe for the default "all types" path). Series carry
+        # the differentiation contract: zzfetqem_* (final entry after the
+        # momentum gate + iblocked transparency + oscillator series
+        # zzfetqem_osc_<id>_<field>) + zzfetq_* + zzfet_* passed verbatim.
+        from app.services.indicators.overlays_zlf_e2e_trendy_quantum_ema_mom import zigzag_fib_e2e_trendy_quantum_ema_mom
+        qm_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum_ema_mom", params.get("zzfib_e2e_trendy_quantum_ema_mom") or {})
+        out["overlays"]["zzfib_e2e_trendy_quantum_ema_mom"] = zigzag_fib_e2e_trendy_quantum_ema_mom(candles, **qm_params)
     if "mtf_ema" in wanted:
         # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات — استدعاء مؤجل
         # للمحرك المعزول الجديد (Pine بحذافيره: length/source/offset/resolution

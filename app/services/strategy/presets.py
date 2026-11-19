@@ -31,6 +31,7 @@ __all__ = ["CHAMPION_ZIGZAG_HL_V2", "ZLF_TRIPLE_SIGNAL", "ZLF_E2E_TRIPLE_SIGNAL"
            "TRENDY_MACDIZED", "BLAZING_MACDIZED",
            "TRENDY_MACDIZED_RSI_LIGHT", "BLAZING_MACDIZED_RSI_LIGHT",
            "RSI_LIGHT_INSTANCES", "ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL",
+           "QMOM1_TRIPLE_SIGNAL",
            "get_presets", "PRESET_NOTES"]
 
 
@@ -662,6 +663,10 @@ ZLF_E2E_TRENDY_QUANTUM_EMA_TRIPLE_SIGNAL: Dict[str, Any] = {
                     # الأنواع المبوّبة برصة EMA (أو "none" لتعطيل البوابة —
                     # بيانات الرصة والخطوط تبقى محسوبة ومُرجعة).
                     "ema_gate": ["s1", "s2", "s3"],
+                    # ✅ EMAGATE-UNIFIED — الرصة الهرمية الموحدة (الشروط السبعة)
+                    # صريحة في القالب (تُركّب/تُعدّل/تُحذف من الواجهة).
+                    "ema_stack_mode": "hierarchical",
+                    "ema_stack_base": 21,
                 },
                 "enabled": True,
                 "timeframe": "1h",
@@ -808,6 +813,10 @@ ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL: Dict[str, Any] = {
                     "ema_source": "close",
                     "ema_offset": 0,
                     "ema_gate": ["s1", "s2", "s3"],
+                    # ✅ EMAGATE-UNIFIED — الرصة الهرمية الموحدة (الشروط السبعة)
+                    # صريحة في القالب (تُركّب/تُعدّل/تُحذف من الواجهة).
+                    "ema_stack_mode": "hierarchical",
+                    "ema_stack_base": 21,
                 },
                 "enabled": True,
                 "timeframe": "15m",
@@ -875,6 +884,252 @@ ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL: Dict[str, Any] = {
     "commission_rate": 0,
     "slippage_percent": 0,
     "leverage": 1,
+}
+
+
+# =============================================================================
+# 🔥 QMOM1 — «كموميه الزخم الاولى» — ZLF-End-To-End-Trendy-Quantum-EMA-Mom
+# (بوابة الشروط المرنة للموشرات متعددة الفريمات فوق الكمومية-EMA)
+# =============================================================================
+# أمر صاحب القرار (2026-11-18): «سنقوم باضافه بوابه جديده للشروط وتكون مرنه
+#   وقابله للتعديل والاضافه ع اي استراتيجيه ... ونسوي من
+#   ZLF-End-To-End-Trendy-Quantum-EMA نسخه باسم: كموميه الزخم الاولى».
+#
+# الأساس: تكوين المحرك الافتراضي المعتمد (ملاحظتا صاحب القرار 2026-11-19:
+#   «اجعله ع الديفولت 100» + «اذكر ema_lengths كاملة مع الجديدة»):
+#   length=100 (الديفولت) + رصة الستة الكاملة [21,50,100,200,350,500]
+#   مع EMA21 الجديدة (قمة السلّم — زوج 21>50 هو الشرط 2) — مطابقة تماماً
+#   للحمولة المرجعية الموثقة #10000604 (التحقق الحي #10000617: بوابة الزخم
+#   46 خام → 11 نهائي → 35 محجوب بت-بت) + بوابة الزخم بالشروط الأربعة المطلوبة:
+#   الشرط الأول — MACD 4h (12/26/4) فوق الصفر ∧ إيجابي (الخط فوق الإشارة).
+#   الشرط الثاني — MACD 3d (5/11/4) متجاوزاً لأعلى فوق MACD 1d (12/26/4).
+#   الشرط الثالث — RSI 1h (14/14/2) و RSI 4h (14/14/2) فوق RSI اليومي (14/14/2).
+#   الشرط الرابع — RSI اليومي (10/14/2) أو (14/14/2) فوق مستوى 50 (يكفي أحدهما).
+# ✅ SPLIT-ZZ1 (2026-11-19 — طلب صاحب القرار الحرفي: «بالنسبة لrsi اليومي
+#   ذو الااعداد 14/14/2 يجب ان لا يتجاوز مستوى 60 اي بمعنى حدوده بين
+#   مستوى 50 و 60 فقط»):
+#   الشرط الخامس — RSI اليومي (14/14/2) لا يتجاوز 60 (≤ 60) — حدوده بين
+#   مستوى 50 و 60 فقط (مع الشرط الرابع: النطاق الفعلي 50 < RSI ≤ 60).
+# الخروج باب واحد كما في البطل: zone_exit (LL+LH) — بلا أي تغيير.
+#
+# ✅ EMAGATE-UNIFIED (2026-11-19): قالب الرصة الهرمي الموحد صريح الآن في
+# الحمولة (ema_stack_mode/ema_stack_base) — الشروط السبعة لمتوسطات EMA
+# (السعر فوق الكل + السلّم مرتب تماماً + الأسرع من القاعدة 21 معفاة من
+# الترتيب) — قابل للتركيب/الإضافة/الحذف/التعديل كله من الفرونت-اند.
+QMOM1_TRIPLE_SIGNAL: Dict[str, Any] = {
+    "name": "QMOM1 — كموميه الزخم الاولى · ZLF-End-To-End-Trendy-Quantum-EMA-Mom (Trend+Zone+EMA-stack+Momentum-gate) · 3 Entry Signals — ZERO FEE",
+    "timeframe": "15m",
+    "market": "crypto",
+    "symbols": ["SOLUSDT"],
+    "start_date": "2020-03-16T00:00:00Z",
+    "end_date": "2026-11-17T20:59:59Z",
+    "timezone": "UTC",
+    "tz_offset_minutes": 0,
+    "mode": "standard",
+    "strategy_config": {
+        "name": "كموميه الزخم الاولى (Quantum-Momentum-1 — 3 Entry Signals · Trend+Zone+EMA-stack+Momentum-gate)",
+        "version": "1.0.0",
+        "description": "نسخة من ZLF-End-To-End-Trendy-Quantum-EMA على تكوينها الافتراضي "
+                       "المعتمد (length=100 + رصة الستة الكاملة مع EMA21 — الحمولة "
+                       "المرجعية الموثقة #10000604) مضافًا إليها بوابة الشروط المرنة QMOM1 "
+                       "بموشراتها السبعة: الشرط الأول MACD 4h "
+                       "(12/26/4) فوق الصفر وإيجابي · الشرط الثاني MACD 3d (5/11/4) فوق MACD 1d "
+                       "(12/26/4) · الشرط الثالث RSI الساعة و4 ساعات (14/14/2) فوق RSI اليومي · "
+                       "الشرط الرابع RSI اليومي (10/14/2) أو (14/14/2) فوق 50 · الشرط الخامس "
+                       "(✅ SPLIT-ZZ1): RSI اليومي (14/14/2) لا يتجاوز 60 — حدوده بين 50 و 60 "
+                       "فقط — الخروج باب واحد كما هو: zone_exit (LL+LH).",
+        "author": "QMOM1 — طلب صاحب القرار (2026-11-18): بوابة شروط مرنة قابلة للتعديل "
+                  "والتفعيل/التعطيل من الفرونت-اند",
+        "base_timeframe": "15m",
+        "allowed_timeframes": ["15m"],
+        "position_side": "long",
+        "indicators": [
+            {
+                "name": "zigzag_fib_e2e_trendy_quantum_ema_mom",
+                "type": "support_resistance",
+                "params": {
+                    # ✅ وضع شارت المنصة المُتحقق منه بالبكسل — الديفولت 100
+                    # (ملاحظة صاحب القرار: «اجعله ع الديفولت 100» — قابل للتعديل
+                    # من الواجهة إلى 226 أو أي عيار آخر في أي وقت).
+                    "mode": "luxalgo",
+                    "length": 100,
+                    "touch_level": 0.618,
+                    # ✅ قوالب الترند (الأرقام هنا لا في الكود)
+                    "trend_periods": [7, 15, 25],
+                    "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3"],
+                    # ✅ قالب المنطقة الكمومية (HH+HL تفتح · LL+LH تغلق وتخرج)
+                    "zone_gate": ["s1", "s2", "s3"],
+                    # ✅ رصة EMA الكاملة الستة على الساعة — «كامله مع الجديده»:
+                    # [21,50,100,200,350,500] مع EMA21 الجديدة (قمة السلّم —
+                    # زوج 21>50 هو الشرط 2) +
+                    # ✅ EMAGATE-UNIFIED: الوضع الهرمي الموحد صريحاً (الشروط
+                    # السبعة — السعر فوق الكل + السلّم مرتب + الأسرع من 21
+                    # معفاة؛ قابل للتعديل/الإضافة/الحذف من الواجهة كله).
+                    "ema_lengths": [21, 50, 100, 200, 350, 500],
+                    "ema_resolution": "60",
+                    "ema_source": "close",
+                    "ema_offset": 0,
+                    "ema_gate": ["s1", "s2", "s3"],
+                    "ema_stack_mode": "hierarchical",
+                    "ema_stack_base": 21,
+                    # ✅ ZONE-EXIT-LTF1 — دقة 5 دقائق لهيكل الخروج (كما في
+                    # البطل المُتحقق: إغلاق المنطقة LL+LH على 5m).
+                    "zone_exit_resolution": "5",
+                    "zone_exit_length": 100,
+                    # ---- قالب بوابة الشروط المرنة (نواة PRO76) ----
+                    "osc_instances": [
+                        {"kind": "macd", "id": "macd_4h_12_26_4", "timeframe": "4h",
+                         "fast": 12, "slow": 26, "signal": 4, "enabled": True,
+                         "doc": "الشرط الأول — MACD فريم 4 ساعات (12/26/4)"},
+                        {"kind": "macd", "id": "macd_3d_5_11_4", "timeframe": "3d",
+                         "fast": 5, "slow": 11, "signal": 4, "enabled": True,
+                         "doc": "الشرط الثاني — MACD فريم 3 يوم (5/11/4)"},
+                        {"kind": "macd", "id": "macd_1d_12_26_4", "timeframe": "1d",
+                         "fast": 12, "slow": 26, "signal": 4, "enabled": True,
+                         "doc": "الشرط الثاني — MACD فريم 1 يوم (12/26/4)"},
+                        {"kind": "rsi", "id": "rsi_1h_14_14", "timeframe": "1h",
+                         "period": 14, "ma_length": 14, "bb_std": 2, "enabled": True,
+                         "doc": "الشرط الثالث — RSI فريم ساعه (14/14/2)"},
+                        {"kind": "rsi", "id": "rsi_4h_14_14", "timeframe": "4h",
+                         "period": 14, "ma_length": 14, "bb_std": 2, "enabled": True,
+                         "doc": "الشرط الثالث — RSI فريم 4 ساعات (14/14/2)"},
+                        {"kind": "rsi", "id": "rsi_1d_14_14", "timeframe": "1d",
+                         "period": 14, "ma_length": 14, "bb_std": 2, "enabled": True,
+                         "doc": "الشرط الثالث + الرابع + الخامس — RSI الفريم اليومي (14/14/2) "
+                                "لا يتجاوز 60"},
+                        {"kind": "rsi", "id": "rsi_1d_10_14", "timeframe": "1d",
+                         "period": 10, "ma_length": 14, "bb_std": 2, "enabled": True,
+                         "doc": "الشرط الرابع — RSI اليومي (10/14/2)"},
+                    ],
+                    "osc_conditions": {
+                        "logic": "and",
+                        "conditions": [
+                            {"name": "الشرط الأول — MACD 4h (12/26/4) فوق الصفر + "
+                                     "إيجابي (السريع فوق البطيء)",
+                             "enabled": True,
+                             "logic": "and",
+                             "conditions": [
+                                 {"left": "osc:macd_4h_12_26_4.line", "op": ">", "right": 0},
+                                 {"left": "osc:macd_4h_12_26_4.line", "op": ">",
+                                  "right": "osc:macd_4h_12_26_4.signal"},
+                             ]},
+                            {"name": "الشرط الثاني — MACD 3d (5/11/4) متجاوز لأعلى "
+                                     "فوق MACD 1d (12/26/4)",
+                             "enabled": True,
+                             "left": "osc:macd_3d_5_11_4.line", "op": ">",
+                             "right": "osc:macd_1d_12_26_4.line"},
+                            {"name": "الشرط الثالث — RSI الساعه و 4 ساعات (14/14/2) "
+                                     "فوق RSI اليومي (14/14/2)",
+                             "enabled": True,
+                             "logic": "and",
+                             "conditions": [
+                                 {"left": "osc:rsi_1h_14_14.value", "op": ">",
+                                  "right": "osc:rsi_1d_14_14.value"},
+                                 {"left": "osc:rsi_4h_14_14.value", "op": ">",
+                                  "right": "osc:rsi_1d_14_14.value"},
+                             ]},
+                            {"name": "الشرط الرابع — RSI اليومي (10/14/2) أو (14/14/2) "
+                                     "فوق مستوى 50 — يكفي أحدهما",
+                             "enabled": True,
+                             "logic": "or",
+                             "conditions": [
+                                 {"left": "osc:rsi_1d_10_14.value", "op": ">", "right": 50},
+                                 {"left": "osc:rsi_1d_14_14.value", "op": ">", "right": 50},
+                             ]},
+                            # ✅ SPLIT-ZZ1 — الشرط الخامس (طلب صاحب القرار
+                            # 2026-11-19): «بالنسبة لrsi اليومي ذو الااعداد
+                            # 14/14/2 يجب ان لا يتجاوز مستوى 60 اي بمعنى
+                            # حدوده بين مستوى 50 و 60 فقط» — مع الشرط الرابع
+                            # النطاق الفعلي للـ 14/14/2: 50 < قيمة ≤ 60.
+                            {"name": "الشرط الخامس — RSI اليومي (14/14/2) "
+                                     "لا يتجاوز مستوى 60 (حدوده بين 50 "
+                                     "و 60 فقط)",
+                             "enabled": True,
+                             "left": "osc:rsi_1d_14_14.value",
+                             "op": "<=",
+                             "right": 60},
+                        ],
+                    },
+                },
+                "enabled": True,
+                "timeframe": "15m",
+            }
+        ],
+        "entry_rules": [
+            {
+                "name": "كموميه الزخم الاولى · S1 — الاختراق الكامل المؤكد + الترند "
+                        "(7/15/25) + المنطقة الكمومية (HH+HL) + رصة EMA الستة "
+                        "الكاملة على الساعة (هرمية موحدة) + بوابة الزخم (MACD "
+                        "4h/3d/1d + RSI 1h/4h/1d)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_entry_s1",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.34,
+                "enabled": True,
+            },
+            {
+                "name": "كموميه الزخم الاولى · S2 — الاختراق بدون هيمنة الحجم + الترند "
+                        "+ المنطقة + رصة الستة الهرمية + بوابة الزخم",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_entry_s2",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+            {
+                "name": "كموميه الزخم الاولى · S3 — الامتصاص قبل الاختراق + الترند "
+                        "+ المنطقة + رصة الستة الهرمية + بوابة الزخم",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_entry_s3",
+                    "right_value": 0,
+                },
+                "position_side": "long",
+                "weight": 0.33,
+                "enabled": True,
+            },
+        ],
+        "exit_rules": [
+            {
+                "name": "كموميه الزخم الاولى · خروج المنطقة الكمومية — LL+LH "
+                        "(الباب الوحيد كما في البطل — بلا أي تغيير)",
+                "condition": {
+                    "type": "indicator_value",
+                    "operator": ">",
+                    "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_zone_exit",
+                    "right_value": 0,
+                },
+                "exit_type": "signal_exit",
+                "enabled": True,
+            }
+        ],
+        "filter_rules": [],
+        "risk_management": {"stop_loss_percentage": 2.0, "take_profit_percentage": 99.0},
+    },
+    "initial_capital": 300.0,
+    "position_sizing": "percentage",
+    "position_size_percent": 100.0,
+    "max_positions": 3,
+    "compounding": True,
+    "multi_position_compounding": True,
+    "commission_rate": 0,
+    "slippage_percent": 0,
+    "fill_model": "next_open",
+    "max_daily_loss_percent": 5.0,
+    "enable_short_selling": False,
+    "enable_margin": False,
+    "leverage": 1.0,
+    "require_confirmation": False,
 }
 
 
@@ -1535,6 +1790,17 @@ BLAZING_MACDIZED_RSI_LIGHT: Dict[str, Any] = _macdized_light_payload(
 
 
 PRESET_NOTES: List[str] = [
+    "✅ EMAGATE-UNIFIED (الشروط السبعة لمتوسطات EMA — شرح صاحب القرار 2026-11-19): "
+    "بوابة الرصة الهرمية الموحدة في كل استراتيجية فيها البوابة (الكمومية المتوسطة "
+    "نفسها + الجبارة + كموميه الزخم الاولى) — (1) السعر فوق كل المتوسطات «"
+    "(2-7) السلّم مرتب تماماً بالأطوال: الأصغر فوق الأكبر (EMA21>EMA50>EMA100>"
+    "EMA200>EMA350>EMA500 — أي مجموعة جزئية «إن وجد» تكيف نفسها) ولا أكبر فوق "
+    "أي زوج + الأسرع من القاعدة (ema_stack_base=21 افتراضياً — مثل 8/13) معفى "
+    "من الترتيب يجوز أن يعلو فوق EMA21 تحت السعر. الوضعان قالبان من الواجهة: "
+    "hierarchical (الافتراضي) / strict (الوضع التاريخي للتراجع/A-B) — وللتكوينات "
+    "القياسية الاثنان بت-بت (بطارية التحقق). التشخيص المرجع: ema_stack_price_ok "
+    "(الشرط 1) · ema_stack_ladder_ok (الشروط 2-7) · ema_stack_pair_ok_{a}_{b} "
+    "(عمود لكل زوج متجاور — مؤشر إنذار أي زوج انكسر).",
     "✅ R58 — وضع percentage: القيمة نسبة مئوية حقيقية (1 = 1%، 100 = رأس مال كامل). الوضع fixed يبقى كسراً تاريخياً (1.0 = 100%).",
     "الشكل الصحيح للدمج المنطقي: {\"type\": \"and\", \"conditions\": [...]} — وليس {\"type\":\"composite\",\"logic\":\"and\"}؛ "
     "الشكل القديم يُوحَّد تلقائياً الآن مع تحذير، وأي شكل غير معروف يُرفض برسالة واضحة بدل 0 صفقات صامتة.",
@@ -1809,6 +2075,42 @@ def get_presets() -> List[Dict[str, Any]]:
                                 "0.444 · رصيد نهائي $28,507.35 من $300 · math_audit "
                                 "بلا خطأ (تطابق بت-بت)",
             "payload": ZLF_ALMIGHTY_QUANTUM_EMA_TRIPLE_SIGNAL,
+            "notes": PRESET_NOTES,
+        },
+        # 🔥 QMOM1 — «كموميه الزخم الاولى» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "qmom1_quantum_momentum_zero_fee",
+            "title": "QMOM1 — كموميه الزخم الاولى · Trend+Zone+EMA-stack(هرمية)+Momentum-gate · 3 Entry Signals — ZERO FEE",
+            "description": "المحرك المعزول (QMOM1) على تكوينه الافتراضي المعتمد "
+                           "(S1/S2/S3 + بوابة الترند 7/15/25 + المنطقة الكمومية + "
+                           "رصة EMA الستة الكاملة مع EMA21 — الديفولت length=100 "
+                           "قابل للتعديل من الواجهة) + "
+                           "✅ EMAGATE-UNIFIED رصة EMA الهرمية الموحدة (الشروط "
+                           "السبعة: السعر فوق الكل + السلّم مرتب تماماً بالأطوال "
+                           "+ الأسرع من القاعدة 21 معفاة من الترتيب — عمود تشخيص "
+                           "لكل زوج) + بوابة الشروط المرنة للموشرات متعددة "
+                           "الفريمات (7 نسخ: MACD 4h/3d/1d + RSI 1h/4h/1d×2 — شجرة "
+                           "and/or/not قابلة للتركيب والتعديل من الفرونت-اند كله): "
+                           "الشرط 1 MACD 4h فوق الصفر ∧ إيجابي · الشرط 2 MACD 3d فوق "
+                           "MACD 1d · الشرط 3 RSI 1h و4h فوق اليومي · الشرط 4 RSI "
+                           "اليومي (10 أو 14) فوق 50. الشفافية الرباعية: entry_raw «"
+                           "الخام/entry_eblocked الرصة/entry_iblocked الزخم/entry "
+                           "النهائي — والخروج باب واحد كما في البطل: zone_exit "
+                           "(LL+LH) على دقة 5 دقائق (ZONE-EXIT-LTF1).",
+            "source": "QMOM1 — طلب صاحب القرار (2026-11-18): «سنقوم باضافه بوابه "
+                      "جديده للشروط وتكون مرنه وقابله للتعديل والاضافه ع اي "
+                      "استراتيجيه ... ونسوي من ZLF-End-To-End-Trendy-Quantum-EMA "
+                      "نسخه باسم: كموميه الزخم الاولى» + EMAGATE-UNIFIED "
+                      "(2026-11-19): «تطبيق التعديل على اي مكان فيه البوابه — موحد "
+                      "ومركزي ومنظم»",
+            "reference_result": "الحمولة المرجعية الموثقة #10000604 (نفس تكوين القالب "
+                                "بت-بت: ديفولت 100 + رصة الستة الكاملة) · التحقق "
+                                "الحي #10000617 (MMT · 15m · مع اغلاق 5 دقايق): "
+                                "بوابة الزخم 46 خام → 11 نهائي → 35 محجوب · PnL من "
+                                "−26.53% إلى −20.99% · MaxDD من 29.49% إلى 17.98% · "
+                                "العدادات بت-بت مع التشغيل المحلي — تُعاد المقارنة "
+                                "المرجعية بعد النشر",
+            "payload": QMOM1_TRIPLE_SIGNAL,
             "notes": PRESET_NOTES,
         },
     ]

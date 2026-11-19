@@ -1,0 +1,18 @@
+# QMOM1-FIX1 (R77) — بصمات الملفات
+# md5 (المُصلَح — ما يُنسخ للسيرفر):
+db7428ec18fe443f468728cbb8f190ab  merge_package/app/services/indicators/mtf_oscillator_core.py
+bb0e0b173759d6e933f861749981b135  merge_package/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py
+1e0a54537ae333b291a504fefe9691d8  merge_package/app/services/indicators/overlay_columns.py
+20eada75babd861dae4b185ef04a9889  merge_package/app/services/strategy/strategy_engine1.py
+30e44d2107fd2b45247232c9cb5134ee  merge_package/app/backtest/engine1.py
+
+# BASIS (الأساس المنشور على السيرفر الآن — للتحقق قبل النسخ):
+a148baa1ca28cf0631447465b32ade03  <PROJECT>/app/... basis_mtf_oscillator_core.py
+aa4a48c5fe0be9eebc34b6c28e05907f  <PROJECT>/app/... basis_mom.py
+938a9662b5dd04a4015f099936d22311  <PROJECT>/app/... basis_overlay_columns.py
+1170a3aa2a08a3e97539f9a79b93f3c7  <PROJECT>/app/... basis_strategy_engine1.py
+a4375712a777d566e8bd75199293155a  <PROJECT>/app/... basis_engine1.py
+
+# ملاحظة: basis_strategy_engine1.py و basis_engine1.py أساسهما نسخة ZONEXIT-LTF1
+# (آخر دمج لمسها قبل QMOM1 الذي لم يغيرهما) — تحقق بـ md5 قبل النسخ الكامل؛
+# إن اختلفت فطبّق diffs/*.diff جراحياً بدل النسخ.

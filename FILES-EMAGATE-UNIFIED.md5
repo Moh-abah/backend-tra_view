@@ -1,0 +1,13 @@
+b60df850070736987602cf62db19b0ad  ./app/services/indicators/ema_stack_gate.py
+5480e6cf6ad459e37d9805d8cb78ec25  ./app/services/indicators/overlay_columns.py
+16b84d1ee4fc919a77e5e6b3ee1a014e  ./app/services/indicators/overlays.py
+2b42115ab2fcb4716d6ae38db904bbe2  ./app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema.py
+287fd467d3247a3b267b5aee39684ad6  ./app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py
+b604ded1b7c9a71a20a38de900f5dab1  ./app/services/strategy/presets.py
+4dc5d036e1e41ed05ab596cc72af592a  ./strategies/qmom1_كموميه_الزخم_الاولى.json
+3e93becd194e4be3df4476a3bfb1de13  ./strategies/zlf_almighty_quantum_ema_sol15m.json
+eabf25091d7eda5d4e5b8fc553ab92dc  ./tools/reference_basis_outputs.json
+9f988e7aa02dbca25ae1965f336f3510  ./tools/verify_emagate_unified.py
+aec54769b3f9cc7c94106d985c05aea9  FRONTEND-AGENT-BRIEF-EMAGATE-UNIFIED-AR.md
+a9147a33622969b7556a1ae5745fe4e2  INSTALL-EMAGATE-UNIFIED-AR.md
+e9ad3812eadd1829ca29a0e25afd423c  REPORT-EMAGATE-UNIFIED-AR.md

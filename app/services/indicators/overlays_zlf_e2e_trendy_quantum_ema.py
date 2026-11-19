@@ -74,6 +74,18 @@ from app.services.indicators.overlays_zone_exit_mtf import (
     compute_zone_exit_mtf,
     norm_zone_exit_resolution,
 )
+# ✅ EMAGATE-UNIFIED — نواة بوابة رصة EMA الموحدة المركزية (الشروط
+# السبعة — شرح صاحب القرار 2026-11-19): «موحد ومركزي ومنظم» — المحرك
+# الوحيد الذي يحسب الرصة هو هذه النواة، وكل استراتيجية فيها البوابة
+# (الكمومية المتوسطة نفسها + كموميه الزخم الاولى QMOM1 بالتفويض)
+# تمر من هنا حصراً.
+from app.services.indicators.ema_stack_gate import (
+    DEFAULT_EMA_STACK_BASE as _EMAGATE_DEFAULT_BASE,
+    DEFAULT_EMA_STACK_MODE as _EMAGATE_DEFAULT_MODE,
+    compute_ema_stack_gate,
+    norm_ema_stack_base as _norm_ema_stack_base,
+    norm_ema_stack_mode as _norm_ema_stack_mode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +97,8 @@ __all__ = [
     "ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_LENGTHS",
     "ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_RESOLUTION",
     "ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS",
+    "ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_STACK_MODE",
+    "ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_STACK_BASE",
 ]
 
 # ---------------------------------------------------------------------------
@@ -101,12 +115,25 @@ ZLF_E2E_TRENDY_QUANTUM_EMA_SPEC = "QUANTUMEMA1-e2e-trendy-quantum-ema"
 ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_LENGTHS: Tuple[int, ...] = (21, 50, 100, 200, 350, 500)
 ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_RESOLUTION: str = "60"
 ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_GATE: Tuple[str, ...] = ("s1", "s2", "s3")
+# ✅ EMAGATE-UNIFIED — قوالب وضع الرصة الهرمي (الشروط السبعة):
+#   · الوضع الافتراضي hierarchical: السعر فوق الكل + السلّم (≥ القاعدة)
+#     مرتب تماماً + الأسرع من القاعدة (مثل 8/13) معفاة من الترتيب —
+#     مستقل عن ترتيب تمرير الأطوال ويتكيف مع أي مجموعة جزئية («إن وجد»).
+#   · الوضع strict: الصيغة التاريخية حرفياً (سلسلة بترتيب التمرير) —
+#     مفتاح تراجع/A-B. للتكوينات القياسية الاثنان بت-بت.
+ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_STACK_MODE: str = _EMAGATE_DEFAULT_MODE
+ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_STACK_BASE: int = _EMAGATE_DEFAULT_BASE
 
 # ألوان الخطوط الستة (مواصفة صاحب القرار بالصورة — يستخدمها الفرونت إند
 # مباشرة من ema.colors في استجابة المحرك عند رسم الشارت):
 #   EMA 21  أخضر     · EMA 50 بنفسجي    · EMA 100 أصفر/برتقالي
 #   EMA 200 أحمر      · EMA 350 أزرق    · EMA 500 رمادي
+# ✅ SPLIT-TP1 (جلسة الترندات الجديدة 8/13): أُضيف لونان للترندات الجديدة
+#   EMA 8  سماوي (كلاسيك) · EMA 13 كهرماني/ذهبي — أي طول مخصص آخر
+#   يُلوَّن تلقائياً من لوحة الاحتياط الدائرية أدناه (لا خط بلا لون أبداً).
 ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS: Dict[int, str] = {
+    8: "#00BCD4",    # سماوي (الترند الجديد الأول — EMA 8)
+    13: "#FFC107",   # كهرماني/ذهبي (الترند الجديد الثاني — EMA 13)
     21: "#4CAF50",   # أخضر
     50: "#9C27B0",   # بنفسجي
     100: "#FF9800",  # أصفر/برتقالي
@@ -114,6 +141,42 @@ ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS: Dict[int, str] = {
     350: "#2196F3",  # أزرق
     500: "#9E9E9E",  # رمادي
 }
+
+# ✅ SPLIT-TP1 — لوحة احتياط دائرية لأي طول مخصص غير موجود في القاموس
+# الرئيسي (مثل 30 · 233 · أي طول يضيفه صاحب القرار مستقبلاً من الفرونت):
+# كل طول بلا لون رسمي يأخذ اللون التالي بالترتيب — لا يبقى أي خط بلا لون
+# يمنع رسمه (علة «الترندات الجديدة 8/13 لم تُرسم» عولجت من جذرها).
+ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS: Tuple[str, ...] = (
+    "#00BCD4",  # سماوي
+    "#FFC107",  # كهرماني
+    "#E91E63",  # وردي
+    "#8BC34A",  # أخضر فاتح
+    "#795548",  # بني
+    "#673AB7",  # بنفسجي غامق
+    "#009688",  # تركوازي
+    "#FF5722",  # برتقالي غامق
+    "#3F51B5",  # نيلي
+    "#CDDC39",  # لايم
+    "#7C4DFF",  # بنفسجي فاتح
+    "#FF9800",  # برتقالي
+)
+
+
+def _ema_line_color(length: Any) -> str:
+    """✅ لون خط EMA لطول أي — القاموس الرسمي ثم لوحة الاحتياط الدائرية.
+
+    يعيد دائماً لوناً صالحاً (لا None أبداً) — أي طول مخصص (8/13/30/233...)
+    يُرسم بلون. القاموس الرئيسي للأطوال المعروفة والاحتياط لكل جديد.
+    """
+    try:
+        n = int(length)
+    except (TypeError, ValueError):
+        return ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS[0]
+    col = ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(n)
+    if col:
+        return col
+    return ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS[
+        (n * 7 + 3) % len(ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS)]
 
 _EMA_GATE_KIND = {"s1": 1, "1": 1, "s2": 2, "2": 2, "s3": 3, "3": 3}
 
@@ -305,6 +368,8 @@ def zigzag_fib_e2e_trendy_quantum_ema(
     ema_gate: Any = None,
     zone_exit_resolution: Any = None,
     zone_exit_length: Any = None,
+    ema_stack_mode: Any = None,
+    ema_stack_base: Any = None,
 ) -> Dict[str, Any]:
     """ZLF-End-To-End-Trendy-Quantum-EMA — الكمومية بحذافيرها + بوابة رصة EMA.
 
@@ -320,6 +385,13 @@ def zigzag_fib_e2e_trendy_quantum_ema(
       ema_offset   : إزاحة الرسم بالشموع (افتراضي 0 — موجب يميناً).
       ema_gate     : الأنواع المبوّبة برصة EMA — s1/s2/s3 (افتراضياً الثلاثة)
                      أو "none" لتعطيل البوابة (بيانات الرصة تبقى محسوبة).
+      ema_stack_mode : ✅ EMAGATE-UNIFIED — وضع الرصة: "hierarchical"
+                     (الافتراضي — الشروط السبعة: السعر فوق الكل + السلّم
+                     مرتب + الأسرع من القاعدة معفاة) أو "strict" (الوضع
+                     التاريخي حرفياً — سلسلة بترتيب التمرير — للتراجع/A-B).
+      ema_stack_base : حدّ الإعفاء/قاعدة السلّم (افتراضي 21 — نص الشرط 2:
+                     «أصغر من ema 21» معفى من الترتيب). قابلة للتعديل
+                     من الواجهة مع الأطوال نفسها (تركيب/إضافة/حذف بلا كود).
       zone_exit_resolution : ✅ ZONE-EXIT-TF1 — فريم حساب هيكل الخروج
                      (CHoCH: LL+LH يغلق المنطقة ويُخرج أي صفقة مفتوحة).
                      فارغ/"none"/"base"/"chart" = فريم الشارت (السلوك
@@ -362,6 +434,8 @@ def zigzag_fib_e2e_trendy_quantum_ema(
     N = int(t.size)
     ema_cells = _norm_ema_gate(ema_gate)
     ema_lengths_norm = _norm_ema_lengths(ema_lengths)
+    ema_stack_mode_norm = _norm_ema_stack_mode(ema_stack_mode)
+    ema_stack_base_norm = _norm_ema_stack_base(ema_stack_base)
     res_raw = ema_resolution if ema_resolution is not None else ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_RESOLUTION
     src_norm = str(ema_source or "close").strip().lower()
     if src_norm not in ("open", "high", "low", "close", "hl2", "hlc3", "ohlc4"):
@@ -375,16 +449,32 @@ def zigzag_fib_e2e_trendy_quantum_ema(
         candles, ema_lengths_norm, src_norm, int(ema_offset or 0), str(res_raw))
 
     # ------------------------------------------------------------------
-    # 3) بوابة الرصة — close > ema[0] > ema[1] > ... > ema[-1] والستة صالحة
-    #    (ترتيب تنازلي حرفي: EMA21 أولاً ثم EMA50 ثم EMA100 ثم EMA200 ثم
-    #    EMA350 ثم أسفلهم جميعاً EMA500 — كلها تحت السعر).
+    # 3) ✅ EMAGATE-UNIFIED — بوابة الرصة الموحدة (الشروط السبعة):
+    #    النواة المركزية compute_ema_stack_gate هي المحرك الوحيد للرصة
+    #    (كل استراتيجية فيها البوابة تمر من هنا حصراً — عقد «موحد
+    #    ومركزي ومنظم»). الوضع الافتراضي hierarchical: (1) السعر فوق
+    #    كل المتوسطات + (2-7) السلّم مرتب تماماً بالأطوال (EMA الأصغر فوق
+    #    الأكبر — عمود تشخيص لكل زوج متجاور) + الأسرع من القاعدة (مثل
+    #    8/13) معفاة من الترتيب يجوز أن تعلو فوق أعلى السلّم تحت السعر.
+    #    الوضع strict = الصيغة التاريخية حرفياً (سلسلة بترتيب التمرير).
+    #    للتكوينات القياسية المرتبة الاثنان بت-بت (بطارية التحقق).
     # ------------------------------------------------------------------
-    K = len(ema_lengths_norm)
     e_lines: List[List[Optional[float]]] = [
         ema_cols.get(f"ema_{int(n)}") or [None] * N for n in ema_lengths_norm
     ]
-    e_ok: List[float] = [0.0] * N
-    e_ready: List[float] = [0.0] * N
+    stack = compute_ema_stack_gate(
+        [float(x) for x in c],
+        {int(n): (ema_cols.get(f"ema_{int(n)}") or [None] * N)
+         for n in ema_lengths_norm},
+        mode=ema_stack_mode_norm,
+        base=ema_stack_base_norm,
+    )
+    stack_meta: Dict[str, Any] = stack["meta"]
+    e_ok: List[float] = [1.0 if v else 0.0 for v in stack["ok"]]
+    e_ready: List[float] = [1.0 if v else 0.0 for v in stack["ready"]]
+    e_price_ok: List[float] = [1.0 if v else 0.0 for v in stack["price_ok"]]
+    e_ladder_ok: List[float] = [1.0 if v else 0.0 for v in stack["ladder_ok"]]
+    stack_pairs: List[Dict[str, Any]] = stack["pairs"]
     e_enter: List[float] = [0.0] * N
     e_exit: List[float] = [0.0] * N
     ema_signals: List[Dict[str, Any]] = []
@@ -393,18 +483,6 @@ def zigzag_fib_e2e_trendy_quantum_ema(
     for i in range(N):
         vals = [ln[i] if i < len(ln) else None for ln in e_lines]
         close_i = c[i] if i < len(c) else None
-        all_valid = all(v is not None and math.isfinite(float(v)) for v in vals) \
-            and close_i is not None and math.isfinite(float(close_i))
-        if all_valid:
-            e_ready[i] = 1.0
-            fvals = [float(v) for v in vals]
-            f_close = float(close_i)
-            # الشرط الحرفي: السعر فوق الجميع + ترتيب تنازلي صارم
-            stacked = f_close > fvals[0]
-            for k in range(K - 1):
-                stacked = stacked and (fvals[k] > fvals[k + 1])
-            if stacked:
-                e_ok[i] = 1.0
         # أحداث دخول/خروج حالة الرصة (عند الشمعة نفسها)
         now_on = e_ok[i] > 0.5
         if now_on and not stack_on:
@@ -414,21 +492,27 @@ def zigzag_fib_e2e_trendy_quantum_ema(
                 # int() صريح — t من _norm_candles_arrays (numpy): القيمة الخام
                 # int64 غير قابلة للتسلسل JSON في مسار overlays/compute الحي.
                 "bar": int(i), "time": int(t[i]) if i < len(t) else None,
-                "side": "ema", "signal": "ZLF-E2E-Trendy-Quantum-EMA Stack ENTER (price > EMA21>50>100>200>350>500)",
+                "side": "ema", "signal": (
+                    "ZLF-E2E-Trendy-Quantum-EMA Stack ENTER ("
+                    + str(stack_meta.get("rule_ar", "")) + ")"),
                 "engine": ZLF_E2E_TRENDY_QUANTUM_EMA_ENGINE_NAME,
                 "close": float(close_i) if close_i is not None else None,
                 "ema_values": [float(v) if v is not None else None for v in vals],
                 "resolution": ema_meta.get("resolution"),
+                "stack_mode": stack_meta.get("mode"),
             })
         elif not now_on and stack_on:
             stack_on = False
             e_exit[i] = 1.0
             ema_signals.append({
                 "bar": int(i), "time": int(t[i]) if i < len(t) else None,
-                "side": "ema", "signal": "ZLF-E2E-Trendy-Quantum-EMA Stack EXIT (order broken)",
+                "side": "ema", "signal": (
+                    "ZLF-E2E-Trendy-Quantum-EMA Stack EXIT (order broken — "
+                    f"mode={stack_meta.get('mode')})"),
                 "engine": ZLF_E2E_TRENDY_QUANTUM_EMA_ENGINE_NAME,
                 "close": float(close_i) if close_i is not None else None,
                 "resolution": ema_meta.get("resolution"),
+                "stack_mode": stack_meta.get("mode"),
             })
 
     # ------------------------------------------------------------------
@@ -483,11 +567,19 @@ def zigzag_fib_e2e_trendy_quantum_ema(
     for idx_n, n in enumerate(ema_lengths_norm):
         quantum_ema_series[f"zzfetqe_ema_{int(n)}"] = e_lines[idx_n]
 
-    # (د) حالة الرصة وأحداثها وجاهزيتها
+    # (د) حالة الرصة وأحداثها وجاهزيتها + ✅ EMAGATE-UNIFIED التشخيص
+    #     الهرمي (عمود لكل شرط من السبعة): price_ok (الشرط 1) · ladder_ok
+    #     (الشروط 2-7 مجمّعة) · pair_ok_{a}_{b} (كل زوج متجاور في السلّم
+    #     على حدة — مؤشرات إنذار للواجهة: أي زوج انكسر).
     quantum_ema_series["zzfetqe_ema_stack_ok"] = e_ok
     quantum_ema_series["zzfetqe_ema_stack_ready"] = e_ready
     quantum_ema_series["zzfetqe_ema_stack_enter"] = e_enter
     quantum_ema_series["zzfetqe_ema_stack_exit"] = e_exit
+    quantum_ema_series["zzfetqe_ema_stack_price_ok"] = e_price_ok
+    quantum_ema_series["zzfetqe_ema_stack_ladder_ok"] = e_ladder_ok
+    for pr in stack_pairs:
+        quantum_ema_series[
+            f"zzfetqe_ema_stack_pair_ok_{int(pr['a'])}_{int(pr['b'])}"] = pr["ok"]
 
     # (د-2) ✅ ZONE-EXIT-TF1 — فريم هيكل الخروج (CHoCH على أي فريم):
     #      حساب حدث إغلاق المنطقة (LL+LH) على فريم HTF مستقل وإسقاطه
@@ -635,11 +727,17 @@ def zigzag_fib_e2e_trendy_quantum_ema(
         current["ema"] = {
             "stack_ok": float(e_ok[N - 1]) if N else 0.0,
             "stack_ready": float(e_ready[N - 1]) if N else 0.0,
+            "stack_price_ok": float(e_price_ok[N - 1]) if N else 0.0,
+            "stack_ladder_ok": float(e_ladder_ok[N - 1]) if N else 0.0,
+            "stack_mode": stack_meta.get("mode"),
+            "stack_base": stack_meta.get("base"),
             "values": {
                 f"ema_{int(n)}": (e_lines[idx_n][N - 1] if N and idx_n < len(e_lines) else None)
                 for idx_n, n in enumerate(ema_lengths_norm)
             },
             "lengths": [int(x) for x in ema_lengths_norm],
+            "ladder_lengths": stack_meta.get("ladder_lengths"),
+            "fast_lengths": stack_meta.get("fast_lengths"),
             "resolution": ema_meta.get("resolution"),
             "gate": [f"s{x}" for x in ema_cells],
         }
@@ -650,6 +748,9 @@ def zigzag_fib_e2e_trendy_quantum_ema(
     params_echo["ema_source"] = src_norm
     params_echo["ema_offset"] = int(ema_offset or 0)
     params_echo["ema_gate"] = [f"s{x}" for x in ema_cells]
+    # ✅ EMAGATE-UNIFIED — صدى وضع الرصة الهرمي (الشروط السبعة)
+    params_echo["ema_stack_mode"] = stack_meta.get("mode")
+    params_echo["ema_stack_base"] = stack_meta.get("base")
     # ✅ ZONE-EXIT-TF1 — صدى فريم هيكل الخروج (None = فريم الشارت)
     params_echo["zone_exit_resolution"] = (
         zone_exit_section.get("resolution") if zone_exit_section.get("enabled") else None)
@@ -693,21 +794,39 @@ def zigzag_fib_e2e_trendy_quantum_ema(
             "source": src_norm,
             "offset": int(ema_offset or 0),
             "gate": [f"s{x}" for x in ema_cells],
-            "gate_rule": "الدخول المبوّب لا يتحقق إلا بترتيب الرصة التنازلي تحت "
-                         "السعر: close > EMA21 > EMA50 > EMA100 > EMA200 > EMA350 "
-                         "> EMA500 (المتوسطات الستة محسوبة على فريم الساعة "
-                         "resolution=«60» افتراضياً — بلا نظر مستقبلية) بالتزامن "
-                         "مع المنطقة الكمومية المفتوحة (HH+HL). ema_gate=none "
-                         "يعطل بوابة الدخول مع بقاء الخطوط والرصة محسوبة ومُرجعة.",
+            # ✅ EMAGATE-UNIFIED — عقد الرصة الهرمي المركزي (الشروط السبعة)
+            "stack_mode": stack_meta.get("mode"),
+            "stack_base": stack_meta.get("base"),
+            "stack_ladder_lengths": stack_meta.get("ladder_lengths"),
+            "stack_fast_lengths": stack_meta.get("fast_lengths"),
+            "stack_pair_labels": stack_meta.get("pair_labels"),
+            "stack_rule_ar": stack_meta.get("rule_ar"),
+            "gate_rule": (
+                "✅ EMAGATE-UNIFIED (الشروط السبعة — شرح صاحب القرار): "
+                + str(stack_meta.get("rule_ar", ""))
+                + ". المتوسطات محسوبة على فريم "
+                + str(ema_meta.get("resolution"))
+                + " (resolution=«60» افتراضياً — بلا نظر مستقبلية) بالتزامن "
+                "مع المنطقة الكمومية المفتوحة (HH+HL). ema_gate=none يعطل "
+                "بوابة الدخول مع بقاء الخطوط والرصة محسوبة ومُرجعة."),
             "colors": {
-                "ema_21": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(21),
-                "ema_50": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(50),
-                "ema_100": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(100),
-                "ema_200": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(200),
-                "ema_350": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(350),
-                "ema_500": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(500),
+                # ✅ SPLIT-TP1 — ألوان الأطوال المعروفة (الثمانية الآن مع 8/13)
+                # ولوحة الاحتياط لأي طول مخصص آخر — لا خط بلا لون أبداً.
+                "ema_8": _ema_line_color(8),
+                "ema_13": _ema_line_color(13),
+                "ema_21": _ema_line_color(21),
+                "ema_50": _ema_line_color(50),
+                "ema_100": _ema_line_color(100),
+                "ema_200": _ema_line_color(200),
+                "ema_350": _ema_line_color(350),
+                "ema_500": _ema_line_color(500),
             },
-            "color_by_length": {str(int(n)): ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(int(n)) for n in ema_lengths_norm},
+            # ✅ SPLIT-TP1 — لون كل طول مُكوَّن فعلياً (ديناميكي — لا None
+            # أبداً): مصدر الرسم الموحد للفرونت لأي مجموعة أطوال يرسلها،
+            # بما فيها الترندات الجديدة 8 و13 وأي طول مخصص مستقبلي.
+            "color_by_length": {
+                str(int(n)): _ema_line_color(int(n)) for n in ema_lengths_norm},
+            "color_source": "ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS + fallback palette",
             "htf_bars": ema_meta.get("htf_bars"),
             "htf_step_ms": ema_meta.get("htf_step_ms"),
             "resolution_clamped_to_chart_tf": ema_meta.get("resolution_clamped_to_chart_tf", False),
@@ -715,6 +834,8 @@ def zigzag_fib_e2e_trendy_quantum_ema(
                 "stack_enters": int(sum(e_enter)),
                 "stack_exits": int(sum(e_exit)),
                 "stack_ok_bars": int(sum(e_ok)),
+                "stack_price_ok_bars": int(sum(e_price_ok)),
+                "stack_ladder_ok_bars": int(sum(e_ladder_ok)),
                 "final_entries": int(sum(qe_entry)),
                 "ema_blocked": int(sum(qe_eblocked[1])) + int(sum(qe_eblocked[2]))
                                 + int(sum(qe_eblocked[3])),
@@ -749,6 +870,21 @@ def _register_quantum_ema_indicator() -> None:
             @classmethod
             def get_required_columns(cls):
                 return ["open", "high", "low", "close"]
+
+            @classmethod
+            def get_default_params(cls):
+                # ✅ EMAGATE-UNIFIED — لوحة إعدادات الواجهة (endpoint /params):
+                # كل مفاتيح بوابة الرصة الهرمية ظاهرة هنا صريحة.
+                return {
+                    "length": 100, "mode": "luxalgo",
+                    "trend_periods": [7, 15, 25], "trend_confirm": "majority",
+                    "trend_gate": ["s1", "s2", "s3"],
+                    "zone_gate": ["s1", "s2", "s3"],
+                    "ema_lengths": [21, 50, 100, 200, 350, 500],
+                    "ema_resolution": "60", "ema_source": "close",
+                    "ema_offset": 0, "ema_gate": ["s1", "s2", "s3"],
+                    "ema_stack_mode": "hierarchical", "ema_stack_base": 21,
+                }
 
             def calculate(self, data: pd.DataFrame) -> IndicatorResult:
                 from .overlay_columns import config_to_overlay_params

@@ -1,0 +1,15 @@
+77f2e6a1a423acaa7cda66c581a61e0b  ./FRONTEND-AGENT-BRIEF-QMOM1-AR.md
+d4b81637baef29a13036a8447d2c86d0  ./INSTALL-QMOM1-AR.md
+7f28b83dde299a5a6e3909ebb27c0d88  ./app/services/indicators/__init__.py
+a148baa1ca28cf0631447465b32ade03  ./app/services/indicators/mtf_oscillator_core.py
+938a9662b5dd04a4015f099936d22311  ./app/services/indicators/overlay_columns.py
+b136e5933a5b3f91f9f18e3e3c48946a  ./app/services/indicators/overlays.py
+aa4a48c5fe0be9eebc34b6c28e05907f  ./app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py
+0e24b8c77ce25f3f095c2c36bd1c03a6  ./diffs/app_services_indicators___init__.py.diff
+f2d0a7feea7556cb63a5cdaae6e63ae4  ./diffs/app_services_indicators_mtf_oscillator_core.py.diff
+b5b15c4c2e419c2ae708ae03c177d160  ./diffs/app_services_indicators_overlay_columns.py.diff
+eb588b40c37278e4252bda28d33721f8  ./diffs/app_services_indicators_overlays.py.diff
+bb1183748e7f605cfc2570128c4efe46  ./payloads/payload_qmom1_sol_full_history.json
+dbeadff24cff145fc5f8d648ef05e727  ./strategies/qmom1_كموميه_الزخم_الاولى.json
+62607f2052a7e5e5fb946bf121d19ca3  ./tools/verify_qmom1.py
+48adaf22b3466f2fb7d166a4578ae6e5  ./tools/verify_result.txt

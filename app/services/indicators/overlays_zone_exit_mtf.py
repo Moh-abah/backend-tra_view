@@ -68,9 +68,13 @@ __all__ = [
     "ZONE_EXIT_TF_SPEC",
     "set_zone_exit_ltf_context",
     "clear_zone_exit_ltf_context",
+    # ✅ SPLIT-ZZ1 — انعكاس هيكل الزقزاق على فريم الشارت نفسه (نفس الآلة)
+    "compute_zone_exit_same",
+    "SPLIT_ZZ_SPEC",
 ]
 
 ZONE_EXIT_TF_SPEC = "ZONE-EXIT-TF1-choch-exit-timeframe"
+SPLIT_ZZ_SPEC = "SPLIT-ZZ1-structure-split-exit"
 
 # ✅ ZONE-EXIT-LTF1 — سياق بيانات الفريم الأدق الحقيقية (طلب صاحب القرار:
 # «نجرب نفعل الخروج ع فريم 5 دقائق» — الشارت 15m). فريم أدق لا يمكن
@@ -187,6 +191,125 @@ def _zone_machine_on_pivots(
         zone_on_series[j] = 1.0 if zone_on else 0.0
 
     return z_enter, z_exit, zone_on_series, events
+
+
+def _same_base_step(t: "np.ndarray") -> Optional[int]:
+    """خطوة شمعة القاعدة (متينة أمام الفجوات — نفس عقد compute_zone_exit_mtf)."""
+    if int(t.size) < 2:
+        return None
+    diffs = np.diff(t)
+    pos = diffs[diffs > 0]
+    return int(pos.min()) if pos.size else 60_000
+
+
+def compute_zone_exit_same(
+    candles: Any,
+    length: int,
+    reverse: bool = False,
+    levels: Optional[Any] = None,
+    extend_right: bool = True,
+    extend_leg_to_live: bool = True,
+    mode: str = "luxalgo",
+    depth: int = 12,
+    deviation: float = 20.0,
+    backstep: int = 3,
+    launch_touch_ticks: float = 1.0,
+) -> Optional[Dict[str, Any]]:
+    """✅ SPLIT-ZZ1 — هيكل الزقزاق (CHoCH: LL+LH) على فريم الشارت نفسه.
+
+    نفس الآلة المزدوجة تماماً (محرك الزقزاق الترندي + آلة المنطقة الكمومية)
+    تعمل مباشرة على شموع القاعدة بلا أي بناء HTF ولا إسقاط — الأحداث
+    تُعلَّم عند شمعة تأكيد المحور نفسها (نفس دلالات zone_exit الأصلي في
+    محرك الكمومية-EMA بعيار length المُمرَّر).
+
+    يستخدمه محرك الباك-تست لقواعد «الخروج المقسم بانعكاس الهيكل» عند
+    resolution="same"/"chart" (أو فريم مساوٍ لفريم الشارت) — قابل للتخصيص
+    على أي استراتيجية (لا يقرأ أعمدة الاستراتيجية إطلاقاً).
+
+    يرجع قاموساً بأطوال شموع القاعدة (نفس عقد compute_zone_exit_mtf):
+      zone_exit / zone_enter / zone_on / events / meta — أو None عند فشل
+      دفاعي (بلا شموع).
+    """
+    try:
+        t, o, h, l, c = _norm_candles_arrays(candles)
+    except Exception:
+        logger.exception("SPLIT-ZZ1: فشل تطبيع الشموع لهيكل نفس الفريم")
+        return None
+    N = int(t.size)
+    if N == 0:
+        return None
+    try:
+        _len = int(length)
+    except (TypeError, ValueError):
+        _len = 100
+    if _len < 2:
+        _len = 2
+
+    base_candles = [
+        {
+            "time": int(t[j]),
+            "open": float(o[j]),
+            "high": float(h[j]),
+            "low": float(l[j]),
+            "close": float(c[j]),
+        }
+        for j in range(N)
+    ]
+    try:
+        trendy = zigzag_fib_e2e_trendy(
+            base_candles,
+            length=_len,
+            reverse=reverse,
+            levels=levels,
+            extend_right=extend_right,
+            extend_leg_to_live=extend_leg_to_live,
+            mode=mode,
+            depth=depth,
+            deviation=deviation,
+            backstep=backstep,
+            launch_touch_ticks=launch_touch_ticks,
+        )
+    except Exception:
+        logger.exception("SPLIT-ZZ1: فشل محرك الزقزاق على فريم الشارت")
+        return None
+    pivots = trendy.get("pivots") or []
+    z_enter, z_exit, zone_on_series, events = _zone_machine_on_pivots(pivots, N)
+
+    mapped_events: List[Dict[str, Any]] = []
+    for j, flag in enumerate(z_exit):
+        if flag:
+            mapped_events.append({
+                "kind": "exit", "htf_bar": int(j), "base_bar": int(j),
+                "base_time": int(t[j]),
+            })
+    return {
+        "spec": SPLIT_ZZ_SPEC,
+        "zone_exit": z_exit,
+        "zone_enter": z_enter,
+        "zone_on": zone_on_series,
+        "events": mapped_events,
+        "meta": {
+            "resolution": "same",
+            "htf_kind": "chart",
+            "length": int(_len),
+            "htf_bars": N,
+            "htf_step_ms": None,
+            "base_step_ms": _same_base_step(t),
+            "resolution_clamped_to_chart_tf": False,
+            "ltf_real_context": False,
+            "counts": {
+                "htf_zone_enters": int(sum(z_enter)),
+                "htf_zone_exits": int(sum(z_exit)),
+                "mapped_enters": int(sum(z_enter)),
+                "mapped_exits": int(sum(z_exit)),
+            },
+            "rule": (
+                "انعكاس هيكل الزقزاق (LL+LH) محسوب على شموع فريم الشارت نفسها "
+                f"(زقزاق length={int(_len)}) — الحدث يُعلَم عند شمعة تأكيد المحور "
+                "المكمِّل للزوج (بلا أي استشراف)."
+            ),
+        },
+    }
 
 
 def compute_zone_exit_mtf(

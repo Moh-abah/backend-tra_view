@@ -73,6 +73,128 @@ class PositionType(str, Enum):
     LONG = "long"
     SHORT = "short"
 
+class TakeProfitSplit(BaseModel):
+    """✅ SPLIT-TP1 — مستوى واحد من مستويات «التيك بروفت المقسم» (جني جزئي).
+
+    طلب صاحب القرار الحرفي: «شروط مركبه للتيك بروفت المقسم ... بيع ربع
+    الكميه عند ارتفاع 5% وربع ثاني بعد 7% والباقي كذا كذا» — كل مستوى:
+
+      gain_percent : نسبة الارتفاع فوق سعر الدخول (LONG) / الهبوط تحته
+                    (SHORT) التي عند لمسها داخل الشمعة تُباع حصة فوراً
+                    عند سعر المستوى بالضبط (نفس دلالات which_high >= tp
+                    في التيبي الكامل — لمسة داخل الشمعة).
+      size_percent : نسبة الكمية التي تُباع عند هذا المستوى من الكمية
+                    الأصلية للمركز (ربع الكمية = 25). الباقي يبقى راكباً
+                    تحت تصرف بقية المخارج (exit_rules / SL / TP / التريلينق
+                    / نهاية البيانات) — «والباقي كذا كذا».
+
+    مستويات متعددة تُرتب تصاعدياً (gain أدنى أولاً) وتُنفذ كل واحدة مرة
+    واحدة لكل صفقة (Latch) — المستوى الأعلى لا يُشترط لمسُه قبله.
+    """
+    gain_percent: float = Field(..., gt=0.0, le=10000.0,
+                                description="نسبة الربح التي عند لمسها يُجنى المستوى (مثال: 5 = +5% فوق الدخول)")
+    size_percent: float = Field(..., gt=0.0, le=100.0,
+                                description="نسبة الكمية التي تُباع عند المستوى من الكمية الأصلية (ربع = 25)")
+    name: Optional[str] = Field(None, description="تسمية اختيارية للمستوى (تظهر في أسباب الخروج)")
+
+    @field_validator("gain_percent", "size_percent", mode="before")
+    @classmethod
+    def _coerce_numeric(cls, v):
+        """تطبيع دفاعي: نصوص رقمية وأي عدد تُقبل (نفس فلسفة رقع الأنظمة السابقة)."""
+        if v is None:
+            return v
+        if isinstance(v, bool):
+            raise ValueError("قيمة غير رقمية")
+        if isinstance(v, str):
+            s = v.strip()
+            try:
+                return float(s)
+            except ValueError:
+                raise ValueError(
+                    f"قيمة غير رقمية '{v}' — استخدم رقماً (مثال: 5 أو 25)")
+        return v
+
+class StructureSplitExit(BaseModel):
+    """✅ SPLIT-ZZ1 — قاعدة واحدة من قواعد «الخروج المقسم بانعكاس هيكل الزقزاق».
+
+    طلب صاحب القرار الحرفي (2026-11-19): «باقي شيء وهي طريقه الخروج حق
+    تقسيم الخروج عشان اقدر اخصصها على اي استراتيجيه بانعكاس هيكل الزقزاق
+    سواء ع نفس الشارت او فريم اقل منه او فريم اعلى منه» — كل قاعدة:
+
+      resolution  : فريم حساب هيكل الزقزاق — أي فريم: «same»/«chart»/فارغ =
+                    فريم الشارت نفسه · «5m»/«15m»/«1h»/«4h»/«1d»/«1D»/«1W»...
+                    فريم أدق من الشارت (بيانات حقيقية من طبقة البيانات) أو
+                    فريم أعلى (يُبنى من شموع الشارت بتجميع صاعد — نفس نواة
+                    رصة EMA). قابل للتخصيص على أي استراتيجية (حقل جذري في
+                    الباك-تست لا يقرأ أعمدة الاستراتيجية إطلاقاً).
+      length      : عيار رادار الزقزاق على ذلك الفريم (المحاور المؤكدة) —
+                    افتراضي 100 عند الغياب.
+      size_percent: نسبة الكمية الأصلية التي تُباع عند كل حدث انعكاس هيكل
+                    (LL+LH — إغلاق المنطقة) يقع أثناء فتح الصفقة. الانعكاس
+                    يُقرر عند إغلاق شمعة التأكيد ويُنفَّذ البيع الجزئي عند
+                    open الشمعة التالية (نموذج Next-Open — نفس دلالات
+                    exit_rules القائمة).
+
+    قواعد متعددة مستقلة (مثال: 5m يبيع 10% و 1h يبيع 25%) — كل حدث لكل
+    قاعدة مرة واحدة؛ الكمية تنفد بالقص الدفاعي عند التنفيذ (لا بيع فوق
+    المتبقي) والختام عند الاستنفاد سببه Structure Split Exit (Full).
+    """
+    resolution: str = Field(
+        "same",
+        description="فريم هيكل الزقزاق: same=فريم الشارت · أو أي فريم "
+                    "(5m/15m/1h/4h/1d/1D/1W/1M... — أدق يُجلب حقيقياً من "
+                    "طبقة البيانات، أعلى يُبنى بتجميع صاعد)",
+    )
+    length: Optional[int] = Field(
+        None, ge=2, le=100000,
+        description="عيار زقزاق الانعكاس على ذلك الفريم (افتراضي 100 عند الغياب)",
+    )
+    size_percent: float = Field(
+        ..., gt=0.0, le=100.0,
+        description="نسبة الكمية الأصلية المباعة عند كل انعكاس هيكل (ربع = 25)",
+    )
+    name: Optional[str] = Field(
+        None, description="تسمية اختيارية للقاعدة (تظهر في أسباب الخروج)")
+    enabled: bool = True
+
+    @field_validator("size_percent", mode="before")
+    @classmethod
+    def _coerce_size(cls, v):
+        """تطبيع دفاعي: نصوص رقمية تُقبل (نفس فلسفة TakeProfitSplit)."""
+        if v is None:
+            return v
+        if isinstance(v, bool):
+            raise ValueError("قيمة غير رقمية")
+        if isinstance(v, str):
+            try:
+                return float(v.strip())
+            except ValueError:
+                raise ValueError(
+                    f"قيمة غير رقمية '{v}' — استخدم رقماً (مثال: 25)")
+        return v
+
+    @field_validator("resolution", mode="before")
+    @classmethod
+    def _norm_resolution_token(cls, v):
+        """توحيد مرادفات «فريم الشارت نفسه» + تنظيف النص."""
+        if v is None:
+            return "same"
+        if isinstance(v, bool):
+            return "same"
+        s = str(v).strip()
+        if s == "":
+            return "same"
+        low = s.lower()
+        if low in ("base", "current", "self", "on", "chart"):
+            return "same"
+        if low in ("none", "off", "false", "no", "disabled", "disable"):
+            raise ValueError(
+                "resolution '" + s + "' غير مفهومة — لتعطيل القاعدة استخدم "
+                '"enabled": false (وليس قيمة فريم). المرادفات المقبولة '
+                "لفريم الشارت: same/chart/base/current.")
+        return low
+
+
 class Trade(BaseModel):
     """صفقة تداول"""
     id: str
@@ -108,6 +230,11 @@ class Trade(BaseModel):
     pnl_gross: Optional[float] = None         # = pnl دائماً (بلا خصم)
     fill_entry: Optional[str] = None          # next_open | signal_close
     fill_exit: Optional[str] = None           # next_open | signal_close
+    # ✅ SPLIT-TP1 — سجل الجني المقسم للصفقة (فارغ/None للصفقات غير المجزأة):
+    # كل حدث {time, gain_percent, size_percent, size_sold, price, pnl,
+    # remaining_size} — يُملأ عند كل جني جزئي ويُسلّم كاملاً عند الختام.
+    # pnl الصفقة = إجمالي (جني مقسم + الختامي على المتبقي) — عقد الشفافية.
+    partial_exits: Optional[List[Dict[str, Any]]] = None
 
     pnl_percent: Optional[float] = Field(None, alias="pnl_percent")
     class Config:
@@ -278,6 +405,155 @@ class BacktestConfig(BaseModel):
     stop_loss_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
     # take_profit_percent: عدم الإرسال أو 0 = تعطيل جني الربح
     take_profit_percent: Optional[float] = Field(None, ge=0.0, le=100.0)
+    # ✅ SPLIT-TP1 — «التيك بروفت المقسم» (جني جزئي متعدد المستويات):
+    # قائمة مستويات [{gain_percent, size_percent}, ...] — كل مستوى عند لمس
+    # الربح gain% يبيع size% من الكمية الأصلية عند سعر المستوى، والباقي
+    # يبقى راكباً تحت تصرف بقية المخارج. غياب الحقل/قائمة فارغة ⇒ الميزة
+    # معطلة والسلوك التاريخي بت-بت (لا مفتاح يُبث في risk_echo إطلاقاً).
+    # مثال طلب صاحب القرار: ربع عند +5% ثم ربع عند +7% ⇒
+    #   "take_profit_splits": [{"gain_percent": 5, "size_percent": 25},
+    #                           {"gain_percent": 7, "size_percent": 25}]
+    take_profit_splits: Optional[List[TakeProfitSplit]] = Field(
+        None,
+        description="SPLIT-TP1 — مستويات الجني المقسم: كل مستوى يبيع نسبة من "
+                    "الكمية عند لمس نسبة ربح محددة (ربع عند +5% · ربع عند +7% ...) "
+                    "والباقي يبقى لبقية المخارج.",
+    )
+    # ✅ SPLIT-ZZ1 — «الخروج المقسم بانعكاس هيكل الزقزاق»:
+    # قائمة قواعد [{resolution, length, size_percent, enabled}, ...] — كل قاعدة
+    # تحسب انعكاس هيكل الزقزاق (LL+LH — CHoCH) على فريمها (نفس الشارت أو
+    # أدق أو أعلى) وعند كل انعكاس أثناء فتح الصفقة تُباع size% من الكمية
+    # الأصلية عند open الشمعة التالية. غياب الحقل/قائمة فارغة ⇒ الميزة
+    # معطلة والسلوك التاريخي بت-بت (لا مفتاح يُبث في risk_echo إطلاقاً).
+    # مثال: ربع عند كل انعكاس على نفس الشارت + ربع عند انعكاس الساعة:
+    #   "structure_split_exits": [
+    #     {"resolution": "same", "length": 100, "size_percent": 25},
+    #     {"resolution": "1h", "length": 50, "size_percent": 25}]
+    structure_split_exits: Optional[List[StructureSplitExit]] = Field(
+        None,
+        description="SPLIT-ZZ1 — قواعد الخروج المقسم بانعكاس هيكل الزقزاق: "
+                    "كل قاعدة تبيع نسبة من الكمية عند كل انعكاس هيكل (LL+LH) "
+                    "على أي فريم (same/أدق/أعلى) — قابل للتخصيص على أي استراتيجية.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_split_tp_pairs(cls, data: Any) -> Any:
+        """SPLIT-TP1 — قبول أشكال مريحة لكل مستوى (توافق الفرونت):
+
+        • [5, 25] / (5, 25)  → {gain_percent: 5, size_percent: 25}
+        • {"5": 25} (dict)   → مستوى واحد
+        • الشكل القانوني {gain_percent, size_percent} يمر كما هو.
+        أي شكل آخر غير مفهوم يُرفض برسالة عربية واضحة (لا تجاهل صامت).
+        """
+        if not isinstance(data, dict) or "take_profit_splits" not in data:
+            return data
+        raw = data.get("take_profit_splits")
+        if raw is None:
+            return data
+        if isinstance(raw, dict):
+            raw = [raw]
+        if not isinstance(raw, (list, tuple)):
+            raise ValueError(
+                "take_profit_splits يجب أن تكون قائمة مستويات "
+                '[{"gain_percent": 5, "size_percent": 25}, ...]')
+        out: List[Any] = []
+        for it in raw:
+            if isinstance(it, dict) and "gain_percent" in it or (
+                    isinstance(it, dict) and "size_percent" in it):
+                out.append(it)
+            elif isinstance(it, (list, tuple)) and len(it) == 2:
+                out.append({"gain_percent": it[0], "size_percent": it[1]})
+            elif isinstance(it, dict) and len(it) == 1:
+                (k, v), = it.items()
+                out.append({"gain_percent": k, "size_percent": v})
+            else:
+                raise ValueError(
+                    "مستوى جني مقسم غير مفهوم: " + repr(it) +
+                    ' — الشكل القانوني: {"gain_percent": 5, "size_percent": 25} '
+                    "أو الزوج [5, 25])")
+        d = dict(data)
+        d["take_profit_splits"] = out
+        return d
+
+    @model_validator(mode="after")
+    def validate_split_tp_total(self):
+        """SPLIT-TP1 — مجموع أحجام المستويات لا يتجاوز 100% من الكمية
+        الأصلية (رفع صريح 422 برسالة عربية — لا قصّ صامت عند الحد).
+        """
+        splits = getattr(self, "take_profit_splits", None)
+        if splits:
+            total = 0.0
+            for lvl in splits:
+                total += float(lvl.size_percent)
+            if total > 100.0 + 1e-9:
+                raise ValueError(
+                    "مجموع أحجام مستويات التيك بروفت المقسم = "
+                    f"{total:.4f}% > 100% من الكمية الأصلية — لا يمكن بيع أكثر "
+                    "من الكمية. صحّح الأحجام (مثال: 25+25+50 = 100).")
+        return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_structure_split_shapes(cls, data: Any) -> Any:
+        """SPLIT-ZZ1 — قبول أشكال مريحة لكل قاعدة (توافق الفرونت):
+
+        • ["5m", 25] / ("5m", 25)  → {resolution: 5m, size_percent: 25}
+        • ["5m", 25, 100] (ثلاثية)  → + length: 100
+        • الشكل القانوني {resolution, size_percent[, length, enabled]} يمر.
+        أي شكل آخر غير مفهوم يُرفض برسالة عربية واضحة (لا تجاهل صامت).
+        """
+        if not isinstance(data, dict) or "structure_split_exits" not in data:
+            return data
+        raw = data.get("structure_split_exits")
+        if raw is None:
+            return data
+        if isinstance(raw, dict):
+            raw = [raw]
+        if not isinstance(raw, (list, tuple)):
+            raise ValueError(
+                "structure_split_exits يجب أن تكون قائمة قواعد "
+                '[{"resolution": "same", "size_percent": 25}, ...]')
+        out: List[Any] = []
+        for it in raw:
+            if isinstance(it, dict) and ("resolution" in it or "size_percent" in it
+                                         or "length" in it):
+                out.append(it)
+            elif isinstance(it, (list, tuple)) and len(it) == 2:
+                out.append({"resolution": it[0], "size_percent": it[1]})
+            elif isinstance(it, (list, tuple)) and len(it) == 3:
+                out.append({"resolution": it[0], "size_percent": it[1],
+                            "length": it[2]})
+            else:
+                raise ValueError(
+                    "قاعدة خروج مقسم بانعكاس الهيكل غير مفهومة: " + repr(it) +
+                    ' — الشكل القانوني: {"resolution": "5m", "size_percent": 25}'
+                    " أو الزوج [\"5m\", 25] أو الثلاثية [\"5m\", 25, 100])")
+        d = dict(data)
+        d["structure_split_exits"] = out
+        return d
+
+    @model_validator(mode="after")
+    def validate_structure_split_total(self):
+        """SPLIT-ZZ1 — مجموع أحجام القواعد المفعّلة لا يتجاوز 100% من الكمية
+        الأصلية (رفع صريح 422 برسالة عربية — لا قصّ صامت عند الحد).
+
+        (ملاحظة دلالية: أحداث الانعكاس قد تتكرر أثناء الصفقة — كل حدث يبيع
+        حصته من الكمية الأصلية حتى النفاد بالقص الدفاعي عند التنفيذ؛ هذا
+        الفحص يمنع التكوينات المستحيلة مسبقاً.)
+        """
+        rules = getattr(self, "structure_split_exits", None)
+        if rules:
+            total = 0.0
+            for r in rules:
+                if getattr(r, "enabled", True):
+                    total += float(r.size_percent)
+            if total > 100.0 + 1e-9:
+                raise ValueError(
+                    "مجموع أحجام قواعد الخروج المقسم بانعكاس الهيكل = "
+                    f"{total:.4f}% > 100% من الكمية الأصلية — لا يمكن بيع أكثر "
+                    "من الكمية. صحّح الأحجام (مثال: 25+25+50 = 100).")
+        return self
     # ✅ R55 — التريلينق من الجذر يعمل فعلياً في المحرك الرئيسي (engine1)
     # ويُلغي SL/TP عند تفعيله (نفس دلالات محرك الخروج الموحد).
     # السقف مرفوع من 10 إلى 50 — كان يرفض 20% بـ422.

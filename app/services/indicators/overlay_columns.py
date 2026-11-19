@@ -136,6 +136,10 @@ OVERLAY_ALIASES: Dict[str, str] = {
     # 100/200/350/500 تنازلياً تحت السعر — MTF EMA بلا استشراف).
     "zigzag_fib_e2e_trendy_quantum_ema": "zzfib_e2e_trendy_quantum_ema",
     "zzfib_e2e_trendy_quantum_ema": "zzfib_e2e_trendy_quantum_ema",
+    # QMOM1: "quantum momentum first" (كموميه الزخم الاولى) — quantum-EMA
+    # verbatim + the flexible multi-timeframe oscillator conditions gate.
+    "zigzag_fib_e2e_trendy_quantum_ema_mom": "zzfib_e2e_trendy_quantum_ema_mom",
+    "zzfib_e2e_trendy_quantum_ema_mom": "zzfib_e2e_trendy_quantum_ema_mom",
     # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات (Pine بحذافيره
     # بلا استشراف — قابل للتخصيص من الواجهة، رسم الآن وشروط لاحقاً).
     "mtf_ema": "mtf_ema",
@@ -151,6 +155,7 @@ KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
                        "zzfib_e2e_trendy_macd", "zzfib_e2e_blazing_macd",  # ✅ PRO73
                        "zzfib_e2e_trendy_quantum",  # ✅ QUANTUM1 — الاستراتيجية الترندية الكمومية
                        "zzfib_e2e_trendy_quantum_ema",  # ✅ QUANTUMEMA1 — الكمومية المتوسطة المتحركة الأسية
+                       "zzfib_e2e_trendy_quantum_ema_mom",  # QMOM1 — quantum momentum first: quantum-EMA + flexible conditions gate
                        "mtf_ema",  # ✅ MTFEMA1 — MTF EMA متعدد الفريمات
                        "trend_fractal")
 
@@ -270,6 +275,26 @@ CONTRACT_COLUMNS: Dict[str, List[str]] = {
     # محسوبة على فريم الساعة 60) + حالة الرصة (stack_ok/ready/enter/exit)
     # + الشفافية الخماسية (entry_raw خام / entry_blocked ترند /
     # entry_zblocked منطقة / entry_eblocked رصة EMA / entry النهائي).
+    # QMOM1 (ZLF-End-To-End-Trendy-Quantum-EMA-Mom — "quantum momentum first") —
+    # the quantum-EMA mirror (zzfetqem_X -> ind_zzfetqem_X) + the momentum-gate
+    # transparency (entry_iblocked + osc_gate) + the dynamic oscillator series
+    # ind_zzfetqem_osc_<id>_<field> (macd: line/signal/hist · rsi: value/ma/
+    # bb_upper/bb_lower · mom: line/pct — one column per instance field, any
+    # count, 22 timeframes) + full pass-through of the quantum and trendy
+    # contracts (ind_zzfetq_* + ind_zzfet_* — verbatim drawing data).
+    "zzfib_e2e_trendy_quantum_ema_mom": [
+        "ind_zzfetqem_entry", "ind_zzfetqem_entry_iblocked",
+        "ind_zzfetqem_entry_s1", "ind_zzfetqem_entry_s2", "ind_zzfetqem_entry_s3",
+        "ind_zzfetqem_entry_iblocked_s1", "ind_zzfetqem_entry_iblocked_s2",
+        "ind_zzfetqem_entry_iblocked_s3", "ind_zzfetqem_osc_gate",
+        "ind_zzfetqem_zone_exit",
+        # dynamic: ind_zzfetqem_osc_<id>_{line,signal,hist} for macd instances
+        # dynamic: ind_zzfetqem_osc_<id>_{value,ma,bb_upper,bb_lower} for rsi
+        # dynamic: ind_zzfetqem_osc_<id>_{line,pct} for mom
+        # + full mirror of every zzfetqe_* column (entry_raw/blocked/zblocked/
+        # eblocked · trend · zone · ema lines · stack state · liq · zigzag)
+        # + pass-through ind_zzfetq_* (62) + ind_zzfet_* (47).
+    ],
     "zzfib_e2e_trendy_quantum_ema": [
         "ind_zzfetqe_dir", "ind_zzfetqe_p1", "ind_zzfetqe_p2", "ind_zzfetqe_i1", "ind_zzfetqe_i2",
         "ind_zzfetqe_anchor", "ind_zzfetqe_range_index",
@@ -303,6 +328,12 @@ CONTRACT_COLUMNS: Dict[str, List[str]] = {
         # حالة الرصة وأحداثها وجاهزيتها
         "ind_zzfetqe_ema_stack_ok", "ind_zzfetqe_ema_stack_ready",
         "ind_zzfetqe_ema_stack_enter", "ind_zzfetqe_ema_stack_exit",
+        # ✅ EMAGATE-UNIFIED — تشخيص الشروط السبعة (عمود لكل شرط):
+        # price_ok = الشرط 1 (السعر فوق الكل) · ladder_ok = الشروط 2-7
+        # (السلّم مرتب) · pair_ok_{a}_{b} = كل زوج متجاور على حدة (ديناميكي
+        # حسب الأطوال المكونة — مثل ind_zzfetqe_ema_stack_pair_ok_21_50).
+        "ind_zzfetqe_ema_stack_price_ok", "ind_zzfetqe_ema_stack_ladder_ok",
+        # dynamic: ind_zzfetqe_ema_stack_pair_ok_{a}_{b} per adjacent ladder pair
         # ✅ التمرير — عقد الكمومية الكامل مُرجع أيضاً (بيانات الرسم الكاملة):
         "ind_zzfetq_dir", "ind_zzfetq_p1", "ind_zzfetq_p2", "ind_zzfetq_i1", "ind_zzfetq_i2",
         "ind_zzfetq_anchor", "ind_zzfetq_range_index",
@@ -769,6 +800,15 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         eg = p.get("ema_gate")
         if eg is not None:
             out["ema_gate"] = eg
+        # ✅ EMAGATE-UNIFIED — وضع الرصة الهرمي (الشروط السبعة):
+        # hierarchical (الافتراضي) / strict (الوضع التاريخي) + قاعدة
+        # الإعفاء (افتراضي 21 — الأصغر منها سريعة معفاة من الترتيب).
+        esm = p.get("ema_stack_mode")
+        if esm is not None:
+            out["ema_stack_mode"] = esm
+        esb = _num(("ema_stack_base",), int)
+        if esb is not None:
+            out["ema_stack_base"] = max(1, esb)
         # ✅ ZONE-EXIT-TF1 — فريم هيكل الخروج (CHoCH LL+LH على أي فريم):
         # الدخول والمنطقة المسموحة يبقيان على فريم الشارت دائماً.
         zxr = p.get("zone_exit_resolution",
@@ -778,6 +818,92 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         zxl_ = _num(("zone_exit_length", "exit_length"), int)
         if zxl_ is not None:
             out["zone_exit_length"] = max(2, zxl_)
+    elif base == "zzfib_e2e_trendy_quantum_ema_mom":
+        # QMOM1 — "quantum momentum first" (كموميه الزخم الاولى): same
+        # quantum-EMA params verbatim (all of them) + the flexible conditions
+        # gate template: osc_instances (macd/rsi/mom copies — any count, 22
+        # timeframes) and osc_conditions (composable and/or/not tree) — both
+        # passed through as-is to the engine (same pattern as PRO73 macd
+        # family). With neither template key = bit-identical mirror mode.
+        length = _num(("length",), int)
+        if length is not None:
+            out["length"] = max(2, length)
+        if "reverse" in p:
+            out["reverse"] = bool(p["reverse"])
+        lv = p.get("levels", p.get("level_ratios"))
+        if isinstance(lv, (list, tuple)) and lv:
+            try:
+                out["levels"] = [float(x) for x in lv]
+            except (TypeError, ValueError):
+                pass
+        for k in ("extend_right", "extend_leg_to_live"):
+            if k in p:
+                out[k] = bool(p[k])
+        if "mode" in p:
+            out["mode"] = str(p["mode"]).strip().lower()
+        d_ = _num(("depth",), int)
+        if d_ is not None:
+            out["depth"] = max(2, d_)
+        dv_ = _num(("deviation",))
+        if dv_ is not None:
+            out["deviation"] = float(dv_)
+        bs_ = _num(("backstep",), int)
+        if bs_ is not None:
+            out["backstep"] = max(1, bs_)
+        tt_ = _num(("launch_touch_ticks",))
+        if tt_ is not None:
+            out["launch_touch_ticks"] = float(tt_)
+        # trend template — verbatim (engine normalizes)
+        tp = p.get("trend_periods", p.get("periods"))
+        if tp is not None:
+            out["trend_periods"] = tp
+        if "trend_confirm" in p:
+            out["trend_confirm"] = p["trend_confirm"]
+        tg = p.get("trend_gate", p.get("gate"))
+        if tg is not None:
+            out["trend_gate"] = tg
+        # zone template — verbatim (engine normalizes)
+        zg = p.get("zone_gate")
+        if zg is not None:
+            out["zone_gate"] = zg
+        # EMA template — lengths/resolution/source/offset/stack gate
+        el = p.get("ema_lengths", p.get("ema_length", p.get("lengths")))
+        if el is not None:
+            out["ema_lengths"] = el
+        if "ema_resolution" in p or "res" in p or "htf" in p:
+            out["ema_resolution"] = p.get(
+                "ema_resolution", p.get("res", p.get("htf")))
+        if "ema_source" in p or "src" in p:
+            out["ema_source"] = p.get("ema_source", p.get("src"))
+        eo_ = _num(("ema_offset", "offset", "ma_offset"), int)
+        if eo_ is not None:
+            out["ema_offset"] = eo_
+        eg = p.get("ema_gate")
+        if eg is not None:
+            out["ema_gate"] = eg
+        # ✅ EMAGATE-UNIFIED — وضع الرصة الهرمي (الشروط السبعة) — نفس
+        # تمرير الكمومية-EMA (البوابة واحدة مركزية في المحرك الأساسي).
+        esm = p.get("ema_stack_mode")
+        if esm is not None:
+            out["ema_stack_mode"] = esm
+        esb = _num(("ema_stack_base",), int)
+        if esb is not None:
+            out["ema_stack_base"] = max(1, esb)
+        # ZONE-EXIT-TF1 — exit structure resolution (CHoCH LL+LH any tf)
+        zxr = p.get("zone_exit_resolution",
+                    p.get("exit_resolution", p.get("zone_exit_tf")))
+        if zxr is not None:
+            out["zone_exit_resolution"] = zxr
+        zxl_ = _num(("zone_exit_length", "exit_length"), int)
+        if zxl_ is not None:
+            out["zone_exit_length"] = max(2, zxl_)
+        # QMOM1 — the flexible conditions gate template (passed as-is)
+        oi = p.get("osc_instances", p.get("instances"))
+        if oi is not None:
+            out["osc_instances"] = oi
+        oc = p.get("osc_conditions", p.get("conditions"))
+        if oc is not None:
+            out["osc_conditions"] = oc
     elif base == "mtf_ema":
         # ✅ MTFEMA1 — MTF EMA: معاملات Pine بحذافيرها + النسخ المتعددة
         # (instances — أي عدد نسخ لكل نسخة معاملاتها؛ البسيطة بلا instances
@@ -1215,6 +1341,39 @@ def _zzfetqe_columns(zzfetqe: Dict[str, Any]) -> Dict[str, List[Optional[float]]
     return out
 
 
+def _zzfetqem_columns(zzfetqem: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+    """QMOM1: result of zigzag_fib_e2e_trendy_quantum_ema_mom -> ind_* columns.
+
+    "كموميه الزخم الاولى" (quantum momentum first) — tenth differentiation
+    contract (zzfetqem_X -> ind_zzfetqem_X): full mirror of the quantum-EMA
+    (every zzfetqe_* column kept under BOTH names — ✅ R78 pure-addition
+    contract: the baseline family ind_zzfetqe_* stays exactly as the champion
+    #10000604 returned it, so existing frontend drawing — the six EMA lines
+    ind_zzfetqe_ema_*, zone, stack, zigzag/fib — keeps working verbatim,
+    while the gated mirror ind_zzfetqem_* rides on top) + final entries after
+    the momentum gate, iblocked transparency, EMA lines, stack state, zone,
+    trend, liquidity, zigzag/fib drawing data + the dynamic oscillator
+    series zzfetqem_osc_<id>_<field> (macd/rsi/mom — per instance fields)
+    + the gate column zzfetqem_osc_gate + full pass-through of the quantum
+    (zzfetq_*) and trendy (zzfet_*) contracts — verbatim bit-identical
+    + ✅ R78 the two aggregate value columns (classic indicator-values
+    contract "same as the quantum champion"): ind_zigzag_fib_e2e_trendy_
+    quantum_ema (raw 0/1 — champion values) and ind_zigzag_fib_e2e_trendy_
+    quantum_ema_mom (gated final 0/1).
+    """
+    out: Dict[str, List[Optional[float]]] = {}
+    s = zzfetqem.get("series") or {}
+    for key, vals in s.items():
+        k = str(key)
+        if (k.startswith("zzfetqem_") or k.startswith("zzfetqe_")
+                or k.startswith("zzfetq_")
+                or k.startswith("zzfet_")
+                or k in ("zigzag_fib_e2e_trendy_quantum_ema",
+                         "zigzag_fib_e2e_trendy_quantum_ema_mom")):
+            out["ind_" + k] = vals if vals is not None else []
+    return out
+
+
 def _zzfb_columns(zzfb: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     """🔥 R69: نتيجة zigzag_fib_e2e_blazing → أعمدة ind_zzfb_* (zzfb_X → ind_zzfb_X).
 
@@ -1337,6 +1496,12 @@ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional
     zzfetqe = ovl.get("zzfib_e2e_trendy_quantum_ema")
     if isinstance(zzfetqe, dict) and zzfetqe.get("series"):
         out.update(_zzfetqe_columns(zzfetqe))
+    # QMOM1 — quantum momentum first columns zzfetqem_* -> ind_zzfetqem_*
+    # (momentum-gate transparency + dynamic oscillator series + full mirror
+    # of the quantum-EMA contract + pass-through ind_zzfetq_* + ind_zzfet_*).
+    zzfetqem = ovl.get("zzfib_e2e_trendy_quantum_ema_mom")
+    if isinstance(zzfetqem, dict) and zzfetqem.get("series"):
+        out.update(_zzfetqem_columns(zzfetqem))
     # 🔥 R69 — أعمدة الملتهبة zzfb_* → ind_zzfb_* (بما فيها n5/n6 ومرايا الفترات)
     zzfb = ovl.get("zzfib_e2e_blazing")
     if isinstance(zzfb, dict) and zzfb.get("series"):
@@ -1362,14 +1527,32 @@ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional
     return out
 
 
+# ✅ R77 — قواعد المحركات التي تحمل قسم osc (بوابة الشروط المرنة) —
+# صدى أقسامها يُعاد للتقرير (summary.math_audit.momentum_gate) عبر
+# return_sections=True من strategy_engine1 ثم engine1.
+_OSC_SECTION_BASES = (
+    "zzfib_e2e_trendy_quantum_ema_mom",  # QMOM1 — كموميه الزخم الاولى
+    "zzfib_e2e_trendy_macd",             # PRO73 — الترندية الماكدية
+    "zzfib_e2e_blazing_macd",            # PRO73 — الملتهبة الماكدية
+)
+
+
 def columns_for_configs(
     candles: Any,
     indicator_configs: Sequence[Any],
-) -> Dict[str, List[Optional[float]]]:
+    return_sections: bool = False,
+):
     """تكوينات الاستراتيجية + الشموع → أعمدة ind_* جاهزة للحقن في DataFrame.
 
     تجمع معاملات كل مؤشرات البنية المفعّلة، تحسب المطلوب منها مرة واحدة
     (نوع واحد لكل base — آخر تكرار مفعّل يفوز مع تحذير)، وتعيد الأعمدة.
+
+    ✅ R77 (عقد التقرير الكامل): return_sections=True ⇒ يعيد
+    (cols, sections) حيث sections = {base: {"engine", "name", "osc"}} —
+    قسم osc (عدادات خام/نهائي/ممنوع + حالات النسخ + التحذيرات + مصدر
+    الأزمنة + حياد الإحماء) للمحركات المبوّبة، كي يصل إلى نتيجة
+    الباك-تست (summary.math_audit.momentum_gate) بدل ضياعه هنا. الوضع
+    الافتراضي False = العقد القديم بت-بت (لا تأثير على أي مستدعٍ قائم).
     """
     from app.services.indicators.overlays import compute_overlays
 
@@ -1388,13 +1571,13 @@ def columns_for_configs(
         merged_params[base] = params
 
     if not wanted:
-        return {}
+        return ({}, {}) if return_sections else {}
 
     try:
         res = compute_overlays(candles, types=wanted, params=merged_params)
     except Exception:
         logger.exception("compute_overlays failed for types=%s", wanted)
-        return {}
+        return ({}, {}) if return_sections else {}
 
     cols = columns_from_overlays_result(res)
     # سلامة: أعِد الأعمدة بطول موحّد (طول الشموع)
@@ -1409,4 +1592,18 @@ def columns_for_configs(
             # PRO73-R3 (ذاكرة): عند تساوي الطول نُحيل بالمرجع — لا نسخة كاملة
             # لكل عمود (يوفر ~700MB على النوافذ الكبيرة مع نسخ المستند الـ67).
             cols[k] = v if len(v) == n else v[:n]
+    if return_sections:
+        # ✅ R77 — صدى أقسام الموشرات (عقد التقرير: التقرير يصف كل شيء)
+        sections: Dict[str, Dict[str, Any]] = {}
+        ovl_res = (res or {}).get("overlays") if isinstance(res, dict) else None
+        if isinstance(ovl_res, dict):
+            for _base in _OSC_SECTION_BASES:
+                _o = ovl_res.get(_base)
+                if isinstance(_o, dict):
+                    sections[_base] = {
+                        "engine": _o.get("engine"),
+                        "name": _o.get("name"),
+                        "osc": _o.get("osc"),
+                    }
+        return cols, sections
     return cols

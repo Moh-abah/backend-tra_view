@@ -1,0 +1,87 @@
+--- /tmp/qmom/fix1src/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py	2026-11-18 16:45:49.000000000 +0000
++++ /tmp/qmom/fix2/merge_package/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py	2026-11-18 18:36:14.882952100 +0000
+@@ -10,8 +10,12 @@
+ #   · indicator: zigzag_fib_e2e_trendy_quantum_ema_mom
+ #     overlay: zzfib_e2e_trendy_quantum_ema_mom
+ #   · عقد التمايز العاشر: zzfetqem_X → ind_zzfetqem_X — مرآة كاملة
+-#     للكمومية-EMA (كل أعمدتها zzfetqe_* تُعاد تسميتها zzfetqem_* بعد
+-#     تمرير عقدَي الكمية zzfetq_* والترندية zzfet_* كما هما بت-بت).
++#     للكمومية-EMA + ✅ R78 (عقد الإضافة الصرفة): عائلة zzfetqe_* الأصلية
++#     تبقى أيضاً بأسمائها القديمة (رسم الفرونت القائم — خطوط EMA الستة
++#     ind_zzfetqe_ema_* والمنطقة والرصة بت-بت كما كان البطل يرجعها) مع
++#     تمرير عقدَي الكمية zzfetq_* والترندية zzfet_* كما هما بت-بت، وعمودان
++#     مجمّعان: ind_zigzag_fib_e2e_trendy_quantum_ema (خام 0/1 — قيم البطل)
++#     و ind_zigzag_fib_e2e_trendy_quantum_ema_mom (نهائي 0/1 بعد البوابة).
+ #   · الدخول النهائي zzfetqem_entry / zzfetqem_entry_s{1,2,3} = نهائي
+ #     الكمومية-EMA (ترند + منطقة + رصة) ∧ بوابة شجرة شروط الموشرات
+ #     (osc_conditions) عند الشمعة نفسها — بلا أي نظر مستقبلية.
+@@ -24,8 +28,9 @@
+ #
+ # البنية (طبقة سياسات رقيقة فوق المحرك الكمي-الأسّي — لا استنساخ):
+ #   1) يُحسب المحرك zigzag_fib_e2e_trendy_quantum_ema حرفياً (نفس
+-#      المعاملات) → كل أعمدته zzfetqe_* تُعاد تسميتها zzfetqem_* بت-بت
+-#      (بيانات الرسم الكاملة)، وعقدا zzfetq_*/zzfet_* يمران كما هما.
++#      المعاملات) → ✅ R78: أعمدته zzfetqe_* تبقى كما هي + تُضاف مراياها
++#      zzfetqem_* بت-بت (نفس كائن القائمة تحت الاسمين — عقد الإضافة
++#      الصرفة)، وعقدا zzfetq_*/zzfet_* يمران كما هما.
+ #   2) نواة الموشرات متعددة الفريمات PRO76-mtf-osc-core v2.0.0 تحسب
+ #      النسخ المطلوبة (osc_instances — أي عدد، macd/rsi/mom، أي فريم من
+ #      1s حتى 1mo) على شموع القاعدة بتجميع صاعد + إسقاط سببي
+@@ -162,15 +167,23 @@
+         zone_exit_length=zone_exit_length,
+     )
+ 
+-    # --- إعادة تسمية السلاسل zzfetqe_* → zzfetqem_* (عقد الإنتاج) ---
++    # --- ✅ R78 (عقد الإضافة الصرفة — «الدمج فقط إضافة») ---
++    # سلاسل الكمومية-EMA zzfetqe_* تبقى كما هي بأسمائها الأصلية (عقد
++    # الرسم القائم مع الفرونت: خطوط EMA الستة ind_zzfetqe_ema_* · المنطقة ·
++    # الرصة · الزقزاق/الفيبو — نفس ما كان البطل #10000604 يرجعه بت-بت)
++    # + تُضاف المرآة zzfetqem_* فوقها — نفس كائن القائمة في الذاكرة تحت
++    # الاسمين (تطابق بت-بت بالبناء، صفر نسخ إضافي).
+     # عقدا الكمية zzfetq_* والترندية zzfet_* يمران كما هما (بيانات الرسم
+     # الكاملة بت-بت من المحرك الواحد نفسه — نفس سلوك الكمومية-EMA).
+     b_series: Dict[str, Any] = base.get("series") or {}
+     series: Dict[str, Any] = {}
+     for k, v in b_series.items():
+         ks = str(k)
+-        nk = ("zzfetqem_" + ks[len("zzfetqe_"):]) if ks.startswith("zzfetqe_") else ks
+-        series[nk] = v
++        if ks.startswith("zzfetqe_"):
++            series[ks] = v                                   # الأساس كما هو
++            series["zzfetqem_" + ks[len("zzfetqe_"):]] = v    # المرآة الجديدة
++        else:
++            series[ks] = v
+     n = len(next(iter(series.values()), [])) or 0
+ 
+     raw_entry = series.get("zzfetqem_entry") or [None] * n
+@@ -277,6 +290,30 @@
+         ([1.0 if g else None for g in gate] if gate is not None else [None] * n))
+ 
+     # ------------------------------------------------------------------
++    # 2ب) ✅ R78 — العمودان المجمّعان (عقد القيم الكلاسيكي «نفس الكمومية»):
++    # البطل #10000604 كان يرجع ind_zigzag_fib_e2e_trendy_quantum_ema
++    # (0/1 عند كل شمعة — 1.0 عند شمعة الإشارة) من مسار قيم المؤشر الكلاسيكي،
++    # والمحرك الجديد لم يرجع أي مكافئ. الآن يُرجع الاثنين معاً:
++    #   · zigzag_fib_e2e_trendy_quantum_ema     = خام الكمومية-EMA 0/1
++    #     (نفس قيم البطل بت-بت — مرآة zzfetqe_entry)
++    #   · zigzag_fib_e2e_trendy_quantum_ema_mom = نهائي بعد بوابة الزخم 0/1
++    #     (مرآة zzfetqem_entry المبوّبة)
++    # (تصبح عمودي ind_zigzag_* عبر _zzfetqem_columns — عقد R78).
++    # ------------------------------------------------------------------
++    _agg_raw: List[float] = []
++    for i in range(n):
++        _rv = series.get("zzfetqe_entry")
++        _v = _rv[i] if (_rv is not None and i < len(_rv)) else None
++        _agg_raw.append(1.0 if _v else 0.0)
++    series["zigzag_fib_e2e_trendy_quantum_ema"] = _agg_raw
++    _agg_final: List[float] = []
++    _fv = series.get("zzfetqem_entry") or []
++    for i in range(n):
++        _v = _fv[i] if i < len(_fv) else None
++        _agg_final.append(1.0 if _v else 0.0)
++    series["zigzag_fib_e2e_trendy_quantum_ema_mom"] = _agg_final
++
++    # ------------------------------------------------------------------
+     # 3) المخرجات — المحرك الأساسي بت-بت + السلاسل بعد البوابة + قسم osc
+     # ------------------------------------------------------------------
+     out = dict(base)

@@ -1,0 +1,4 @@
+f32066ab9a8f11918a1d3dedeaf24bb9  app/services/indicators/overlay_columns.py
+7fc269a61290803d44a3761d698fe416  app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py
+c5af02d067a399f03d0019b741747cf9  tools/verify_qmom1_fix2.py
+4df8cb597871e40f2b17cbcd9a5ab423  payloads/payload_qmom1_mmt_10000604.json

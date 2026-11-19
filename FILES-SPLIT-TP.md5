@@ -1,0 +1,7 @@
+7ed20c9034f9082acea969ab32f58c38  app/backtest/schemas.py
+b39c9b784bdbdbb12ec638d6314abb19  app/backtest/engine1.py
+1ea72af421df23b2d0478b900374b7c0  app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema.py
+b9793735d0998832d889c92fb97df35b  tools/verify_split_tp.py
+99a889defadb5269175b891aaf65334f  tools/verify_identity.py
+1e9f5b1bd4f1e11c18ba461fde8006ea  tools/verify_ema_813.py
+f6c0c7a598069352f201e29143c748fd  payloads/payload_qmom1_mmt_split_tp.json

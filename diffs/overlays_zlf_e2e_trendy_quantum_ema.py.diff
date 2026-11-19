@@ -1,0 +1,89 @@
+--- /home/z/my-project/trading-system/qmom-ema-gate-unified/merge_package/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema.py	2026-11-19 06:16:41.515776368 +0000
++++ runtime/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema.py	2026-11-19 11:45:15.066235832 +0000
+@@ -128,7 +128,12 @@
+ # مباشرة من ema.colors في استجابة المحرك عند رسم الشارت):
+ #   EMA 21  أخضر     · EMA 50 بنفسجي    · EMA 100 أصفر/برتقالي
+ #   EMA 200 أحمر      · EMA 350 أزرق    · EMA 500 رمادي
++# ✅ SPLIT-TP1 (جلسة الترندات الجديدة 8/13): أُضيف لونان للترندات الجديدة
++#   EMA 8  سماوي (كلاسيك) · EMA 13 كهرماني/ذهبي — أي طول مخصص آخر
++#   يُلوَّن تلقائياً من لوحة الاحتياط الدائرية أدناه (لا خط بلا لون أبداً).
+ ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS: Dict[int, str] = {
++    8: "#00BCD4",    # سماوي (الترند الجديد الأول — EMA 8)
++    13: "#FFC107",   # كهرماني/ذهبي (الترند الجديد الثاني — EMA 13)
+     21: "#4CAF50",   # أخضر
+     50: "#9C27B0",   # بنفسجي
+     100: "#FF9800",  # أصفر/برتقالي
+@@ -137,6 +142,42 @@
+     500: "#9E9E9E",  # رمادي
+ }
+ 
++# ✅ SPLIT-TP1 — لوحة احتياط دائرية لأي طول مخصص غير موجود في القاموس
++# الرئيسي (مثل 30 · 233 · أي طول يضيفه صاحب القرار مستقبلاً من الفرونت):
++# كل طول بلا لون رسمي يأخذ اللون التالي بالترتيب — لا يبقى أي خط بلا لون
++# يمنع رسمه (علة «الترندات الجديدة 8/13 لم تُرسم» عولجت من جذرها).
++ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS: Tuple[str, ...] = (
++    "#00BCD4",  # سماوي
++    "#FFC107",  # كهرماني
++    "#E91E63",  # وردي
++    "#8BC34A",  # أخضر فاتح
++    "#795548",  # بني
++    "#673AB7",  # بنفسجي غامق
++    "#009688",  # تركوازي
++    "#FF5722",  # برتقالي غامق
++    "#3F51B5",  # نيلي
++    "#CDDC39",  # لايم
++    "#7C4DFF",  # بنفسجي فاتح
++    "#FF9800",  # برتقالي
++)
++
++
++def _ema_line_color(length: Any) -> str:
++    """✅ لون خط EMA لطول أي — القاموس الرسمي ثم لوحة الاحتياط الدائرية.
++
++    يعيد دائماً لوناً صالحاً (لا None أبداً) — أي طول مخصص (8/13/30/233...)
++    يُرسم بلون. القاموس الرئيسي للأطوال المعروفة والاحتياط لكل جديد.
++    """
++    try:
++        n = int(length)
++    except (TypeError, ValueError):
++        return ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS[0]
++    col = ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(n)
++    if col:
++        return col
++    return ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS[
++        (n * 7 + 3) % len(ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS)]
++
+ _EMA_GATE_KIND = {"s1": 1, "1": 1, "s2": 2, "2": 2, "s3": 3, "3": 3}
+ 
+ 
+@@ -769,14 +810,23 @@
+                 "مع المنطقة الكمومية المفتوحة (HH+HL). ema_gate=none يعطل "
+                 "بوابة الدخول مع بقاء الخطوط والرصة محسوبة ومُرجعة."),
+             "colors": {
+-                "ema_21": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(21),
+-                "ema_50": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(50),
+-                "ema_100": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(100),
+-                "ema_200": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(200),
+-                "ema_350": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(350),
+-                "ema_500": ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(500),
++                # ✅ SPLIT-TP1 — ألوان الأطوال المعروفة (الثمانية الآن مع 8/13)
++                # ولوحة الاحتياط لأي طول مخصص آخر — لا خط بلا لون أبداً.
++                "ema_8": _ema_line_color(8),
++                "ema_13": _ema_line_color(13),
++                "ema_21": _ema_line_color(21),
++                "ema_50": _ema_line_color(50),
++                "ema_100": _ema_line_color(100),
++                "ema_200": _ema_line_color(200),
++                "ema_350": _ema_line_color(350),
++                "ema_500": _ema_line_color(500),
+             },
+-            "color_by_length": {str(int(n)): ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS.get(int(n)) for n in ema_lengths_norm},
++            # ✅ SPLIT-TP1 — لون كل طول مُكوَّن فعلياً (ديناميكي — لا None
++            # أبداً): مصدر الرسم الموحد للفرونت لأي مجموعة أطوال يرسلها،
++            # بما فيها الترندات الجديدة 8 و13 وأي طول مخصص مستقبلي.
++            "color_by_length": {
++                str(int(n)): _ema_line_color(int(n)) for n in ema_lengths_norm},
++            "color_source": "ZLF_E2E_TRENDY_QUANTUM_EMA_COLORS + fallback palette",
+             "htf_bars": ema_meta.get("htf_bars"),
+             "htf_step_ms": ema_meta.get("htf_step_ms"),
+             "resolution_clamped_to_chart_tf": ema_meta.get("resolution_clamped_to_chart_tf", False),

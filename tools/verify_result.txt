@@ -1,0 +1,269 @@
+PASS | T1 استيراد المحرك الجديد | ZLF-End-To-End-Trendy-Quantum-EMA-Mom
+PASS | T1 is_known_indicator_name(zigzag_fib_e2e_trendy_quantum_ema_mom) 
+candles: 36369 | from 2025-11-04 12:00:00 to 2026-11-18 08:00:00
+PASS | T2 المطبّع يمرّر قالب الموشرات (osc_instances) 
+PASS | T2 المطبّع يمرّر شجرة الشروط (osc_conditions) 
+PASS | T2 المطبّع يمرّر معاملات الكمومية-EMA 
+PASS | T2 المحرك رجع n=36369 شمعة 
+PASS | T3 عقد السلاسل الأساسي 
+PASS | T3 سلاسل الموشرات الديناميكية (7 نسخ) 
+PASS | T3 التمرير zzfetq_*/zzfet_* 
+PASS | T3 قسم osc: 7 نسخ كلها متاحة | {'macd_4h_12_26_4': (True, None), 'macd_3d_5_11_4': (True, None), 'macd_1d_12_26_4': (True, None), 'rsi_1h_14_14': (True, None), 'rsi_4h_14_14': (True, None), 'rsi_1d_14_14': (True, None), 'rsi_1d_10_14': (True, None)}
+PASS | T3 لا تحذيرات صعبة (unknown/insufficient) | ['warmup_neutral']
+    osc.counts: {'quantum_ema_entries': 36, 'final_entries': 6, 'osc_blocked_entries': 30} | warmup_neutral_bars: 2928
+PASS | T4 الدخول النهائي = خام الكمومية ∧ بوابة الزخم | violations=0
+PASS | T4 حياد الإحماء (أول 2928 شريط مفتوحة) 
+PASS | T4 مفاتيح المراجع التعاقدية موجودة 
+PASS | T4 البوابة = شجرة الشروط الأربعة بت-بت (بعد الأفق) | mismatch=0
+PASS | T5 سببية MACD 4h macd_4h_12_26_4.line (آخر شريط مكتمل — بت-بت) | n_compared=35953
+PASS | T5 سببية MACD 4h macd_4h_12_26_4.signal (آخر شريط مكتمل — بت-بت) | n_compared=35905
+PASS | T5 سببية MACD 3d macd_3d_5_11_4.line (آخر شريط مكتمل — بت-بت) | n_compared=33441
+PASS | T5 سببية MACD 1d macd_1d_12_26_4.line (آخر شريط مكتمل — بت-بت) | n_compared=33921
+PASS | T5 سببية RSI 1d rsi_1d_14_14.value | n_compared=34977
+PASS | T5 سببية RSI 1d rsi_1d_10_14.value | n_compared=35361
+PASS | T5 سببية RSI 1h rsi_1h_14_14.value | n_compared=36309
+PASS | T5 سببية RSI 4h rsi_4h_14_14.value | n_compared=36129
+PASS | T6 enabled:false على الشرط الأول ⇒ بوابة الشجرة بدونه | mismatch=0
+PASS | T6 التعطيل يرخي البوابة فقط (لا يشدّها) | relaxed=244 strict=0
+PASS | T7 وضع الهوية (بلا قالب) = مرآة الكمومية-EMA بت-بت 
+PASS | T7 وضع الهوية: قسم osc معطّل 
+PASS | T8 columns_for_configs: أعمدة ind_zzfetqem_* | count=104
+PASS | T8 أعمدة الموشرات في الأنبوب 
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+/home/z/my-project/trading-system/quantum-momentum/tests/test_qmom1_local.py:291: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df[col] = pd.Series(pad[:len(df)], index=df.index, dtype=object)
+PASS | T8 مقيّم شروط المحرك يقرأ ind_zzfetqem_entry_s1 حرفياً | true=19 false=36350
+PASS | T8 شرط على سلسلة موشر مباشرة (مسار الفرونت الثاني) 
+PASS | T9 StrategyConfig يقبل الحمولة (pydantic v2) 
+
+=====================
+PASS: 32 | FAIL: 0
+QMOM1 LOCAL VERIFICATION — ALL GREEN
+gate stats: open_bars=4093 / 36369 | raw entries=6 | final=6 | blocked=30

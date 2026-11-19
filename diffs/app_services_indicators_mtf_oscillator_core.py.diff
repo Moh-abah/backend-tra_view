@@ -1,0 +1,213 @@
+--- basis_mtf_oscillator_core.py	2026-11-18 16:44:45.665409519 +0000
++++ merge_package/app/services/indicators/mtf_oscillator_core.py	2026-11-18 16:50:04.687149213 +0000
+@@ -305,23 +305,105 @@
+         return float("nan")
+ 
+ 
++# ✅ R77 (إصلاح علة #10000616 — الصمت القاتل للبوابة في الباك-تست):
++# مرشّحات أعمدة الزمن بترتيب أولوية صارم — قبل أي تراجع. جذر العلة:
++# محرك الباك-تست يمرّر DataFrame بفهرس DatetimeIndex وبلا عمود time
++# (engine1._normalize_candle_index يسقط عمود time بعد تحويله فهرساً)،
++# فكان التطبيع القديم يأخذ candles.columns[0] (= open — عمود سعر!)
++# زمناً: سعر MMTUSDT (~0.1..0.5) ×1000 ⇒ «أزمنة» 100..500ms مهلهلة ⇒
++# detect_base_tf يعيد "1s" زوراً ⇒ كل نسخ الموشرات تصمت (NaN كامل) ⇒
++# بوابة الزخم لا تحجب شيئاً والنتيجة = الأساس بت-بت (46 صفقة كما هي).
++_TIME_COL_CANDIDATES = (
++    "time", "timestamp", "open_time", "date", "datetime", "dt", "ts", "t",
++)
++# ✅ R77 — نطاق صدق الأزمنة (ms منذ epoch: 1973-03 → 2128): أي وسيط خارجه
++# ليس زمناً حقيقياً (سعر/فهرس رقمي/عدد صغير) — ولا يُلفَّق منه شريط واحد.
++_EPOCH_MS_MIN = 1.0e11
++_EPOCH_MS_MAX = 5.0e12
++
++
++def _dt_index_to_ms(idx: Any) -> np.ndarray:
++    """DatetimeIndex (ns/us/ms/s · بأي توقيت) → int64 ms UTC.
++
++    ✅ R77 — مصدر الأزمنة الصحيح حين يسقط الباك-تست عمود time ويضع
++    فهرساً زمنياً (شكل بيانات backtest/engine1 الحرفي بت-بت).
++    """
++    di = idx
++    try:
++        if getattr(di, "tz", None) is not None:
++            di = di.tz_convert("UTC").tz_localize(None)
++    except Exception:
++        pass
++    try:
++        return np.asarray(di.to_numpy(dtype="datetime64[ms]")).astype("int64")
++    except Exception:
++        arr = np.asarray(di, dtype="datetime64[ns]")
++        return arr.astype("datetime64[ms]").astype("int64")
++
++
++def _time_source_of(candles: Any) -> str:
++    """✅ R77 — وصف مصدر الأزمنة المستخدم (شفافية القسم osc للفرونت)."""
++    if candles is None:
++        return "none"
++    if isinstance(candles, pd.DataFrame):
++        cols_lower = {str(x).lower() for x in candles.columns}
++        for k in _TIME_COL_CANDIDATES:
++            if k in cols_lower:
++                return f"column:{k}"
++        if isinstance(candles.index, pd.DatetimeIndex):
++            return "datetime_index"
++        return f"column[0]:{candles.columns[0]}"
++    if isinstance(candles, dict):
++        return "osc_base_dict"
++    return "candles_list"
++
++
+ def _norm_candles(candles: Any, return_map: bool = False):
+-    """شموع (dicts أو DataFrame بأعمدة time/close) → (times_ms, closes) مرتبة.
++    """شموع (dicts أو DataFrame بأعمدة time/close أو قاموس osc_base) → (times_ms, closes) مرتبة.
+ 
+     ✅ PRO76b (return_map): يعيد إضافةً (keep_idx, inv_sorted, n_orig) —
+     مواضع الصفوف الناجية في الدخل الأصلي + مرتبتها بعد الترتيب + عدد
+     صفوف الدخل، لإعادة محاذاة بوابة القرار على مقاس شموع الدخل نفسها
+     (لا إسقاطاً بصمتاً لصفوف «—» مشوّهة ثم بوابة أقصر من سلاسل المحرك —
+-    جذر IndexError 4d976421)."""
++    جذر IndexError 4d976421).
++
++    ✅ R77 (علة #10000616): DataFrame بلا عمود زمن ⇒ **الفهرس الزمني
++    DatetimeIndex هو المصدر** — ليس candles.columns[0] الذي كان يسقط
++    على أول عمود سعر. الملاذ الأخير (عمود أول بلا فهرس زمني ولا عمود
++    زمن صريح) يُتحقق ضد نطاق صدق epoch-ms؛ خارجه ⇒ أصفار ⇒ تسقط كل
++    الصفوف بصراحة (تحذير time_source_invalid من build_osc_section) —
++    **بلا أي تلفيق أزمنة من أسعار**."""
+     if candles is None:
+         if return_map:
+             return (np.array([], dtype=np.int64), np.array([], dtype=np.float64),
+                     np.array([], dtype=np.int64), np.array([], dtype=np.int64), 0)
+         return np.array([], dtype=np.int64), np.array([], dtype=np.float64)
+     if isinstance(candles, pd.DataFrame):
+-        tcol = "time" if "time" in candles.columns else candles.columns[0]
+-        ccol = "close" if "close" in candles.columns else candles.columns[-1]
+-        t = _col_to_ms(candles[tcol])
++        # ✅ R77 — أولوية الأزمنة: عمود زمن صريح (بمرادفاته) ← فهرس زمني ←
++        # ملاذ أخير مُتحقَّق منه. سابق bedtime: columns[0] حرفياً (سعر!).
++        cols_lower = {str(x).lower(): x for x in candles.columns}
++        tcol = next((cols_lower[k] for k in _TIME_COL_CANDIDATES if k in cols_lower), None)
++        if "close" in cols_lower:
++            ccol = cols_lower["close"]
++        elif "c" in cols_lower:
++            ccol = cols_lower["c"]
++        elif "adj close" in cols_lower:
++            ccol = cols_lower["adj close"]
++        else:
++            ccol = candles.columns[-1]
++        if tcol is not None:
++            t = _col_to_ms(candles[tcol])
++        elif isinstance(candles.index, pd.DatetimeIndex):
++            # ✅ R77 — جذر إصلاح #10000616: الفهرس الزمني مصدر الأزمنة
++            t = _dt_index_to_ms(candles.index)
++        else:
++            # ✅ R77 — ملاذ أخير محصّن (بلا فهرس زمني/عمود زمن): تحقق صدق
++            # epoch-ms؛ فشله ⇒ أصفار ⇒ إسقاط كامل معلَن (لا تلفيق).
++            t = _col_to_ms(candles[candles.columns[0]])
++            if len(t):
++                _med = float(np.median(t))
++                if not (_EPOCH_MS_MIN <= _med <= _EPOCH_MS_MAX):
++                    t = np.zeros_like(t)
+         c = pd.to_numeric(candles[ccol], errors="coerce").to_numpy(dtype=np.float64)
+     elif isinstance(candles, dict) and "time_ms" in candles and "close" in candles:
+         # ✅ نمط osc_base المخزّن (R76): {time_ms: [...], close: [...]}
+@@ -348,13 +430,32 @@
+ 
+ 
+ def _col_to_ms(col: Any) -> np.ndarray:
++    """عمود → أزمنة ms. ✅ R77 (تحصين علة #10000616 المصاحبة):
++    1) np.issubdtype يرفع TypeError على dtype=datetime64[ns, UTC] (عمود
++       زمني بتوقيت — مثل نتيجة reset_index لفهرس الباك-تست) فكان يفجّر
++       التطبيع كله. الآن محصّن داخل try.
++    2) عمود زمني (naive أو بتوقيت) يُحوَّل عبر numpy datetime64[ms] →
++       int64 مباشرة (بلا مسارات pandas المُهمَلة مستقبلاً).
++    """
+     s = pd.Series(col)
+-    if np.issubdtype(s.dtype, np.number):
++    try:
++        _is_num = bool(np.issubdtype(s.dtype, np.number))
++    except TypeError:
++        _is_num = False
++    if _is_num:
+         v = s.to_numpy(dtype="float64")
+         v = np.where(v < 1e11, v * 1000.0, v)
+         return v.astype(np.int64)
++    # ✅ R77: عمود زمني (naive/بتوقيت) → ms UTC بمستوى numpy
++    try:
++        return np.asarray(s.to_numpy(dtype="datetime64[ms]")).astype("int64")
++    except (TypeError, ValueError):
++        pass
+     ts = pd.to_datetime(s, errors="coerce", utc=True)
+-    return (ts.astype("int64") // 1_000_000).to_numpy().astype(np.int64)
++    try:
++        return np.asarray(ts.to_numpy(dtype="datetime64[ms]")).astype("int64")
++    except (TypeError, ValueError, AttributeError):
++        return (ts.astype("int64").to_numpy() // 1_000_000).astype(np.int64)
+ 
+ 
+ def detect_base_tf(t: np.ndarray) -> Optional[str]:
+@@ -927,6 +1028,20 @@
+         if code not in warning_codes:
+             warning_codes.append(code)
+ 
++    # ✅ R77 — إسقاط كامل معلَن (لا صمت قاتل كعلة #10000616): تعذّر استخراج
++    # أزمنة صالحة من شموع الدخل (ملاذ أخير فاشل أو صفوف كلها مشوّهة) ⇒
++    # تحذير صريح بالكود + رسالة، والقسم يكشف مصدر الأزمنة نفسه.
++    _time_source = _time_source_of(candles)
++    if n_orig and not len(t):
++        _warn(
++            "time_source_invalid",
++            f"تعذّر استخراج أزمنة صالحة من شموع الدخل ({n_orig} صفّاً سقطت كلها؛ "
++            f"المصدر المُجرّب: {_time_source}) — مرر عمود time/timestamp أو "
++            "DataFrame بفهرس DatetimeIndex. هذا نمط علة #10000616: عمود سعر "
++            "يُؤخذ زمناً ثم تصمت كل نسخ الموشرات (NaN كامل) ولا تعمل البوابة.",
++            None,
++        )
++
+     series: Dict[str, List[Optional[float]]] = {}
+     inst_meta: List[Dict[str, Any]] = []
+     crosses: Dict[str, List[Dict[str, Any]]] = {}
+@@ -1000,6 +1115,30 @@
+                 for nm in osc_series_names(inst, prefix):
+                     series[nm] = [None] * n
+             continue
++        # ✅ R77 — صدق التغطية (لا «available=True» زوراً): نسخة حسبت فعلاً لكن
++        # كل قيمها NaN على النافذة كلها (أزمنة مهلهلة/دلاء قزمية) = غير متاحة
++        # فعلياً — تُعلن zero_coverage وتُسقط سلاسلها None بتحذير صريح.
++        # هذه كانت النصف الثاني من صمت علة #10000616: instances تقول
++        # available=True والقيم كلها None بلا أي تحذير.
++        _cov = 0
++        for _arr in vals.values():
++            try:
++                _a = np.asarray(_arr, dtype=np.float64)
++                _cov += int(np.count_nonzero(~np.isnan(_a)))
++            except Exception:
++                pass
++        if _cov <= 0:
++            meta.update({"available": False, "why": "zero_coverage", "code": "zero_coverage"})
++            _warn("zero_coverage",
++                  f"النسخة '{inst['id']}' حسبت بلا أي قيمة صالحة واحدة في النافذة "
++                  f"(زمن القاعدة: {base_tf}؛ المصدر: {_time_source}) — القيم None",
++                  inst["id"])
++            inst_meta.append(meta)
++            if mode == "full":
++                for nm in osc_series_names(inst, prefix):
++                    series[nm] = [None] * n
++            vals = None
++            continue
+         meta.update({"available": True, "why": None, "code": None})
+         inst_meta.append(meta)
+         # التقاطعات تحتاج line/signal قبل التخلص الذكي من المصفوفات
+@@ -1125,6 +1264,12 @@
+         "version": OSC_CORE_VERSION,
+         "base_tf": base_tf,
+         "base_tf_ms": base_ms,
++        # ✅ R77 — شفافية مصدر الأزمنة وطول القاعدة (عقد التقرير الكامل):
++        # الفرونت يرى من أين أخذت الأزمنة (عمود/فهرس زمني/قائمة) وعدد
++        # أشرطة القاعدة الفعلية التي حُسب عليها الموشرات.
++        "time_source": _time_source,
++        "n": int(n),
++        "input_rows": int(n_orig),
+         "bars": stored_bars,
+         "instances": inst_meta,
+         "conditions": conditions,

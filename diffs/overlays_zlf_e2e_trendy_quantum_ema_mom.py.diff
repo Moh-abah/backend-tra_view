@@ -1,0 +1,59 @@
+--- basis-pristine/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py	2026-11-18 22:01:46.000000000 +0000
++++ pro102/app/services/indicators/overlays_zlf_e2e_trendy_quantum_ema_mom.py	2026-11-19 06:55:56.959687095 +0000
+@@ -101,6 +101,9 @@
+     ema_gate: Any = None,
+     zone_exit_resolution: Any = None,
+     zone_exit_length: Any = None,
++    # ✅ EMAGATE-UNIFIED — تمرير حرفي لنواة الرصة الموحدة (الشروط السبعة)
++    ema_stack_mode: Any = None,
++    ema_stack_base: Any = None,
+     # ---- قالب بوابة الشروط المرنة (نواة PRO76) ----
+     osc_instances: Optional[Sequence[Any]] = None,
+     osc_conditions: Optional[Dict[str, Any]] = None,
+@@ -117,7 +120,9 @@
+     (length/mode/depth/deviation/backstep/reverse/levels/extend_right/
+     extend_leg_to_live/launch_touch_ticks/trend_periods/trend_confirm/
+     trend_gate/zone_gate/ema_lengths/ema_resolution/ema_source/ema_offset/
+-    ema_gate/zone_exit_resolution/zone_exit_length) + قالب الموشرات:
++    ema_gate/zone_exit_resolution/zone_exit_length + ✅ EMAGATE-UNIFIED:
++    ema_stack_mode/ema_stack_base — تمرير حرفي للمحرك الأساسي؛ البوابة
++    واحدة مركزية هناك) + قالب الموشرات:
+ 
+       osc_instances : نسخ الموشرات — [{kind: macd|rsi|mom, id, timeframe,
+                      fast/slow/signal | period/ma_length/bb_std | length,
+@@ -165,6 +170,10 @@
+         ema_gate=ema_gate,
+         zone_exit_resolution=zone_exit_resolution,
+         zone_exit_length=zone_exit_length,
++        # ✅ EMAGATE-UNIFIED — البوابة المركزية الموحدة تُطبّق هنا أيضاً
++        # (كموميه الزخم الاولى فيها البوابة — لا مسار جانبي إطلاقاً).
++        ema_stack_mode=ema_stack_mode,
++        ema_stack_base=ema_stack_base,
+     )
+ 
+     # --- ✅ R78 (عقد الإضافة الصرفة — «الدمج فقط إضافة») ---
+@@ -361,6 +370,24 @@
+             def get_required_columns(cls):
+                 return ["open", "high", "low", "close"]
+ 
++            @classmethod
++            def get_default_params(cls):
++                # ✅ EMAGATE-UNIFIED — لوحة إعدادات الواجهة (endpoint /params):
++                # كل مفاتيح بوابة الرصة الهرمية + قالب الموشرات ظاهرة هنا —
++                # ملاحظة صاحب القرار: الديفولت length=100 (لا 226) + الرصة
++                # الكاملة الستة مع EMA21 الجديدة «كامله مع الجديده».
++                return {
++                    "length": 100, "mode": "luxalgo",
++                    "trend_periods": [7, 15, 25], "trend_confirm": "majority",
++                    "trend_gate": ["s1", "s2", "s3"],
++                    "zone_gate": ["s1", "s2", "s3"],
++                    "ema_lengths": [21, 50, 100, 200, 350, 500],
++                    "ema_resolution": "60", "ema_source": "close",
++                    "ema_offset": 0, "ema_gate": ["s1", "s2", "s3"],
++                    "ema_stack_mode": "hierarchical", "ema_stack_base": 21,
++                    "zone_exit_resolution": "5", "zone_exit_length": 100,
++                }
++
+             def calculate(self, data: pd.DataFrame) -> IndicatorResult:
+                 from .overlay_columns import config_to_overlay_params
+                 conv = config_to_overlay_params({

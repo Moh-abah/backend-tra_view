@@ -1,0 +1,39 @@
+--- /tmp/qmom/fix1src/app/services/indicators/overlay_columns.py	2026-11-18 16:46:04.000000000 +0000
++++ /tmp/qmom/fix2/merge_package/app/services/indicators/overlay_columns.py	2026-11-18 18:36:14.883952099 +0000
+@@ -1323,19 +1323,30 @@
+ 
+     "كموميه الزخم الاولى" (quantum momentum first) — tenth differentiation
+     contract (zzfetqem_X -> ind_zzfetqem_X): full mirror of the quantum-EMA
+-    (every zzfetqe_* column renamed zzfetqem_* — final entries after the
+-    momentum gate, iblocked transparency, EMA lines, stack state, zone,
+-    trend, liquidity, zigzag/fib drawing data) + the dynamic oscillator
++    (every zzfetqe_* column kept under BOTH names — ✅ R78 pure-addition
++    contract: the baseline family ind_zzfetqe_* stays exactly as the champion
++    #10000604 returned it, so existing frontend drawing — the six EMA lines
++    ind_zzfetqe_ema_*, zone, stack, zigzag/fib — keeps working verbatim,
++    while the gated mirror ind_zzfetqem_* rides on top) + final entries after
++    the momentum gate, iblocked transparency, EMA lines, stack state, zone,
++    trend, liquidity, zigzag/fib drawing data + the dynamic oscillator
+     series zzfetqem_osc_<id>_<field> (macd/rsi/mom — per instance fields)
+     + the gate column zzfetqem_osc_gate + full pass-through of the quantum
+-    (zzfetq_*) and trendy (zzfet_*) contracts — verbatim bit-identical.
++    (zzfetq_*) and trendy (zzfet_*) contracts — verbatim bit-identical
++    + ✅ R78 the two aggregate value columns (classic indicator-values
++    contract "same as the quantum champion"): ind_zigzag_fib_e2e_trendy_
++    quantum_ema (raw 0/1 — champion values) and ind_zigzag_fib_e2e_trendy_
++    quantum_ema_mom (gated final 0/1).
+     """
+     out: Dict[str, List[Optional[float]]] = {}
+     s = zzfetqem.get("series") or {}
+     for key, vals in s.items():
+         k = str(key)
+-        if (k.startswith("zzfetqem_") or k.startswith("zzfetq_")
+-                or k.startswith("zzfet_")):
++        if (k.startswith("zzfetqem_") or k.startswith("zzfetqe_")
++                or k.startswith("zzfetq_")
++                or k.startswith("zzfet_")
++                or k in ("zigzag_fib_e2e_trendy_quantum_ema",
++                         "zigzag_fib_e2e_trendy_quantum_ema_mom")):
+             out["ind_" + k] = vals if vals is not None else []
+     return out
+ 

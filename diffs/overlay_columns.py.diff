@@ -1,0 +1,46 @@
+--- basis-pristine/app/services/indicators/overlay_columns.py	2026-11-18 22:01:46.000000000 +0000
++++ pro102/app/services/indicators/overlay_columns.py	2026-11-19 06:11:11.126531060 +0000
+@@ -328,6 +328,12 @@
+         # حالة الرصة وأحداثها وجاهزيتها
+         "ind_zzfetqe_ema_stack_ok", "ind_zzfetqe_ema_stack_ready",
+         "ind_zzfetqe_ema_stack_enter", "ind_zzfetqe_ema_stack_exit",
++        # ✅ EMAGATE-UNIFIED — تشخيص الشروط السبعة (عمود لكل شرط):
++        # price_ok = الشرط 1 (السعر فوق الكل) · ladder_ok = الشروط 2-7
++        # (السلّم مرتب) · pair_ok_{a}_{b} = كل زوج متجاور على حدة (ديناميكي
++        # حسب الأطوال المكونة — مثل ind_zzfetqe_ema_stack_pair_ok_21_50).
++        "ind_zzfetqe_ema_stack_price_ok", "ind_zzfetqe_ema_stack_ladder_ok",
++        # dynamic: ind_zzfetqe_ema_stack_pair_ok_{a}_{b} per adjacent ladder pair
+         # ✅ التمرير — عقد الكمومية الكامل مُرجع أيضاً (بيانات الرسم الكاملة):
+         "ind_zzfetq_dir", "ind_zzfetq_p1", "ind_zzfetq_p2", "ind_zzfetq_i1", "ind_zzfetq_i2",
+         "ind_zzfetq_anchor", "ind_zzfetq_range_index",
+@@ -794,6 +800,15 @@
+         eg = p.get("ema_gate")
+         if eg is not None:
+             out["ema_gate"] = eg
++        # ✅ EMAGATE-UNIFIED — وضع الرصة الهرمي (الشروط السبعة):
++        # hierarchical (الافتراضي) / strict (الوضع التاريخي) + قاعدة
++        # الإعفاء (افتراضي 21 — الأصغر منها سريعة معفاة من الترتيب).
++        esm = p.get("ema_stack_mode")
++        if esm is not None:
++            out["ema_stack_mode"] = esm
++        esb = _num(("ema_stack_base",), int)
++        if esb is not None:
++            out["ema_stack_base"] = max(1, esb)
+         # ✅ ZONE-EXIT-TF1 — فريم هيكل الخروج (CHoCH LL+LH على أي فريم):
+         # الدخول والمنطقة المسموحة يبقيان على فريم الشارت دائماً.
+         zxr = p.get("zone_exit_resolution",
+@@ -866,6 +881,14 @@
+         eg = p.get("ema_gate")
+         if eg is not None:
+             out["ema_gate"] = eg
++        # ✅ EMAGATE-UNIFIED — وضع الرصة الهرمي (الشروط السبعة) — نفس
++        # تمرير الكمومية-EMA (البوابة واحدة مركزية في المحرك الأساسي).
++        esm = p.get("ema_stack_mode")
++        if esm is not None:
++            out["ema_stack_mode"] = esm
++        esb = _num(("ema_stack_base",), int)
++        if esb is not None:
++            out["ema_stack_base"] = max(1, esb)
+         # ZONE-EXIT-TF1 — exit structure resolution (CHoCH LL+LH any tf)
+         zxr = p.get("zone_exit_resolution",
+                     p.get("exit_resolution", p.get("zone_exit_tf")))

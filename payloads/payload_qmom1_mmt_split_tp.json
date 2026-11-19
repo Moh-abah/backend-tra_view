@@ -1,0 +1,287 @@
+{
+ "name": "كموميه الزخم الاولى · MMT · مع التيك بروفت المقسم (ربع +5% · ربع +7%) — SPLIT-TP1",
+ "description": "نفس حمولة البطل #10000604 بت-بت + مستويات التيك بروفت المقسم: بيع ربع الكمية عند +5% وربع ثانٍ عند +7% والباقي يبقى راكباً تحت تصرف بقية المخارج (خروج المنطقة الكمومية).",
+ "mode": "standard",
+ "start_date": "2025-11-04T00:00:00Z",
+ "end_date": "2026-11-18T07:34:09.901000Z",
+ "timeframe": "15m",
+ "timezone": "UTC",
+ "tz_offset_minutes": 0,
+ "market": "crypto",
+ "symbols": [
+  "MMTUSDT"
+ ],
+ "strategy_config": {
+  "name": "كموميه الزخم الاولى (Quantum-Momentum-1 · 3 Entry Signals · Trend+Zone+EMA-stack+Momentum-gate) — نسخة تكوين #10000604",
+  "version": "1.0.0",
+  "description": "نسخة من ZLF-End-To-End-Trendy-Quantum-EMA بتكوين باك تست #10000604 نفسه (mmt · 15m · مع اغلاق 5 دقايق) مضافًا إليها بوابة الشروط المرنة QMOM1: الشرط الأول MACD 4h (12/26/4) فوق الصفر وإيجابي · الشرط الثاني MACD 3d (5/11/4) فوق MACD 1d (12/26/4) · الشرط الثالث RSI 1h و4h (14/14/2) فوق RSI اليومي · الشرط الرابع RSI اليومي (10/14/2) أو (14/14/2) فوق 50 — الخروج باب واحد كما هو: zone_exit (LL+LH) على دقة 5 دقائق",
+  "author": "QMOM1 — طلب صاحب القرار (2026-11-18): بوابة شروط مرنة قابلة للتعديل والتفعيل/التعطيل من الفرونت-اند",
+  "base_timeframe": "15m",
+  "allowed_timeframes": [
+   "15m"
+  ],
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "zigzag_fib_e2e_trendy_quantum_ema_mom",
+    "type": "support_resistance",
+    "params": {
+     "mode": "luxalgo",
+     "length": 100,
+     "touch_level": 0.618,
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "ema_lengths": [
+      21,
+      50,
+      100,
+      200,
+      350,
+      500
+     ],
+     "ema_resolution": "60",
+     "ema_source": "close",
+     "ema_offset": 0,
+     "ema_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_exit_resolution": "5",
+     "zone_exit_length": 100,
+     "osc_instances": [
+      {
+       "kind": "macd",
+       "id": "macd_4h_12_26_4",
+       "timeframe": "4h",
+       "fast": 12,
+       "slow": 26,
+       "signal": 4,
+       "enabled": true,
+       "doc": "الشرط الأول — MACD فريم 4 ساعات (12/26/4)"
+      },
+      {
+       "kind": "macd",
+       "id": "macd_3d_5_11_4",
+       "timeframe": "3d",
+       "fast": 5,
+       "slow": 11,
+       "signal": 4,
+       "enabled": true,
+       "doc": "الشرط الثاني — MACD فريم 3 يوم (5/11/4)"
+      },
+      {
+       "kind": "macd",
+       "id": "macd_1d_12_26_4",
+       "timeframe": "1d",
+       "fast": 12,
+       "slow": 26,
+       "signal": 4,
+       "enabled": true,
+       "doc": "الشرط الثاني — MACD فريم 1 يوم (12/26/4)"
+      },
+      {
+       "kind": "rsi",
+       "id": "rsi_1h_14_14",
+       "timeframe": "1h",
+       "period": 14,
+       "ma_length": 14,
+       "bb_std": 2,
+       "enabled": true,
+       "doc": "الشرط الثالث — RSI فريم ساعه (14/14/2)"
+      },
+      {
+       "kind": "rsi",
+       "id": "rsi_4h_14_14",
+       "timeframe": "4h",
+       "period": 14,
+       "ma_length": 14,
+       "bb_std": 2,
+       "enabled": true,
+       "doc": "الشرط الثالث — RSI فريم 4 ساعات (14/14/2)"
+      },
+      {
+       "kind": "rsi",
+       "id": "rsi_1d_14_14",
+       "timeframe": "1d",
+       "period": 14,
+       "ma_length": 14,
+       "bb_std": 2,
+       "enabled": true,
+       "doc": "الشرط الثالث + الرابع — RSI الفريم اليومي (14/14/2)"
+      },
+      {
+       "kind": "rsi",
+       "id": "rsi_1d_10_14",
+       "timeframe": "1d",
+       "period": 10,
+       "ma_length": 14,
+       "bb_std": 2,
+       "enabled": true,
+       "doc": "الشرط الرابع — RSI اليومي (10/14/2)"
+      }
+     ],
+     "osc_conditions": {
+      "logic": "and",
+      "conditions": [
+       {
+        "name": "الشرط الأول — MACD 4h (12/26/4) فوق الصفر + إيجابي (السريع فوق البطيء)",
+        "enabled": true,
+        "logic": "and",
+        "conditions": [
+         {
+          "left": "osc:macd_4h_12_26_4.line",
+          "op": ">",
+          "right": 0
+         },
+         {
+          "left": "osc:macd_4h_12_26_4.line",
+          "op": ">",
+          "right": "osc:macd_4h_12_26_4.signal"
+         }
+        ]
+       },
+       {
+        "name": "الشرط الثاني — MACD 3d (5/11/4) متجاوز لأعلى فوق MACD 1d (12/26/4)",
+        "enabled": true,
+        "left": "osc:macd_3d_5_11_4.line",
+        "op": ">",
+        "right": "osc:macd_1d_12_26_4.line"
+       },
+       {
+        "name": "الشرط الثالث — RSI الساعه و 4 ساعات (14/14/2) فوق RSI اليومي (14/14/2)",
+        "enabled": true,
+        "logic": "and",
+        "conditions": [
+         {
+          "left": "osc:rsi_1h_14_14.value",
+          "op": ">",
+          "right": "osc:rsi_1d_14_14.value"
+         },
+         {
+          "left": "osc:rsi_4h_14_14.value",
+          "op": ">",
+          "right": "osc:rsi_1d_14_14.value"
+         }
+        ]
+       },
+       {
+        "name": "الشرط الرابع — RSI اليومي (10/14/2) أو (14/14/2) فوق مستوى 50 — يكفي أحدهما",
+        "enabled": true,
+        "logic": "or",
+        "conditions": [
+         {
+          "left": "osc:rsi_1d_10_14.value",
+          "op": ">",
+          "right": 50
+         },
+         {
+          "left": "osc:rsi_1d_14_14.value",
+          "op": ">",
+          "right": 50
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "كموميه الزخم الاولى · S1 — الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL) + رصة EMA الخمسة على الساعة + بوابة الزخم (MACD 4h/3d/1d + RSI 1h/4h/1d)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_entry_s1",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.34,
+    "enabled": true
+   },
+   {
+    "name": "كموميه الزخم الاولى · S2 — الاختراق بدون هيمنة الحجم + الترند + المنطقة الكمومية + رصة EMA الخمسة + بوابة الزخم",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_entry_s2",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   },
+   {
+    "name": "كموميه الزخم الاولى · S3 — الامتصاص قبل الاختراق + الترند + المنطقة الكمومية + رصة EMA الخمسة + بوابة الزخم",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_entry_s3",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "كموميه الزخم الاولى · خروج المنطقة الكمومية — LL+LH (الباب الوحيد كما في البطل — بلا أي تغيير)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema_mom:zzfetqem_zone_exit",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   }
+  ],
+  "filter_rules": [],
+  "risk_management": {
+   "stop_loss_percentage": 2,
+   "take_profit_percentage": 99
+  }
+ },
+ "initial_capital": 1000.0,
+ "position_sizing": "percentage",
+ "position_size_percent": 100.0,
+ "max_positions": 10,
+ "compounding": true,
+ "multi_position_compounding": true,
+ "commission_rate": 0.0,
+ "slippage_percent": 0.0,
+ "fill_model": "next_open",
+ "max_daily_loss_percent": 5.0,
+ "enable_short_selling": false,
+ "enable_margin": false,
+ "leverage": 1.0,
+ "require_confirmation": false,
+ "take_profit_splits": [
+  {
+   "gain_percent": 5.0,
+   "size_percent": 25.0
+  },
+  {
+   "gain_percent": 7.0,
+   "size_percent": 25.0
+  }
+ ]
+}
