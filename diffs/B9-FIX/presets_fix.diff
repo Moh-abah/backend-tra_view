@@ -1,0 +1,43 @@
+--- /tmp/b9_audit/app/services/strategy/presets.py	2026-11-22 15:09:14.000000000 +0000
++++ /home/z/my-project/trading-system/b9-corrected/package/app/services/strategy/presets.py	2026-11-22 16:18:01.230154813 +0000
+@@ -2055,17 +2055,17 @@
+                                           'position_side': 'long',
+                                           'weight': 1.0,
+                                           'enabled': True}],
+-                       'exit_rules': [ { 'name': 'خروج عند استجد ترند 100 في رسم جديد (ولادة خط '
+-                                                 'ترند-100 جديد — علوي أو سفلي)',
+-                                         'condition': { 'type': 'or',
++                       'exit_rules': [ { 'name': 'خروج عند ولادة خط ترند-100 علوي جديد فقط '
++                                                '(الخط فوق السعر — أعلى من الإغلاق)',
++                                         'condition': { 'type': 'and',
+                                                         'conditions': [ { 'type': 'indicator_value',
+                                                                           'operator': '>',
+                                                                           'left_value': 'indicator:trend_fractal:trf_p100_new_upper',
+                                                                           'right_value': 0},
+                                                                         { 'type': 'indicator_value',
+                                                                           'operator': '>',
+-                                                                          'left_value': 'indicator:trend_fractal:trf_p100_new_lower',
+-                                                                          'right_value': 0}]},
++                                                                          'left_value': 'indicator:trend_fractal:trf_p100_upper',
++                                                                          'right_value': 'price:close'}]},
+                                          'exit_type': 'signal_exit',
+                                          'enabled': True}],
+                        'risk_management': { 'stop_loss_percentage': 2,
+@@ -2363,14 +2363,14 @@
+         # ✅ B9 (2026-11-22) — «ماكد 9B + ترند 100» (إضافة — القوالب السابقة كما هي)
+         {
+             "id": "b9_trend100_zero_fee",
+-            "title": "B9-T100 — ماكد 9B + ترند 100 · خروج عند استجد ترند 100 — ZERO FEE",
++            "title": "B9-T100 — ماكد 9B + ترند 100 · خروج ولادة خط علوي فقط + الخط فوق السعر — ZERO FEE",
+             "description": "«MACD Buy Strategy 9B» محوّلة من Pine ومدمجة مع ترند 100: "
+                            "الدخول = شروط B9 الأربعة (إيجابية الماكد الأسبوعي A/B/C "
+                            "6-13-4/12-26-4/18-39-4 + اليومي B/C 12-26-6/18-39-4 + نواة "
+                            "4H B 12-26-6 فوق إشارته وفوق الصفر + أي ماكد أعلى فوق إشارته "
+                            "وفوق خط 4H B) ∧ الإغلاق فوق خط الترند 100 (fractal فترة 100). "
+-                           "الخروج = استجد خط ترند-100 في رسم جديد (ولادة خط جديد علوي "
+-                           "أو سفلي). إدارة نقية بإشارات فقط — بلا SL/TP/تريلينق/جني "
++                           "الخروج = ولادة خط ترند-100 علوي جديد فقط ∧ الخط العلوي فوق "
++                           "السعر (قيمته أعلى من الإغلاق) — تصحيح صاحب القرار. إدارة نقية بإشارات فقط — بلا SL/TP/تريلينق/جني "
+                            "مقسم/تعزيز. الإسقاط سببي (آخر شريط HTF مكتمل — confirmed) "
+                            "والإحماء فشل-إغلاق ونافذة تفعيل active_start/active_end تحصر "
+                            "الصفقات داخل نافذة التقييم بينما تُحسب القيم على البيانات "

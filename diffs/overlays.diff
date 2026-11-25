@@ -1,0 +1,21 @@
+--- download/extracted/app/services/indicators/overlays.py	2026-11-23 17:10:46.685183106 +0000
++++ package/app/services/indicators/overlays.py	2026-11-23 17:17:45.234527261 +0000
+@@ -1271,6 +1271,8 @@
+         # (zone_resolution/zone_length — HH+HL على أي فريم).
+         # + ✅ STRUCT1: نسبة انعكاس تأكيد محاور الهيكل الكبير (صرامة
+         # القمة>القمة ∧ القاع>القاع — أعمدة zzfetqe_struct_*).
++        # + ✅ EBREAK1: آلة الدخول الثاني — كسر EMA-N → نزول X% → استرداد
++        # قمة الشمعة الكاسرة (أعمدة zzfetqe_ebreak_*).
+         "zzfib_e2e_trendy_quantum_ema": {"length", "reverse", "levels", "extend_right",
+                                          "extend_leg_to_live", "mode", "depth", "deviation",
+                                          "backstep", "launch_touch_ticks",
+@@ -1280,7 +1282,8 @@
+                                          "ema_stack_mode", "ema_stack_base",
+                                          "zone_exit_resolution", "zone_exit_length",
+                                          "zone_resolution", "zone_length",
+-                                         "struct_reversal_pct"},
++                                         "struct_reversal_pct",
++                                         "ema_break_length", "ema_break_drop_pct"},
+         # QMOM1: quantum momentum first — same quantum-EMA params verbatim
+         # + the flexible conditions gate template (osc_instances: macd/rsi/mom
+         # copies, any count, 22 timeframes · osc_conditions: composable

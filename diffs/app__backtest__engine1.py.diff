@@ -1,0 +1,386 @@
+--- trailmode1/post_tree/app/backtest/engine1.py	2026-11-20 20:07:47.000000000 +0000
++++ r9-dca/merge_package/app/backtest/engine1.py	2026-11-21 11:12:44.830326050 +0000
+@@ -64,6 +64,34 @@
+     return levels
+ 
+ 
++def _normalize_dca_rebuy_drops(config: "BacktestConfig") -> List[float]:
++    """✅ R9-DCA — تطبيع نسب «تعزيزات الشراء عند الهبوط» من التكوين.
++
++    dca_rebuy_drops_pct: [2.0, 4.5, ...] — نسب هبوط ٪ من سعر الدخول الأول؛
++    لمس الشمعة (اللمّة) تحت الزناد تفتح شراءً تعزيزياً بنفس القيمة الاسمية
++    (USD) للشراء الأول (بنية 1:1:1 — نفس دلالات محرك الخروج ج41:
++    «شراء ثانٍ بنفس الحجم»). الزناد الثاني الأعمق لا يُلمس إلا بعد الأول.
++
++    • غياب الحقل / قائمة فارغة ⇒ [] (الميزة معطلة — السلوك بت-بت).
++    • schemas ترفض غير التصاعدي 422 مسبقاً — وهنا دفاعياً: غير التصاعدي
++      يُهمل (لن يصل عملياً).
++    """
++    raw = getattr(config, "dca_rebuy_drops_pct", None)
++    if not raw:
++        return []
++    drops: List[float] = []
++    for v in raw:
++        try:
++            fv = float(v)
++        except (TypeError, ValueError):
++            continue
++        if 0.0 < fv < 100.0:
++            drops.append(fv)
++    if any(drops[i] <= drops[i - 1] for i in range(1, len(drops))):
++        return []
++    return drops
++
++
+ def _normalize_structure_split_rules(config: "BacktestConfig") -> List[Dict[str, Any]]:
+     """✅ SPLIT-ZZ1 — تطبيع قواعد «الخروج المقسم بانعكاس هيكل الزقزاق».
+ 
+@@ -847,6 +875,26 @@
+         split_tp_pending: List[Dict[str, float]] = []
+         split_tp_original_size = 0.0
+ 
++        # ✅ R9-DCA — تعزيزات الشراء عند الهبوط (اختيارية — عزل نظيف):
++        # غيابها ⇒ [] ⇒ لا فرق بت-بت مع أي تكوين قائم (لا مفتاح يُبث إطلاقاً).
++        # دلالات (نفس عقد محرك الخروج ج41 حرفياً — للتوحيد):
++        #   • الزناد: لمس الشمعة (اللمّة low <= الدخول الأول × (1−drop%)) —
++        #     شرط لمسة داخل الشمعة، وفتحة هبوط تحت الزناد (open < الزناد)
++        #     تُنفّذ عند الافتتاح (أفضل للمشتري — أمر حد).
++        #   • الحجم: كل تعزيز بنفس القيمة الاسمية USD للشراء الأول (1:1:1).
++        #   • كل تعزيز مركز مستقل بإدارة كاملة (جني مقسم + تريلينق + ستوب
++        #     خاصة به) — يُدار من شمعة إطلاقه نفسها (ترتيب ج41: التعزيز
++        #     قبل جني الربح داخل الشمعة ذاتها).
++        #   • إشارة خروج/انعكاس تغلق الأساسي وكل التعزيزات معاً (مسار
++        #     المراكز الإضافية القائم بت-بت).
++        dca_drops: List[float] = _normalize_dca_rebuy_drops(config)
++        dca_active = bool(dca_drops)
++        # التعزيزات المعلقة لدورة المركز الأساسي الجارية + مرجع القياس
++        dca_pending: List[Dict[str, Any]] = []
++        dca_base_entry_price = 0.0      # سعر الدخول الأول (مرجع الزناد)
++        dca_base_notional_usd = 0.0     # القيمة الاسمية للشراء الأول (1:1:1)
++        dca_fired_total = 0             # عدّاد كل التعزيزات عبر الدورات (للصدى)
++
+         # ✅ SPLIT-ZZ1 — قواعد الخروج المقسم بانعكاس هيكل الزقزاق (اختيارية —
+         # عزل نظيف): غيابها ⇒ [] ⇒ لا فرق بت-بت مع أي تكوين قائم (لا مفتاح
+         # يُبث إطلاقاً). كل قاعدة: أحداث انعكاس (LL+LH) على فريمها + حصة
+@@ -987,6 +1035,17 @@
+             "structure_split_rules_meta": (
+                 [dict(m) for m in structure_split_meta]
+                 if structure_split_active else None),
++            # ✅ R9-DCA — صدى تعزيزات الشراء عند الهبوط (شفافية كاملة)
++            "dca_rebuy_drops_pct": (
++                [float(d) for d in dca_drops] if dca_active else None),
++            "dca_rebuy_active": bool(dca_active),
++            "dca_rebuy_fired_total": int(dca_fired_total),
++            "dca_rebuy_semantics": (
++                "R9-DCA: لمس اللمّة تحت (الدخول الأول × (1−drop%)) يفتح شراءً"
++                " تعزيزياً بنفس القيمة الاسمية USD للشراء الأول (1:1:1 — عقد"
++                " ج41)؛ كل تعزيز مركز مستقل بإدارة كاملة (جني مقسم + تريلينق"
++                " خاصة به) يُدار من شمعة إطلاقه، وإشارة الخروج تغلق الجميع"
++                if dca_active else None),
+         }
+ 
+         # ✅ الجولة 12: نموذج التنفيذ المطبق فعلياً (next_open افتراضياً)
+@@ -1018,6 +1077,7 @@
+             nonlocal sl_price, tp_price, trail_peak, account_balance
+             nonlocal cumulative_pnl, account_blown, _liquidation_truncated
+             nonlocal split_tp_pending, split_tp_original_size  # ✅ SPLIT-TP1
++            nonlocal dca_pending, dca_base_entry_price, dca_base_notional_usd  # ✅ R9-DCA
+             if current_state != 'NEUTRAL' and trade_id:
+                 _pnl_fc = ((price - entry_price) * position_size
+                            if current_state == 'LONG'
+@@ -1060,6 +1120,9 @@
+                 tp_price = 0.0
+                 trail_peak = 0.0
+                 split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
++                dca_pending = []  # ✅ R9-DCA — الدورة انتهت (التعزيزات تُغلق معها)
++                dca_base_entry_price = 0.0
++                dca_base_notional_usd = 0.0
+             for _xp in list(extra_positions):
+                 _xs = _xp['position_size']
+                 if _xp['direction'] == 'LONG':
+@@ -1097,7 +1160,7 @@
+                     "fill_exit": fill_model_str,
+                     "direction": _xp['direction'].lower(),
+                     "symbol": symbol,
+-                    "position_kind": "additional",
++                    "position_kind": _xp.get('position_kind', 'additional'),
+                 })
+                 extra_positions.remove(_xp)
+             if account_balance < 0:
+@@ -1563,6 +1626,9 @@
+                 trail_peak = 0.0  # ✅ R55
+                 split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                 split_tp_original_size = 0.0
++                dca_pending = []  # ✅ R9-DCA — الدورة انتهت
++                dca_base_entry_price = 0.0
++                dca_base_notional_usd = 0.0
+ 
+                 # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً
+                 # (كل التعرض لاتجاه الاستراتيجية يُقفل عند خروجها)
+@@ -1611,7 +1677,7 @@
+                         "fill_exit": fill_model_str,
+                         "direction": _xp['direction'].lower(),
+                         "symbol": symbol,
+-                        "position_kind": "additional",
++                        "position_kind": _xp.get('position_kind', 'additional'),
+                     })
+                     extra_positions.remove(_xp)
+ 
+@@ -1669,7 +1735,7 @@
+                         "fill_exit": fill_model_str,
+                         "direction": _xp['direction'].lower(),
+                         "symbol": symbol,
+-                        "position_kind": "additional",
++                        "position_kind": _xp.get('position_kind', 'additional'),
+                     })
+                     extra_positions.remove(_xp)
+ 
+@@ -1746,6 +1812,9 @@
+                                 trail_peak = 0.0
+                                 split_tp_pending = []
+                                 split_tp_original_size = 0.0
++                                dca_pending = []  # ✅ R9-DCA — الدورة انتهت
++                                dca_base_entry_price = 0.0
++                                dca_base_notional_usd = 0.0
+                                 pending_decision = None
+                                 break  # المركز انتهى — لا قواعد بعده
+                     # ---- (2) المراكز الإضافية الناجية (كل مركز على حدة) ----
+@@ -1805,7 +1874,7 @@
+                                         "fill_exit": fill_model_str,
+                                         "direction": _xp['direction'].lower(),
+                                         "symbol": symbol,
+-                                        "position_kind": "additional",
++                                        "position_kind": _xp.get('position_kind', 'additional'),
+                                     })
+                                     extra_positions.remove(_xp)
+                                     break
+@@ -1889,6 +1958,19 @@
+                 split_tp_pending = [dict(_l) for _l in split_tp_levels]
+                 split_tp_original_size = float(position_size)
+ 
++                # ✅ R9-DCA — تهيئة تعزيزات الشراء لدورة المركز الجديد:
++                # مرجع الزناد = سعر الدخول الأول، والقيمة الاسمية للتعزيز
++                # = قيمة الشراء الأول كاملة (1:1:1 — عقد ج41). الزناد يقاس من
++                # الدخول الأول حرفياً حتى لو جُزّئت الكمية بالجني لاحقاً.
++                dca_pending = ([
++                    {"drop": float(d),
++                     "price": (entry_price * (1.0 - float(d) / 100.0)
++                                if target_state == 'LONG'
++                                else entry_price * (1.0 + float(d) / 100.0))}
++                    for d in dca_drops] if dca_active else [])
++                dca_base_entry_price = float(entry_price)
++                dca_base_notional_usd = float(entry_price) * float(position_size)
++
+                 # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي)
+                 _open_now = 1 + len(extra_positions)
+                 if _open_now > max_open_observed:
+@@ -2144,11 +2226,131 @@
+                     trail_peak = 0.0  # ✅ R55
+                     split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                     split_tp_original_size = 0.0
++                    # ✅ R9-DCA — الدورة انتهت (إغلاق كامل): إسقاط التعزيزات
++                    dca_pending = []
++                    dca_base_entry_price = 0.0
++                    dca_base_notional_usd = 0.0
+                     
+                     # ✅ تمت إزالة 'continue' للسماح بتسجيل البيانات البصرية للشمعة الحالية
+                     # إذا أردت منع فتح صفقة جديدة في نفس الشمعة بعد إغلاق، يمكن إضافة flag هنا.
+                     pending_decision = None
+ 
++            # ==========================================================
++            # ✅ R9-DCA — تعزيزات الشراء عند الهبوط ( داخل الشمعة):
++            # المركز الأساسي صمد شمعةَ الحالية (لا ستوب/تريلينق/جني كامل
++            # أُغلق المركز) ⇒ تُفحص الزنادات على لمسة اللمّة — نفس ترتيب
++            # محرك الخروج ج41 داخل الشمعة: الخروج أولًا ثم التعزيز ثم الجني
++            # (التعزيز قبل حلقة إدارة المراكز الإضافية أدناه ⇒ يُدار من
++            # شمعة إطلاقه نفسها — جنيه المقسم/تريلينقه على شمعة الإطلاق).
++            # فتحة هبوط تحت الزناد (open < الزناد) تُنفّذ عند الافتتاح
++            # (أمر حد — أفضل للمشتري، نفس ج41).
++            # ==========================================================
++            if (dca_active and dca_pending
++                    and current_state != 'NEUTRAL'
++                    and account_balance > 0):
++                for _dca_p in list(dca_pending):
++                    _dca_fill = None
++                    if current_state == 'LONG':
++                        _trig = dca_base_entry_price * (1.0 - _dca_p['drop'] / 100.0)
++                        if low_price <= _trig:
++                            _dca_fill = _trig
++                            if open_price < _trig:
++                                _dca_fill = open_price  # فجوة هبوط — تنفيذ عند الافتتاح
++                    else:  # SHORT — الهبوط نسبي للشورت = صعود ضدّه
++                        _trig = dca_base_entry_price * (1.0 + _dca_p['drop'] / 100.0)
++                        if high_price >= _trig:
++                            _dca_fill = _trig
++                            if open_price > _trig:
++                                _dca_fill = open_price
++                    if _dca_fill is None or _dca_fill <= 0:
++                        continue
++                    # الحجم: نفس القيمة الاسمية للشراء الأول (1:1:1)
++                    _dca_size = (dca_base_notional_usd / _dca_fill
++                                 if _dca_fill else 0.0)
++                    if _dca_size <= 0:
++                        continue
++                    _dca_sl = 0.0
++                    _dca_tp = 0.0
++                    if sl_active and sl_frac is not None:
++                        _dca_off = _dca_fill * sl_frac
++                        _dca_sl = (_dca_fill - _dca_off if current_state == 'LONG'
++                                   else _dca_fill + _dca_off)
++                    if tp_active and tp_frac is not None:
++                        _dca_off = _dca_fill * tp_frac
++                        _dca_tp = (_dca_fill + _dca_off if current_state == 'LONG'
++                                   else _dca_fill - _dca_off)
++                    _dca_id = str(uuid.uuid4())
++                    _dca_trade = Trade(
++                        id=_dca_id,
++                        symbol=symbol,
++                        entry_time=current_time,
++                        exit_time=None,
++                        entry_price=_dca_fill,
++                        exit_price=None,
++                        position_type='long' if current_state == 'LONG' else 'short',
++                        position_size=_dca_size,
++                        pnl=None,
++                        pnl_percentage=None,
++                        commission=0.0,
++                        slippage=0.0,
++                        stop_loss=_dca_sl if sl_active else None,
++                        take_profit=_dca_tp if tp_active else None,
++                        exit_reason=None,
++                        direction='long' if current_state == 'LONG' else 'short',
++                        fill_entry=fill_model_str,
++                        fill_exit=fill_model_str,
++                        metadata={
++                            'strategy': config.strategy_config.get('name', 'Unknown') if config.strategy_config else 'Unknown',
++                            'position_kind': 'dca_rebuy',
++                            'risk_reward_ratio': 0.0,
++                            'dca_drop_pct': float(_dca_p['drop']),
++                            'dca_base_entry_price': float(dca_base_entry_price),
++                            'dca_notional_usd': float(dca_base_notional_usd),
++                        },
++                    )
++                    trades.append(_dca_trade)
++                    # مركز مستقل بإدارة كاملة (جني مقسم + تريلينق خاصة به)
++                    extra_positions.append({
++                        'trade_id': _dca_id,
++                        'trade': _dca_trade,
++                        'direction': current_state,
++                        'entry_price': _dca_fill,
++                        'entry_time': current_time,
++                        'position_size': _dca_size,
++                        'sl_price': _dca_sl,
++                        'tp_price': _dca_tp,
++                        'trail_peak': _dca_fill,  # قمة التريلينق تبدأ من سعر التنفيذ
++                        'splits_pending': [dict(_l) for _l in split_tp_levels],
++                        'splits_original_size': float(_dca_size),
++                        'position_kind': 'dca_rebuy',
++                        'dca_drop_pct': float(_dca_p['drop']),
++                    })
++                    dca_pending.remove(_dca_p)  # مرة واحدة لكل دورة
++                    dca_fired_total += 1
++                    _open_now = (1 if current_state != 'NEUTRAL' else 0) + len(extra_positions)
++                    if _open_now > max_open_observed:
++                        max_open_observed = _open_now
++                    extra_entries_bar.append({
++                        "timestamp": current_time,
++                        "type": "entry",
++                        "trade_id": _dca_id,
++                        "price": float(_dca_fill),
++                        "position_type": current_state.lower(),
++                        "position_size": float(_dca_size),
++                        "entry_price": float(_dca_fill),
++                        "stop_loss": float(_dca_sl) if (sl_active and _dca_sl) else None,
++                        "take_profit": float(_dca_tp) if (tp_active and _dca_tp) else None,
++                        "decision_reason": f"R9-DCA: تعزيز عند هبوط {_dca_p['drop']:g}%",
++                        "confidence": None,
++                        "account_balance_before": account_balance,
++                        "commission": 0.0,
++                        "fill_entry": fill_model_str,
++                        "fill_exit": fill_model_str,
++                        "direction": current_state.lower(),
++                        "symbol": symbol,
++                        "position_kind": "dca_rebuy",
++                    })
++
+             # ✅ R55 — إدارة مخاطر المراكز الإضافية (مستقلة لكل مركز):
+             # كل مركز إضافي يُدار بسل/تيبي/تريلينق خاصة به — خروج أحدها لا
+             # يمس الآخرين ولا المركز الأساسي (استقلال كامل كما طلب المستخدم).
+@@ -2262,7 +2464,7 @@
+                         "fill_exit": fill_model_str,
+                         "direction": _xp['direction'].lower(),
+                         "symbol": symbol,
+-                        "position_kind": "additional",
++                        "position_kind": _xp.get('position_kind', 'additional'),
+                     })
+                     extra_positions.remove(_xp)
+ 
+@@ -2401,6 +2603,9 @@
+                     trail_peak = 0.0  # ✅ R55
+                     split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                     split_tp_original_size = 0.0
++                    dca_pending = []  # ✅ R9-DCA — الدورة انتهت (signal_close)
++                    dca_base_entry_price = 0.0
++                    dca_base_notional_usd = 0.0
+ 
+                     # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً (مسار signal_close)
+                     _x_reason_root = f"{exit_reason} (additional position)"
+@@ -2442,7 +2647,7 @@
+                             "fill_exit": fill_model_str,
+                             "direction": _xp['direction'].lower(),
+                             "symbol": symbol,
+-                            "position_kind": "additional",
++                            "position_kind": _xp.get('position_kind', 'additional'),
+                         })
+                         extra_positions.remove(_xp)
+ 
+@@ -2515,6 +2720,17 @@
+                     split_tp_pending = [dict(_l) for _l in split_tp_levels]
+                     split_tp_original_size = float(position_size)
+ 
++                    # ✅ R9-DCA — تهيئة التعزيزات (مسار signal_close): مرجع
++                    # الزناد = سعر الدخول الأول والقيمة الاسمية 1:1:1
++                    dca_pending = ([
++                        {"drop": float(d),
++                         "price": (entry_price * (1.0 - float(d) / 100.0)
++                                    if target_state_sc == 'LONG'
++                                    else entry_price * (1.0 + float(d) / 100.0))}
++                        for d in dca_drops] if dca_active else [])
++                    dca_base_entry_price = float(entry_price)
++                    dca_base_notional_usd = float(entry_price) * float(position_size)
++
+                     # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي — مسار signal_close)
+                     _open_now = 1 + len(extra_positions)
+                     if _open_now > max_open_observed:
+@@ -2988,7 +3204,7 @@
+                     "fill_exit": fill_model_str,
+                     "direction": _xp['direction'].lower(),
+                     "symbol": symbol,
+-                    "position_kind": "additional",
++                    "position_kind": _xp.get('position_kind', 'additional'),
+                 })
+                 extra_positions.remove(_xp)
+ 
+@@ -3147,6 +3363,22 @@
+                 len((tr.metadata or {}).get("structure_split", {}).get("events") or [])
+                 for tr in trades
+                 if isinstance(getattr(tr, "metadata", None), dict)),
++            # ✅ R9-DCA — صدى تعزيزات الشراء عند الهبوط في effective_config
++            # (يصل للفرونت والمكتبة) — غياب الحقل ⇒ الميزة معطلة (بت-بت)
++            "dca_rebuy_drops_pct": (
++                [float(d) for d in _normalize_dca_rebuy_drops(config)]
++                if _normalize_dca_rebuy_drops(config) else None),
++            "dca_rebuy_active": bool(_normalize_dca_rebuy_drops(config)),
++            "dca_rebuy_trades": sum(
++                1 for tr in trades
++                if isinstance(getattr(tr, "metadata", None), dict)
++                and (tr.metadata or {}).get("position_kind") == "dca_rebuy"),
++            "dca_rebuy_semantics": (
++                "R9-DCA: لمس اللمّة تحت (الدخول الأول × (1−drop%)) يفتح شراءً"
++                " تعزيزياً بنفس القيمة الاسمية USD للشراء الأول (1:1:1 — عقد"
++                " ج41)؛ كل تعزيز مركز مستقل بإدارة كاملة (جني مقسم + تريلينق"
++                " خاصة به) يُدار من شمعة إطلاقه، وإشارة الخروج تغلق الجميع"
++                if _normalize_dca_rebuy_drops(config) else None),
+         }
+ 
+     def _convert_to_serializable(self, obj):

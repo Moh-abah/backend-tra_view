@@ -21,6 +21,7 @@ from . import overlays_zlf_e2e_trendy_quantum as _overlays_zlf_e2e_trendy_quantu
 from . import overlays_zlf_e2e_trendy_quantum_ema as _overlays_zlf_e2e_trendy_quantum_ema  # noqa: F401
 from . import overlays_zlf_e2e_trendy_quantum_ema_mom as _overlays_zlf_e2e_trendy_quantum_ema_mom  # noqa: F401  # QMOM1: 'quantum momentum first' (self-registering; imports quantum_ema too)  # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» (تسجيل ذاتي — إضافة فقط؛ يستورد الكمومية أيضاً)
 from . import overlays_mtf_ema as _overlays_mtf_ema  # noqa: F401  # ✅ MTFEMA1: «MTF EMA» متعدد الفريمات (تسجيل ذاتي — إضافة فقط)
+from . import overlays_b9_macd_gates as _overlays_b9_macd_gates  # noqa: F401  # ✅ B9: «ماكد 9B» بوابات MACD متعددة الفريمات (تسجيل ذاتي — إضافة فقط)
 from .pine_transpiler import PineScriptTranspiler
 
 

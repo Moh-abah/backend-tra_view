@@ -435,6 +435,55 @@ class BacktestConfig(BaseModel):
                     "كل قاعدة تبيع نسبة من الكمية عند كل انعكاس هيكل (LL+LH) "
                     "على أي فريم (same/أدق/أعلى) — قابل للتخصيص على أي استراتيجية.",
     )
+    # ✅ R9-DCA — «تعزيزات الشراء عند الهبوط» (DCA re-buys على المركز الأساسي):
+    # قائمة نسب هبوط ٪ من سعر الدخول الأول — لمس الشمعة (اللمّة) تحت الزناد
+    # يفتح شراءً ثانياً/ثالثاً بنفس القيمة الاسمية (USD) للشراء الأول (بنية
+    # 1:1:1 — نفس دلالات محرك الخروج ج41). كل شراء تعزيزي مركز مستقل بإدارة
+    # مخاطر كاملة (جني مقسم + تريلينق + ستوب خاصة به). غياب الحقل/قائمة
+    # فارغة ⇒ الميزة معطلة والسلوك التاريخي بت-بت (لا مفتاح يُبث إطلاقاً).
+    # مثال طلب صاحب القرار: شراء ثانٍ عند هبوط 2% وثالث عند 4.5% ⇒
+    #   "dca_rebuy_drops_pct": [2.0, 4.5]
+    dca_rebuy_drops_pct: Optional[List[float]] = Field(
+        None,
+        description="R9-DCA — نسب هبوط ٪ من سعر الدخول الأول تفتح شراءً "
+                    "تعزيزياً بنفس قيمة الشراء الأول (مثل [2.0, 4.5] — تصاعدية "
+                    "إجبارياً، حتى 5 تعزيزات).",
+    )
+
+    @model_validator(mode="after")
+    def validate_dca_rebuy_drops(self):
+        """R9-DCA — تحقق دلالي: نسب موجبة، تصاعدية صارمة، ≤ 5 تعزيزات.
+
+        الهبوط الأعمق يأتي لاحقًا (نفس قاعدة محرك الخروج ج41) — رفع
+        صريح برسالة عربية (لا إعادة ترتيب صامتة).
+        """
+        drops = getattr(self, "dca_rebuy_drops_pct", None)
+        if not drops:
+            return self
+        vals = []
+        for v in drops:
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    "dca_rebuy_drops_pct يجب أن تكون قائمة أرقام — "
+                    f"عنصر غير مفهوم: {v!r}")
+            if not (0.0 < fv < 100.0):
+                raise ValueError(
+                    f"كل نسبة هبوط في dca_rebuy_drops_pct يجب أن تكون "
+                    f"ضمن (0..100) حصرياً — وصل: {fv}")
+            vals.append(fv)
+        if len(vals) > 5:
+            raise ValueError(
+                "dca_rebuy_drops_pct: حتى 5 تعزيزات مسموحة — "
+                f"وصل {len(vals)}")
+        for i in range(1, len(vals)):
+            if vals[i] <= vals[i - 1]:
+                raise ValueError(
+                    "dca_rebuy_drops_pct يجب أن تكون تصاعدية صارمة "
+                    f"(الهبوط الأعمق لاحقاً): {vals} — مثلاً [2.0, 4.5]")
+        object.__setattr__(self, "_dca_drops_normalized", vals)
+        return self
 
     @model_validator(mode="before")
     @classmethod
@@ -558,6 +607,16 @@ class BacktestConfig(BaseModel):
     # ويُلغي SL/TP عند تفعيله (نفس دلالات محرك الخروج الموحد).
     # السقف مرفوع من 10 إلى 50 — كان يرفض 20% بـ422.
     trailing_stop_percent: Optional[float] = Field(None, ge=0.1, le=50.0)
+    # ✅ TRAILMODE1 — نمط حساب خط التريلينق (اختياري — عزل نظيف):
+    #   "peak_pct" (الافتراضي التاريخي عند الغياب): النزول نسبة% من أعلى
+    #           قمة سعرية نفسها — الخط = القمة×(1−نسبة%) في LONG.
+    #   "rise_pct" (طلب المهندس محمد الحرفي 2026-11-20: «احسب من سعر
+    #           الشراء الى اعلى قمه، اذا نزل 15% من اجمالي هذا الارتفاع
+    #           فهذا يعتبر ستوب تريلينق»): النزول نسبة% من إجمالي الارتفاع
+    #           من سعر الشراء إلى القمة — الخط = القمة − نسبة%×(القمة−الدخول).
+    #   الغياب ⇒ None ⇒ peak_pct بت-بت مع كل الحمولات القائمة
+    #   (لا مفتاح يُبث إطلاقاً — لا فرق على أي مستخدم حالي).
+    trailing_stop_mode: Optional[str] = None
     # غير مقروء من أي محرك — يُحفظ كما أُرسل فقط (null عند الغياب)
     max_daily_loss_percent: Optional[float] = Field(None, ge=0.1, le=50.0)
 
@@ -589,6 +648,33 @@ class BacktestConfig(BaseModel):
                 "النظام يعمل بلا عمولات ولا انزلاق نهائياً (سياسة Zero-Fee). "
                 "حقل slippage_percent لم يعد مقبولاً بقيمة > 0 — احذفه من الحمولة."
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_trailing_stop_mode(self):
+        """✅ TRAILMODE1 — نمط خط التريلينق: قيمتان قانونيتان فقط.
+
+        "peak_pct" (التاريخي — النزول نسبة% من أعلى قمة سعرية) أو
+        "rise_pct" (النزول نسبة% من إجمالي الارتفاع من الدخول إلى القمة —
+        طلب المهندس محمد الحرفي). الغياب/الفراغ ⇒ None ⇒ peak_pct بت-بت.
+        أي قيمة أخرى تُرفض بـ422 برسالة عربية صريحة (لا إسقاط صامت لقيمة
+        أرسلها المستخدم — نفس سياسة zero-fee الإبادية).
+        """
+        _m = getattr(self, "trailing_stop_mode", None)
+        if _m is None:
+            return self
+        m = str(_m).strip().lower()
+        if m in ("", "none"):
+            # يُطبَّع إلى None (غياب) — لا يُبث مفتاح بلا دلالة
+            object.__setattr__(self, "trailing_stop_mode", None)
+            return self
+        if m not in ("peak_pct", "rise_pct"):
+            raise ValueError(
+                "trailing_stop_mode يقبل \"peak_pct\" (النزول نسبة% من أعلى "
+                "قمة سعرية — التاريخي) أو \"rise_pct\" (النزول نسبة% من إجمالي "
+                "الارتفاع من سعر الشراء إلى القمة) فقط — القيمة المرسلة: "
+                f"{_m!r}")
+        object.__setattr__(self, "trailing_stop_mode", m)
         return self
 
     @model_validator(mode="before")
@@ -965,6 +1051,17 @@ class BacktestResult(BaseModel):
     # وكتلة capital_deployed توثّق الذروة/إجمالي الدخول/الرصيد الخامل.
     total_pnl_percent_on_initial: Optional[float] = None
     capital_deployed: Optional[Dict[str, Any]] = None
+
+    # ✅ B9-T100-GATE1 — رسومات الترند + نقاط الدخول المرفوضة بالبوابة:
+    # trend_drawings = {engine, name, spec, params, by_symbol: {sym: {lines,
+    # current, events}}} — إحداثيات كل خط ترند وُلد لكل فترة (x/t/y
+    # للطرفين + الميل + لحظة الولادة + الإحلال) يرسمها الفرونت اند من
+    # chart_data.trend_lines. skipped_entry_points = نقاط دخول رفضتها بوابة
+    # التنفيذ (سعر التنفيذ تحت خط الترند-100) — تصل chart_data.skipped_entry_points.
+    # كلاهما None عند استراتيجيات بلا trend_fractal/execution_gates
+    # (العقد القديم بت-بت — حقول اختيارية بحتة).
+    trend_drawings: Optional[Dict[str, Any]] = None
+    skipped_entry_points: Optional[List[Dict[str, Any]]] = None
 
     @field_validator('equity_curve', 'drawdown_curve', mode='before')
     @classmethod

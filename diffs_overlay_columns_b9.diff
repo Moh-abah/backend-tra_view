@@ -1,0 +1,98 @@
+--- /tmp/orig_p109/app/services/indicators/overlay_columns.py	2026-11-19 10:04:08.000000000 +0000
++++ app/services/indicators/overlay_columns.py	2026-11-22 14:36:13.207347521 +0000
+@@ -148,6 +148,10 @@
+     "multi_timeframe_exponential_moving_average": "mtf_ema",
+     "trend_fractal": "trend_fractal",
+     "fractal_trendlines": "trend_fractal",
++    # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy Strategy 9B).
++    "b9_macd_gates": "b9_macd_gates",
++    "b9": "b9_macd_gates",
++    "b9_macd": "b9_macd_gates",
+ }
+ 
+ KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
+@@ -157,7 +161,8 @@
+                        "zzfib_e2e_trendy_quantum_ema",  # ✅ QUANTUMEMA1 — الكمومية المتوسطة المتحركة الأسية
+                        "zzfib_e2e_trendy_quantum_ema_mom",  # QMOM1 — quantum momentum first: quantum-EMA + flexible conditions gate
+                        "mtf_ema",  # ✅ MTFEMA1 — MTF EMA متعدد الفريمات
+-                       "trend_fractal")
++                       "trend_fractal",  # ✅ ROUND32 — مؤشر الترند المستقل (فراكتالات)
++                       "b9_macd_gates")  # ✅ B9 — «ماكد 9B» بوابات MACD متعددة الفريمات
+ 
+ # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
+ CONTRACT_COLUMNS: Dict[str, List[str]] = {
+@@ -465,6 +470,15 @@
+         "ind_trf_bull_votes", "ind_trf_bear_votes", "ind_trf_bias",
+         "ind_trf_trend_ok", "ind_trf_threshold",
+     ],
++    # ✅ B9 — عقد «ماكد 9B»: الإشارة النهائية + شفافية الشجرة وفروعها
++    # الأربعة + أحداث ولادة خط الترند (قيم النسخ ديناميكية حسب معرفات
++    # instances — ind_b9g_osc_<id>_line|signal|hist).
++    "b9_macd_gates": [
++        "ind_b9g_buy", "ind_b9g_cond",
++        "ind_b9g_sub_w_pos", "ind_b9g_sub_d_pos",
++        "ind_b9g_sub_4h_core", "ind_b9g_sub_any_above_4h",
++        # الديناميكية: ind_b9g_osc_<id>_line|signal|hist لكل نسخة
++    ],
+ }
+ 
+ 
+@@ -1060,6 +1074,23 @@
+             out["periods"] = tp
+         if "confirm_mode" in p:
+             out["confirm_mode"] = p["confirm_mode"]
++    elif base == "b9_macd_gates":
++        # ✅ B9 — «ماكد 9B»: نسخ MACD متعددة الفريمات + شجرة شروط قابلة
++        # للتركيب (مقارنات قيم عابرة للفريمات) + تسميات فروع الشفافية +
++        # نافذة تفعيل الإشارة (تحصر b9g_buy داخل نافذة التداول بينما
++        # تُحسب القيم على كامل البيانات الممتدة — إحماء MACD الأسبوعي).
++        inst = p.get("instances", p.get("osc_instances"))
++        if inst is not None:
++            out["instances"] = inst
++        cond = p.get("conditions", p.get("osc_conditions"))
++        if cond is not None:
++            out["conditions"] = cond
++        sl = p.get("sub_labels", p.get("labels"))
++        if sl is not None:
++            out["sub_labels"] = sl
++        for k in ("active_start", "active_end"):
++            if p.get(k) is not None:
++                out[k] = p[k]
+     else:  # trendline
+         period = _num(("period", "n", "fractal_period"), int)
+         if period is not None:
+@@ -1438,6 +1469,22 @@
+     return out
+ 
+ 
++def _b9g_columns(b9: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
++    """✅ B9: نتيجة b9_macd_gates → أعمدة ind_b9g_* (b9g_X → ind_b9g_X).
++
++    «ماكد 9B» — الإشارة النهائية ind_b9g_buy + شفافية الشجرة ind_b9g_cond
++    وفروعها ind_b9g_sub_* + قيم نسخ MACD ind_b9g_osc_<id>_* (ديناميكية).
++    """
++    out: Dict[str, List[Optional[float]]] = {}
++    s = b9.get("series") or {}
++    for key, vals in s.items():
++        k = str(key)
++        if not k.startswith("b9g_"):
++            continue
++        out["ind_" + k] = vals if vals is not None else []
++    return out
++
++
+ def _mtfema_columns(mte: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+     """✅ MTFEMA1: نتيجة mtf_ema_engine → أعمدة ind_mtfema_* (mtfema_X → ind_mtfema_X).
+ 
+@@ -1519,6 +1566,11 @@
+     trf = ovl.get("trend_fractal")
+     if isinstance(trf, dict) and trf.get("series"):
+         out.update(_trf_columns(trf))
++    # ✅ B9 — أعمدة «ماكد 9B» b9g_* → ind_b9g_* (الإشارة النهائية +
++    # شفافية الشجرة وفروعها + قيم نسخ MACD المسقطة سببياً).
++    b9g = ovl.get("b9_macd_gates")
++    if isinstance(b9g, dict) and b9g.get("series"):
++        out.update(_b9g_columns(b9g))
+     # ✅ MTFEMA1 — أعمدة MTF EMA (mtfema_X → ind_mtfema_X — خط النسخة
+     # الأساسية + خط كل نسخة)
+     mte = ovl.get("mtf_ema")

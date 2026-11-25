@@ -1,0 +1,17 @@
+c6b077f451abc29b9b91caef0efc77a2  app/backtest/engine1.py
+ac98f23f6250a97806b19073bfe9a387  app/backtest/schemas.py
+1a78cd1e0d303644d9ee2aec23c6bdec  app/services/indicators/overlay_columns.py
+69133e22e28bb2d244a7b71f88f42cdb  app/tasks/backtest_tasks.py
+dec52187da2d8265416516cb38924c2f  launchers/GATE1-1_ETHUSDT_5m.json
+d4f989af25bf3582fd40b2f5314ca6fe  launchers/GATE1-2_ETHUSDT_15m.json
+3faaf08d3e218913c297e8a5baf206b1  launchers/GATE1-3_ETHUSDT_1h.json
+ff95a85a74c5d099dae18fb98a9f78c6  launchers/GATE1-4_XRPUSDT_5m.json
+14728fc8e1ab6c20090e59c9701263fe  launchers/GATE1-5_XRPUSDT_15m.json
+8279d2055830b1f46af7e108830e9744  launchers/GATE1-6_XRPUSDT_1h.json
+c67329c37fded7b9ccd98f2947b3ea20  launchers/GATE1-7_MBLUSDT_5m.json
+07cab483eda8d601ab095856df8cca4c  launchers/GATE1-8_MBLUSDT_15m.json
+c022a891462ff9872a966e5876e2925a  launchers/GATE1-9_MBLUSDT_1h.json
+4ae27d326ec55bc605698816b12f4cd8  payloads/payload_B9_T100_LIVE_GATE1_ETHUSDT.json
+c4b46bdd1fb3ec1f4b3624180757ce3d  payloads/payload_B9_T100_LIVE_GATE1_MBLUSDT.json
+5d110fdec33afde2c0556c40c9bf44ca  payloads/payload_B9_T100_LIVE_GATE1_XRPUSDT.json
+acff1b10444ff6310fcbb2ff7a7b2480  tools/verify_b9_gate.py

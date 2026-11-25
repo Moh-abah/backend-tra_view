@@ -1,0 +1,240 @@
+{
+ "name": "GOLD-MC1-STRUCT-STRICT · THETAUSDT · FZ",
+ "description": "نسخة STRUCT-STRICT من GOLD-MC1 بعد العملية الجراحية STRUCT1: نفس المؤشر ونفس المعاملات حرفياً (زقزاق length=226 · ترند 7/15/25 · رصة EMA الخمسة على الساعة · قاطع 5m·113 للخاسر فقط · SL 2% / TP 99% · نفس الخروجين) + إضافة أعمدة الهيكل الكبير zzfetqe_struct_* (إضافة صرفة — كل الأعمدة القائمة بت-بت بلا أي تغيير). قواعد الدخول الثلاث كلها (S1/S2/S3) صارت تشترط حرفياً عند شمعة الإشارة: (1) قمة أعلى من القمة السابقة ∧ (2) قاع أعلى من القاع السابق على زقزاق length=226 (البوابة اللحظية غير القابلة للقفل) ∧ (3) قمة أعلى من القمة السابقة ∧ (4) قاع أعلى من القاع السابق على الهيكل الكبير (المحاور الكبرى المتبادلة المؤكدة سببياً بعكس R=22% — قمة 23/6/2021 7.526 أدنى من سابقتها 10.103 تُغلق البوابة حرفياً كما يقرأ صاحب القرار الهيكل). التنبؤ المحلي بت-بت: 67/95 من إشارات الأصل تُحجب (54 خاسرة −339.5% + 13 رابحة +299.5%) وتبقى 28 صفقة (15 رابحة +1892% / 13 خاسرة −80%) بمعدل فوز 54% — حذف 81% من الخاسرات.",
+ "mode": "standard",
+ "start_date": "2020-03-16T00:00:00Z",
+ "end_date": "2026-11-17T20:59:59Z",
+ "days": null,
+ "timeframe": "15m",
+ "timezone": "UTC",
+ "tz_offset_minutes": 0,
+ "market": "crypto",
+ "symbols": [
+  "THETAUSDT"
+ ],
+ "strategy_config": {
+  "name": "ZLT1-GOLD-STRUCT-STRICT · SOL FZ + قاطع 5m·113 للخاسر فقط + صرامة مزدوجة (هيكل صغير + هيكل كبير)",
+  "version": "1.0.0-struct-strict",
+  "base_timeframe": "15m",
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "zigzag_fib_e2e_trendy_quantum_ema",
+    "type": "support_resistance",
+    "params": {
+     "mode": "luxalgo",
+     "length": 226,
+     "touch_level": 0.618,
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "ema_lengths": [
+      50,
+      100,
+      200,
+      350,
+      500
+     ],
+     "ema_resolution": "60",
+     "ema_source": "close",
+     "ema_offset": 0,
+     "ema_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_exit_resolution": "5m",
+     "zone_exit_length": 113,
+     "struct_reversal_pct": 22
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "ALMIGHTY S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL · بوابة s1 فقط) + رصة EMA الخمسة على الساعة ∧ صرامة مزدوجة: هيكل صغير (قمة>قمة ∧ قاع>قاع) + هيكل كبير (قمة>قمة ∧ قاع>قاع)",
+    "condition": {
+     "type": "and",
+     "conditions": [
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+       "right_value": 0
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_last_high",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_prev_high"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_last_low",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_prev_low"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_last_high",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_prev_high"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_last_low",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_prev_low"
+      }
+     ]
+    },
+    "position_side": "long",
+    "weight": 0.34,
+    "enabled": true
+   },
+   {
+    "name": "ALMIGHTY S2 · الاختراق بدون هيمنة الحجم + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة) ∧ صرامة مزدوجة: هيكل صغير (قمة>قمة ∧ قاع>قاع) + هيكل كبير (قمة>قمة ∧ قاع>قاع)",
+    "condition": {
+     "type": "and",
+     "conditions": [
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+       "right_value": 0
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_last_high",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_prev_high"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_last_low",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_prev_low"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_last_high",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_prev_high"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_last_low",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_prev_low"
+      }
+     ]
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   },
+   {
+    "name": "ALMIGHTY S3 · الامتصاص قبل الاختراق + الترند + رصة EMA الخمسة على الساعة (بلا فحص المنطقة) ∧ صرامة مزدوجة: هيكل صغير (قمة>قمة ∧ قاع>قاع) + هيكل كبير (قمة>قمة ∧ قاع>قاع)",
+    "condition": {
+     "type": "and",
+     "conditions": [
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+       "right_value": 0
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_last_high",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_prev_high"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_last_low",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_prev_low"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_last_high",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_prev_high"
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_last_low",
+       "right_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_struct_prev_low"
+      }
+     ]
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "ALMIGHTY · خروج المنطقة الطبيعي — LL+LH على فريم الشارت (يغلق الكل كما كان دائمًا)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit_base",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   },
+   {
+    "name": "ZONE-EXIT-LTF1 · قاطع الخاسر — هيكل CHoCH على 5 دقائق الحقيقية (الخاسر فقط · الرابحة تركب)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true,
+    "only_losing_positions": true
+   }
+  ],
+  "risk_management": {
+   "stop_loss_percentage": 2.0,
+   "take_profit_percentage": 99.0
+  }
+ },
+ "initial_capital": 300.0,
+ "position_sizing": "percentage",
+ "position_size_percent": 100.0,
+ "max_positions": 3,
+ "compounding": true,
+ "multi_position_compounding": true,
+ "commission_rate": 0.0,
+ "slippage_percent": 0.0,
+ "fill_model": "next_open",
+ "stop_loss_percent": null,
+ "take_profit_percent": null,
+ "trailing_stop_percent": null,
+ "max_daily_loss_percent": null,
+ "enable_short_selling": false,
+ "enable_margin": false,
+ "leverage": 1.0,
+ "require_confirmation": false,
+ "exit_strategy": null
+}

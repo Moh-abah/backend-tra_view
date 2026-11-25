@@ -64,6 +64,34 @@ def _normalize_split_tp_levels(config: "BacktestConfig") -> List[Dict[str, float
     return levels
 
 
+def _normalize_dca_rebuy_drops(config: "BacktestConfig") -> List[float]:
+    """✅ R9-DCA — تطبيع نسب «تعزيزات الشراء عند الهبوط» من التكوين.
+
+    dca_rebuy_drops_pct: [2.0, 4.5, ...] — نسب هبوط ٪ من سعر الدخول الأول؛
+    لمس الشمعة (اللمّة) تحت الزناد تفتح شراءً تعزيزياً بنفس القيمة الاسمية
+    (USD) للشراء الأول (بنية 1:1:1 — نفس دلالات محرك الخروج ج41:
+    «شراء ثانٍ بنفس الحجم»). الزناد الثاني الأعمق لا يُلمس إلا بعد الأول.
+
+    • غياب الحقل / قائمة فارغة ⇒ [] (الميزة معطلة — السلوك بت-بت).
+    • schemas ترفض غير التصاعدي 422 مسبقاً — وهنا دفاعياً: غير التصاعدي
+      يُهمل (لن يصل عملياً).
+    """
+    raw = getattr(config, "dca_rebuy_drops_pct", None)
+    if not raw:
+        return []
+    drops: List[float] = []
+    for v in raw:
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            continue
+        if 0.0 < fv < 100.0:
+            drops.append(fv)
+    if any(drops[i] <= drops[i - 1] for i in range(1, len(drops))):
+        return []
+    return drops
+
+
 def _normalize_structure_split_rules(config: "BacktestConfig") -> List[Dict[str, Any]]:
     """✅ SPLIT-ZZ1 — تطبيع قواعد «الخروج المقسم بانعكاس هيكل الزقزاق».
 
@@ -203,6 +231,47 @@ def _multi_position_compounding_enabled(config: "BacktestConfig") -> "int | None
     return _n
 
 
+def _trail_stop_mode(config: "BacktestConfig") -> Optional[str]:
+    """✅ TRAILMODE1 — نمط حساب خط التريلينق (عزل نظيف).
+
+    بلا بث للحقل (None — كل الحمولات القائمة بت-بت) ⇒ "peak_pct"
+    التاريخي: النزول نسبة% من أعلى قمة سعرية نفسها.
+    "rise_pct" (طلب المهندس محمد الحرفي 2026-11-20: «احسب من سعر
+    الشراء الى اعلى قمه، اذا نزل 15% من اجمالي هذا الارتفاع فهذا
+    يعتبر ستوب تريلينق»): النزول نسبة% من إجمالي الارتفاع من سعر
+    الشراء إلى أعلى قمة. التحقق من القيمة يحدث في schemas (422).
+    """
+    _m = getattr(config, "trailing_stop_mode", None)
+    if _m is None:
+        return None
+    m = str(_m).strip().lower()
+    if m in ("", "none"):
+        return None
+    return m
+
+
+def _trail_stop_level(mode: Optional[str], peak: float, entry: float,
+                      frac: float, direction: str) -> float:
+    """✅ TRAILMODE1 — خط التريلينق حرفيًا (دالة واحدة يختبرها البطارية).
+
+    peak_pct (التاريخي — بت-بت عند غياب النمط):
+      LONG : level = peak × (1 − frac)   — النزول نسبة% من أعلى قمة سعرية
+      SHORT: level = peak × (1 + frac)
+    rise_pct (النزول من إجمالي الارتفاع من الدخول إلى القمة):
+      LONG : level = peak − frac × (peak − entry)
+      SHORT: level = peak + frac × (entry − peak)   (القمة = أدنى قاع)
+      كلاهما يلتقي في نفس العبارة الجبرية: (1−frac)·peak + frac·entry،
+      فتظل الدلالة واحدة: «يوقف بعد التنازل عن frac من الربح المُحرز».
+      حال الارتفاع صفر (peak = entry) ⇒ الخط عند سعر الدخول نفسه
+      (حماية التعادل — الخروج عند الإغلاق تحت الدخول قبل أي ارتفاع).
+    """
+    if mode == "rise_pct":
+        return (1.0 - frac) * peak + frac * entry
+    if direction == "LONG":
+        return peak * (1.0 - frac)
+    return peak * (1.0 + frac)
+
+
 class _NoopStrategyEngine:
     """
     ✅ الجولة 12 (هوت-فكس): محرك استراتيجية محايد للحمولات الفارغة.
@@ -326,6 +395,13 @@ class BacktestEngine:
             # _simulate_with_strategy من indicator_sections لمحرك الاستراتيجية،
             # وتقرأها _create_backtest_result في math_audit.momentum_gate.
             self._r77_osc_echo_by_symbol: Dict[str, Any] = {}
+            # ✅ B9-T100-GATE1 — قنوات الرسومات والبوابة (لكل رمز على حدة):
+            # رسومات الترند (إحداثيات الخطوط) من indicator_sections، ونقاط
+            # الدخول المرفوضة بالبوابة وإحصاءاتها — تقرأها _create_backtest_result
+            # في chart_data.trend_lines / skipped_entry_points / math_audit.execution_gates.
+            self._trf_drawings_by_symbol: Dict[str, Any] = {}
+            self._gate_skipped_by_symbol: Dict[str, Any] = {}
+            self._gate_stats_by_symbol: Dict[str, Any] = {}
 
             for symbol, data in all_data.items():
  
@@ -366,10 +442,13 @@ class BacktestEngine:
     # ------------------------------------------------------------------
     @staticmethod
     def _requested_ltf_exit_resolutions(config: "BacktestConfig") -> List[str]:
-        """فريمات الخروج الأدق المطلوبة في تكوين الاستراتيجية (تسميات قانونية).
+        """فريمات الخروج/المنطقة الأدق المطلوبة في تكوين الاستراتيجية.
 
         يمسح params مؤشرات الاستراتيجية بحثاً عن zone_exit_resolution
-        (ومرادفاتها exit_resolution/zone_exit_tf) بفريم أدق من فريم الشارت.
+        (ومرادفاتها exit_resolution/zone_exit_tf) و zone_resolution
+        (ومرادفاتها entry_zone_resolution/zone_tf — فريم المنطقة المسموحة
+        للدخول) بفريم أدق من فريم الشارت — كلاهما يُجلب من طبقة البيانات
+        ويُسجّل في نفس السياق (ZONE-ENTRY-MTF1).
         """
         try:
             from app.services.indicators.overlays_mtf_ema import _parse_resolution
@@ -392,21 +471,29 @@ class BacktestEngine:
                 params = (ind_cfg or {}).get("params") or {}
             except Exception:
                 continue
-            raw = params.get(
-                "zone_exit_resolution",
-                params.get("exit_resolution", params.get("zone_exit_tf")))
-            if raw is None:
+            # ✅ ZONE-ENTRY-MTF1 — يشمل فريم المنطقة المسموحة للدخول
+            # (zone_resolution) مع فريم هيكل الخروج (zone_exit_resolution):
+            # كلاهما بفريم أدق يحتاج شموعًا حقيقية من طبقة البيانات.
+            raws = []
+            for key in ("zone_exit_resolution", "exit_resolution",
+                        "zone_exit_tf", "zone_resolution",
+                        "entry_zone_resolution", "zone_tf"):
+                val = params.get(key)
+                if val is not None and val not in raws:
+                    raws.append(val)
+            if not raws:
                 continue
-            try:
-                info = _parse_resolution(str(raw))
-                step = info.get("step_ms")
-            except Exception:
-                continue
-            if step is not None and step < chart_step:
-                label = info.get("label") or str(raw)
-                if label not in seen:
-                    seen.add(label)
-                    wanted.append(label)
+            for raw in raws:
+                try:
+                    info = _parse_resolution(str(raw))
+                    step = info.get("step_ms")
+                except Exception:
+                    continue
+                if step is not None and step < chart_step:
+                    label = info.get("label") or str(raw)
+                    if label not in seen:
+                        seen.add(label)
+                        wanted.append(label)
         return wanted
 
     async def _fetch_zone_exit_ltf_candles(
@@ -701,6 +788,22 @@ class BacktestEngine:
                     ).get("zzfib_e2e_trendy_quantum_ema_mom") or None
                 except Exception:
                     pass
+                # ✅ B9-T100-GATE1 — التقاط قسم رسومات الترند لهذا الرمز
+                # (إحداثيات كل خط وُلد لكل فترة: x/t/y للطرفين + الميل +
+                # لحظة الولادة + الإحلال — «الترند يرسل إحداثياته للباك اند»
+                # حرفياً) من indicator_sections لمحرك الاستراتيجية — تصل إلى
+                # نتيجة الباك-تست في chart_data.trend_lines كي يرسمها الفرونت.
+                # غياب trend_fractal في الاستراتيجية ⇒ None (بت-بت مع السابق).
+                try:
+                    _trf_map = getattr(self, "_trf_drawings_by_symbol", None)
+                    if not isinstance(_trf_map, dict):
+                        _trf_map = {}
+                        self._trf_drawings_by_symbol = _trf_map
+                    _trf_map[symbol] = (
+                        getattr(strategy_engine, "indicator_sections", None) or {}
+                    ).get("trend_fractal") or None
+                except Exception:
+                    pass
 
             render_data = {}
             volume_bars_dict = {}
@@ -737,6 +840,144 @@ class BacktestEngine:
             for point in render_data.get('climax_points', []):
                 climax_points_dict[point['time']] = point
             
+        # ==============================================================
+        # ✅ B9-T100-GATE1 — بوابات التنفيذ عند الدخول (عقد اختياري في
+        # strategy_config.execution_gates — طلب صاحب القرار حرفياً: «لا
+        # دخول في الصفقة والسعر ما زال تحت خط ترند 100»).
+        #
+        # الدلالة: قبل فتح أي مركز جديد نتحقق أن سعر التنفيذ (في نموذج
+        # next_open: open شمعة الدخول — نفس السعر الذي ترسمه الواجهة عند
+        # نقطة الدخول على الشارت) فوق قيمة عمود الخط عند شمعة التنفيذ
+        # نفسها. سببية كاملة (لا استشراف): القيمة مقروءة من الشمعة الحالية
+        # فقط — نفس ما يفعله بوت حي قبل وضع الأمر لحظة التنفيذ.
+        #
+        # عقد اختياري بحت: غياب execution_gates ⇒ قائمة فارغة ⇒ الدالة
+        # ترجع None دائماً ⇒ السلوك التاريخي بت-بت تماماً (صفر فرق على أي
+        # استراتيجية قائمة — كل الاستراتيجيات الأخرى لا تُلمس إطلاقاً).
+        # ==============================================================
+        _exec_gates: List[Dict[str, Any]] = []
+        try:
+            _raw_gates = (config.strategy_config or {}).get("execution_gates")
+            if isinstance(_raw_gates, list):
+                for _g in _raw_gates:
+                    if not isinstance(_g, dict) or _g.get("enabled") is False:
+                        continue
+                    if str(_g.get("on", "entry")).strip().lower() != "entry":
+                        continue
+                    _col = str(_g.get("column") or "").strip()
+                    if not _col:
+                        continue
+                    _req = str(_g.get("require", "price_above")).strip().lower()
+                    if _req not in ("price_above", "price_below"):
+                        continue
+                    _exec_gates.append({
+                        "name": str(_g.get("name") or f"gate:{_col}"),
+                        "side": str(_g.get("side", "both")).strip().lower(),
+                        "column": _col,
+                        "require": _req,
+                    })
+        except Exception:
+            _exec_gates = []
+        _exec_gates_active = bool(_exec_gates)
+        _gate_cols_arrays: Dict[str, Optional[np.ndarray]] = {}
+        if _exec_gates_active:
+            for _g in _exec_gates:
+                _c = _g["column"]
+                if _c in _gate_cols_arrays:
+                    continue
+                try:
+                    if _c in full_calculated_data.columns:
+                        _gate_cols_arrays[_c] = pd.to_numeric(
+                            full_calculated_data[_c], errors="coerce"
+                        ).to_numpy(dtype=np.float64)
+                    else:
+                        _gate_cols_arrays[_c] = None
+                        logger.warning(
+                            "B9-T100-GATE1: عمود البوابة '%s' غير موجود في أعمدة "
+                            "المؤشرات — البوابة سترفض الدخول تحفظاً (تحقق من اسم العمود)",
+                            _c,
+                        )
+                except Exception:
+                    _gate_cols_arrays[_c] = None
+
+            def _entry_gate_check(
+                side: str, fill_px: float, bar_i: int,
+            ) -> Optional[Dict[str, Any]]:
+                """تقييم بوابات التنفيذ عند شمعة الدخول — None = مسموح، وإلا وصف الرفض."""
+                for _g in _exec_gates:
+                    _side = _g["side"]
+                    if _side == "long" and side != "LONG":
+                        continue
+                    if _side == "short" and side != "SHORT":
+                        continue
+                    _arr = _gate_cols_arrays.get(_g["column"])
+                    _line_v = None
+                    if _arr is not None and 0 <= bar_i < len(_arr):
+                        _lv = float(_arr[bar_i])
+                        if not (np.isnan(_lv) or np.isinf(_lv)):
+                            _line_v = _lv
+                    if _line_v is None:
+                        return {
+                            "gate": _g["name"],
+                            "column": _g["column"],
+                            "line_value": None,
+                            "fill_price": float(fill_px),
+                            "reason": (
+                                "B9-T100-GATE1: قيمة الخط غير متاحة عند شمعة الدخول "
+                                "— الدخول مرفوض تحفظاً (لا دخول بلا خط قابل للتحقق)"
+                            ),
+                        }
+                    _ok = (
+                        (fill_px > _line_v)
+                        if _g["require"] == "price_above"
+                        else (fill_px < _line_v)
+                    )
+                    if not _ok:
+                        return {
+                            "gate": _g["name"],
+                            "column": _g["column"],
+                            "line_value": float(_line_v),
+                            "fill_price": float(fill_px),
+                            "margin_pct": (
+                                float((fill_px - _line_v) / _line_v * 100.0)
+                                if _line_v else 0.0
+                            ),
+                            "reason": (
+                                "بوابة الترند-100 عند التنفيذ: سعر الدخول تحت خط "
+                                "الترند-100 — الدخول مرفوض (لا دخول والسعر تحت الخط)"
+                                if _g["require"] == "price_above"
+                                else "بوابة التنفيذ: سعر الدخول فوق الخط المطلوب — الدخول مرفوض"
+                            ),
+                        }
+                return None
+        else:
+            def _entry_gate_check(
+                side: str, fill_px: float, bar_i: int,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+        # ✅ B9-T100-GATE1 — مخزن نقاط الدخول المرفوضة + إحصاء البوابة
+        # (مرجع حي يُحدَّث داخل الحلقة — يُقرأ في _create_backtest_result).
+        _skipped_store: List[Dict[str, Any]] = []
+        _gate_stats_ref: Dict[str, Any] = {
+            "active": _exec_gates_active,
+            "gates": [g["name"] for g in _exec_gates],
+            "checked": 0,
+            "blocked": 0,
+        }
+        try:
+            _sk_map = getattr(self, "_gate_skipped_by_symbol", None)
+            if not isinstance(_sk_map, dict):
+                _sk_map = {}
+                self._gate_skipped_by_symbol = _sk_map
+            _sk_map[symbol] = _skipped_store
+            _st_map = getattr(self, "_gate_stats_by_symbol", None)
+            if not isinstance(_st_map, dict):
+                _st_map = {}
+                self._gate_stats_by_symbol = _st_map
+            _st_map[symbol] = _gate_stats_ref
+        except Exception:
+            pass
     
         # حالة المحفظة (Portfolio State)
         current_state = 'NEUTRAL'
@@ -760,21 +1001,30 @@ class BacktestEngine:
         # الحقول غير المُرسلة = null = معطّلة. طلب المستخدم الحرفي:
         #   SL=0 أو SL=100 أو عدم الإرسال ⇒ تعطيل الستوب لوز كلياً
         #   TP=0 أو عدم الإرسال ⇒ تعطيل جني الربح
-        #   التريلينق من الجذر ⇒ يعمل فعلياً هنا ويُلغي SL/TP (نفس دلالات
-        #   محرك الخروج الموحد: القمة تبدأ من سعر الدخول، وكل قمة أعلى ترفع
-        #   السقف، وهبوط الإغلاق بنسبة التريلينق من القمة يغلق عند الإغلاق)
+        # ✅ TP3-SLTRAIL1 — الستوب الحامي يتعايش مع التريلينق (طلب
+        # المهندس محمد الحرفي: التصريف الثلاثي 4.7/7.4 + تريلينق-15 على
+        # المرحلة الأخيرة + ستوب لوز 5): التريلينق يُلغي التيبي الكامل فقط
+        # (سلوك R55 الموثّق) — أما الستوب الحامي فيبقى قاعًا صلبًا يعمل مع
+        # التريلينق (لمسة داخل الشمعة تُغلق كامل الكمية عند سعر الستوب قبل
+        # فحص إغلاق التريلينق — الحماية تتقدم القيادة سببيًا). غياب أحد
+        # الحقلين ⇒ نفس سلوك اليوم بت-بت تمامًا.
         _sl_cfg = config.stop_loss_percent
         _tp_cfg = config.take_profit_percent
         _trail_cfg = config.trailing_stop_percent
         sl_active = _sl_cfg is not None and 0.0 < float(_sl_cfg) < 100.0
         tp_active = _tp_cfg is not None and float(_tp_cfg) > 0.0
         trail_active = _trail_cfg is not None and float(_trail_cfg) > 0.0
+        # ✅ TP3-SLTRAIL1 — التريلينق يُلغي التيبي الكامل فقط؛ الستوب الحامي
+        # (إن أُرسل) يتعايش معه (ميزة الجولة — بُعد واحد معزول نظيف).
         if trail_active:
-            sl_active = False
             tp_active = False
         sl_frac = (float(_sl_cfg) / 100.0) if sl_active else None
         tp_frac = (float(_tp_cfg) / 100.0) if tp_active else None
         trail_frac = (float(_trail_cfg) / 100.0) if trail_active else None
+        # ✅ TRAILMODE1 — نمط خط التريلينق: بلا بث ⇒ None ⇒ peak_pct
+        # التاريخي بت-بت مع كل الحمولات القائمة (لا مفتاح يُبث إطلاقاً).
+        _trail_mode = _trail_stop_mode(config)
+        _trail_rise = (_trail_mode == "rise_pct")
         trail_peak = 0.0  # قمة التريلينق للمركز الأساسي (تبدأ من سعر الدخول)
 
         # ✅ SPLIT-TP1 — مستويات جني الربح المقسم (اختيارية — عزل نظيف):
@@ -785,6 +1035,26 @@ class BacktestEngine:
         # المرجعية الأصلية (النسب تُحسب منها — الربع ربع الكمية الأصلية)
         split_tp_pending: List[Dict[str, float]] = []
         split_tp_original_size = 0.0
+
+        # ✅ R9-DCA — تعزيزات الشراء عند الهبوط (اختيارية — عزل نظيف):
+        # غيابها ⇒ [] ⇒ لا فرق بت-بت مع أي تكوين قائم (لا مفتاح يُبث إطلاقاً).
+        # دلالات (نفس عقد محرك الخروج ج41 حرفياً — للتوحيد):
+        #   • الزناد: لمس الشمعة (اللمّة low <= الدخول الأول × (1−drop%)) —
+        #     شرط لمسة داخل الشمعة، وفتحة هبوط تحت الزناد (open < الزناد)
+        #     تُنفّذ عند الافتتاح (أفضل للمشتري — أمر حد).
+        #   • الحجم: كل تعزيز بنفس القيمة الاسمية USD للشراء الأول (1:1:1).
+        #   • كل تعزيز مركز مستقل بإدارة كاملة (جني مقسم + تريلينق + ستوب
+        #     خاصة به) — يُدار من شمعة إطلاقه نفسها (ترتيب ج41: التعزيز
+        #     قبل جني الربح داخل الشمعة ذاتها).
+        #   • إشارة خروج/انعكاس تغلق الأساسي وكل التعزيزات معاً (مسار
+        #     المراكز الإضافية القائم بت-بت).
+        dca_drops: List[float] = _normalize_dca_rebuy_drops(config)
+        dca_active = bool(dca_drops)
+        # التعزيزات المعلقة لدورة المركز الأساسي الجارية + مرجع القياس
+        dca_pending: List[Dict[str, Any]] = []
+        dca_base_entry_price = 0.0      # سعر الدخول الأول (مرجع الزناد)
+        dca_base_notional_usd = 0.0     # القيمة الاسمية للشراء الأول (1:1:1)
+        dca_fired_total = 0             # عدّاد كل التعزيزات عبر الدورات (للصدى)
 
         # ✅ SPLIT-ZZ1 — قواعد الخروج المقسم بانعكاس هيكل الزقزاق (اختيارية —
         # عزل نظيف): غيابها ⇒ [] ⇒ لا فرق بت-بت مع أي تكوين قائم (لا مفتاح
@@ -854,7 +1124,27 @@ class BacktestEngine:
             "take_profit_active": bool(tp_active),
             "trailing_stop_percent": float(_trail_cfg) if _trail_cfg is not None else None,
             "trailing_active": bool(trail_active),
-            "trailing_cancels_sl_tp": bool(trail_active),
+            # ✅ TRAILMODE1 — صدى النمط المطبّق فعلاً (None = التاريخي peak_pct)
+            "trailing_stop_mode": _trail_mode,
+            "trailing_stop_semantics": (
+                "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — "
+                "النزول من إجمالي الارتفاع من سعر الشراء إلى القمة"
+                if _trail_rise else
+                "TRAILMODE1-peak_pct (التاريخي): خط التريلينق = القمة×(1−نسبة%) — "
+                "النزول من أعلى قمة سعرية نفسها"),
+            # ✅ TP3-SLTRAIL1 — صدى التعايش: التريلينق يُلغي التيبي الكامل فقط؛
+            # الستوب الحامي (إن أُرسل) يعمل معه. المفتاح التاريخي بقيمته
+            # الصادقة الجديدة: صحيح فقط عند تفعيل التريلينق بلا ستوب مُرسل
+            # (كل الحمولات القديمة بت-بت).
+            "trailing_cancels_sl_tp": bool(trail_active and not sl_active),
+            "trailing_cancels_tp": bool(trail_active),
+            "sl_trailing_coexist": bool(trail_active and sl_active),
+            "sl_trailing_semantics": (
+                "TP3-SLTRAIL1: الستوب الحامي قاع صلب يعمل مع التريلينق — "
+                "الأولوية داخل الشمعة: (1) لمسة الستوب تُغلق الكمية كاملة "
+                "عند سعر الستوب ثم (2) إغلاق التريلينق (هبوط النسبة من "
+                "أعلى قمة) ثم (3) الجني المقسم"
+                if (trail_active and sl_active) else None),
             "max_positions_requested": int(config.max_positions) if config.max_positions is not None else None,
             "max_concurrent_applied": max_concurrent,
             # ✅ R62 — صدى وضع المراكز المتعددة التراكمية (شفافية كاملة)
@@ -906,6 +1196,17 @@ class BacktestEngine:
             "structure_split_rules_meta": (
                 [dict(m) for m in structure_split_meta]
                 if structure_split_active else None),
+            # ✅ R9-DCA — صدى تعزيزات الشراء عند الهبوط (شفافية كاملة)
+            "dca_rebuy_drops_pct": (
+                [float(d) for d in dca_drops] if dca_active else None),
+            "dca_rebuy_active": bool(dca_active),
+            "dca_rebuy_fired_total": int(dca_fired_total),
+            "dca_rebuy_semantics": (
+                "R9-DCA: لمس اللمّة تحت (الدخول الأول × (1−drop%)) يفتح شراءً"
+                " تعزيزياً بنفس القيمة الاسمية USD للشراء الأول (1:1:1 — عقد"
+                " ج41)؛ كل تعزيز مركز مستقل بإدارة كاملة (جني مقسم + تريلينق"
+                " خاصة به) يُدار من شمعة إطلاقه، وإشارة الخروج تغلق الجميع"
+                if dca_active else None),
         }
 
         # ✅ الجولة 12: نموذج التنفيذ المطبق فعلياً (next_open افتراضياً)
@@ -937,6 +1238,7 @@ class BacktestEngine:
             nonlocal sl_price, tp_price, trail_peak, account_balance
             nonlocal cumulative_pnl, account_blown, _liquidation_truncated
             nonlocal split_tp_pending, split_tp_original_size  # ✅ SPLIT-TP1
+            nonlocal dca_pending, dca_base_entry_price, dca_base_notional_usd  # ✅ R9-DCA
             if current_state != 'NEUTRAL' and trade_id:
                 _pnl_fc = ((price - entry_price) * position_size
                            if current_state == 'LONG'
@@ -979,6 +1281,9 @@ class BacktestEngine:
                 tp_price = 0.0
                 trail_peak = 0.0
                 split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
+                dca_pending = []  # ✅ R9-DCA — الدورة انتهت (التعزيزات تُغلق معها)
+                dca_base_entry_price = 0.0
+                dca_base_notional_usd = 0.0
             for _xp in list(extra_positions):
                 _xs = _xp['position_size']
                 if _xp['direction'] == 'LONG':
@@ -1016,7 +1321,7 @@ class BacktestEngine:
                     "fill_exit": fill_model_str,
                     "direction": _xp['direction'].lower(),
                     "symbol": symbol,
-                    "position_kind": "additional",
+                    "position_kind": _xp.get('position_kind', 'additional'),
                 })
                 extra_positions.remove(_xp)
             if account_balance < 0:
@@ -1482,6 +1787,9 @@ class BacktestEngine:
                 trail_peak = 0.0  # ✅ R55
                 split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
                 split_tp_original_size = 0.0
+                dca_pending = []  # ✅ R9-DCA — الدورة انتهت
+                dca_base_entry_price = 0.0
+                dca_base_notional_usd = 0.0
 
                 # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً
                 # (كل التعرض لاتجاه الاستراتيجية يُقفل عند خروجها)
@@ -1530,7 +1838,7 @@ class BacktestEngine:
                         "fill_exit": fill_model_str,
                         "direction": _xp['direction'].lower(),
                         "symbol": symbol,
-                        "position_kind": "additional",
+                        "position_kind": _xp.get('position_kind', 'additional'),
                     })
                     extra_positions.remove(_xp)
 
@@ -1588,7 +1896,7 @@ class BacktestEngine:
                         "fill_exit": fill_model_str,
                         "direction": _xp['direction'].lower(),
                         "symbol": symbol,
-                        "position_kind": "additional",
+                        "position_kind": _xp.get('position_kind', 'additional'),
                     })
                     extra_positions.remove(_xp)
 
@@ -1665,6 +1973,9 @@ class BacktestEngine:
                                 trail_peak = 0.0
                                 split_tp_pending = []
                                 split_tp_original_size = 0.0
+                                dca_pending = []  # ✅ R9-DCA — الدورة انتهت
+                                dca_base_entry_price = 0.0
+                                dca_base_notional_usd = 0.0
                                 pending_decision = None
                                 break  # المركز انتهى — لا قواعد بعده
                     # ---- (2) المراكز الإضافية الناجية (كل مركز على حدة) ----
@@ -1724,11 +2035,49 @@ class BacktestEngine:
                                         "fill_exit": fill_model_str,
                                         "direction": _xp['direction'].lower(),
                                         "symbol": symbol,
-                                        "position_kind": "additional",
+                                        "position_kind": _xp.get('position_kind', 'additional'),
                                     })
                                     extra_positions.remove(_xp)
                                     break
 
+            # ==============================================================
+            # ✅ B9-T100-GATE1 — نقطة البوابة الحرفية عند التنفيذ (طلب
+            # صاحب القرار: «الدخول تم والسعر ما زال تحت خط ترند 100 — يجب
+            # إصلاح المشكلة حرفياً»). قبل فتح المركز: سعر التنفيذ (open
+            # شمعة الدخول — سعر نقطة الدخول على الشارت) يجب أن يكون فوق
+            # قيمة خط الترند-100 عند الشمعة نفسها. الرفض: لا يُفتح المركز
+            # وتُسجَّل نقطة skipped_entry شفافيةً (يرسمها الفرونت بوضع
+            # «مرفوض بالبوابة») — الإشارة نفسها لا تُعاد محاولتها (قرار
+            # شمعة واحدة — نفس دلالات next_open بت-بت).
+            # ==============================================================
+            if (_exec_gates_active and target_state != 'NEUTRAL'
+                    and current_state == 'NEUTRAL' and account_balance > 0):
+                _gate_block = _entry_gate_check(target_state, float(open_price), i)
+                _gate_stats_ref["checked"] = int(_gate_stats_ref.get("checked") or 0) + 1
+                if _gate_block is not None:
+                    _gate_stats_ref["blocked"] = int(_gate_stats_ref.get("blocked") or 0) + 1
+                    _skipped_store.append({
+                        "timestamp": current_time,
+                        "type": "skipped_entry",
+                        "symbol": symbol,
+                        "direction": str(target_state).lower(),
+                        "would_be_price": float(open_price),
+                        "position_type": str(target_state).lower(),
+                        "decision_reason": (
+                            executed_decision.reason if executed_decision else None
+                        ),
+                        "fill_entry": fill_model_str,
+                        **_gate_block,
+                    })
+                    logger.info(
+                        "B9-T100-GATE1: رفض دخول %s @ %s (سعر %.8g %s خط %.8g) — %s",
+                        symbol, current_time, float(open_price),
+                        "تحت" if _gate_block.get("line_value") is not None else "بلا",
+                        (_gate_block.get("line_value")
+                         if _gate_block.get("line_value") is not None else float("nan")),
+                        _gate_block.get("reason"),
+                    )
+                    target_state = 'NEUTRAL'   # ← الدخول مرفوض: لا فتح مركز
             if target_state != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:
                 entry_price = open_price
                 entry_time = current_time
@@ -1807,6 +2156,19 @@ class BacktestEngine:
                 # (نسخة مستقلة لكل صفقة — كل مستوى يُجنى مرة واحدة)
                 split_tp_pending = [dict(_l) for _l in split_tp_levels]
                 split_tp_original_size = float(position_size)
+
+                # ✅ R9-DCA — تهيئة تعزيزات الشراء لدورة المركز الجديد:
+                # مرجع الزناد = سعر الدخول الأول، والقيمة الاسمية للتعزيز
+                # = قيمة الشراء الأول كاملة (1:1:1 — عقد ج41). الزناد يقاس من
+                # الدخول الأول حرفياً حتى لو جُزّئت الكمية بالجني لاحقاً.
+                dca_pending = ([
+                    {"drop": float(d),
+                     "price": (entry_price * (1.0 - float(d) / 100.0)
+                                if target_state == 'LONG'
+                                else entry_price * (1.0 + float(d) / 100.0))}
+                    for d in dca_drops] if dca_active else [])
+                dca_base_entry_price = float(entry_price)
+                dca_base_notional_usd = float(entry_price) * float(position_size)
 
                 # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي)
                 _open_now = 1 + len(extra_positions)
@@ -1913,80 +2275,104 @@ class BacktestEngine:
                 take_profit_hit = False
                 trail_hit = False  # ✅ R55 — خروج التريلينق من الجذر
                 
-                # ✅ R55 — التريلينق من الجذر (يلغي SL/TP عند تفعيله — نفس
-                # دلالات محرك الخروج الموحد): القمة تبدأ من سعر الدخول، كل
+                # ✅ TP3-SLTRAIL1 — أولوية المخاطر داخل الشمعة (بت-بت عند
+                # غياب أحد الحقلين — الاختلاف فقط عند إرسال الستوب والتريلينق
+                # معًا وهو جوهر الجولة):
+                #   (1) الستوب الحامي — لمسة داخل الشمعة (low<=sl أو high>=sl)
+                #       تُغلق كامل الكمية عند سعر الستوب: الحماية الصلبة أولًا
+                #       سببيًا (اللمسة تحدث داخل الشمعة قبل إغلاقها).
+                #   (2) التريلينق (R55) — إغلاق الشمعة يهبط نسبة التريلينق من
+                #       أعلى قمة (القمة تبدأ من الدخول، لا تنخفض أبداً) يغلق
+                #       المركز كاملاً عند سعر ذلك الإغلاق.
+                #   (3) الجني المقسم (SPLIT-TP1) — المستويات الملموسة تُجنى
+                #       جزئياً، ثم التيبي الكامل إن كان مفعلاً.
+                # ستوب فقط ⇒ (1)ثم(3): ترتيب اليوم نفسه بت-بت.
+                # تريلينق فقط ⇒ (2)ثم(3): ترتيب اليوم نفسه بت-بت.
+                if current_state == 'LONG':
+                    if sl_active and low_price <= sl_price:
+                        exit_price = sl_price
+                        exit_reason = "Stop Loss Hit"
+                        stop_hit = True
+                elif current_state == 'SHORT':
+                    if sl_active and high_price >= sl_price:
+                        exit_price = sl_price
+                        exit_reason = "Stop Loss Hit"
+                        stop_hit = True
+                
+                # ✅ R55 — التريلينق من الجذر: القمة تبدأ من سعر الدخول، كل
                 # قمة شمعة أعلى ترفع السقف (لا ينخفض أبداً)، وهبوط إغلاق
                 # الشمعة بنسبة التريلينق من أعلى قمة يغلق المركز كاملاً
                 # عند سعر ذلك الإغلاق (reason = "Trailing Stop").
-                if trail_active and trail_frac is not None:
+                # ✅ TP3-SLTRAIL1 — يُفحص بعد الستوب (الستوب لمسة داخل
+                # الشمعة تسبق إغلاقها سببيًا — الحماية تتقدم القيادة).
+                if (not stop_hit) and trail_active and trail_frac is not None:
                     if current_state == 'LONG':
                         if high_price > trail_peak:
                             trail_peak = high_price
-                        if close_price <= trail_peak * (1.0 - trail_frac):
+                        # ✅ TRAILMODE1 — الخط: peak_pct = القمة×(1−frac)
+                        # (التاريخي بت-بت حرفيًا) · rise_pct = القمة −
+                        # frac×(القمة−الدخول) — النزول من إجمالي الارتفاع.
+                        _trail_line = _trail_stop_level(
+                            _trail_mode, trail_peak, entry_price,
+                            trail_frac, 'LONG')
+                        if close_price <= _trail_line:
                             exit_price = close_price
                             exit_reason = "Trailing Stop"
                             trail_hit = True
                     elif current_state == 'SHORT':
                         if low_price < trail_peak:
                             trail_peak = low_price
-                        if close_price >= trail_peak * (1.0 + trail_frac):
+                        _trail_line = _trail_stop_level(
+                            _trail_mode, trail_peak, entry_price,
+                            trail_frac, 'SHORT')
+                        if close_price >= _trail_line:
                             exit_price = close_price
                             exit_reason = "Trailing Stop"
                             trail_hit = True
                 
-                if not trail_hit and current_state == 'LONG':
-                    if sl_active and low_price <= sl_price:
-                        exit_price = sl_price
-                        exit_reason = "Stop Loss Hit"
-                        stop_hit = True
-                    else:
-                        # ✅ SPLIT-TP1 — الجني المقسم (جزئي) قبل التيبي الكامل:
-                        # الستوب الحامي فُحص أولاً (إن لمسه فلا جني — إغلاق كامل
-                        # عنده)؛ الآن المستويات الملموسة تُجنى جزئياً، وإن
-                        # استُنفدت الكمية كاملة بالجني فهو الختام نفسه.
-                        if (split_tp_active and split_tp_pending
-                                and position_size > 0.0 and entry_price > 0):
-                            _nsz, _pts, _full, _ltrig = _fire_split_tp_levels(
-                                trade_id, current_state, entry_price,
-                                position_size, split_tp_original_size,
-                                split_tp_pending, current_time,
-                                high_price, low_price)
-                            if _pts:
-                                split_exits_bar.extend(_pts)
-                                position_size = _nsz
-                            if _full:
-                                exit_price = _ltrig
-                                exit_reason = "Split TP Hit (Full)"
-                                take_profit_hit = True
-                        if (not take_profit_hit) and tp_active and high_price >= tp_price:
-                            exit_price = tp_price
-                            exit_reason = "Take Profit Hit"
+                if not stop_hit and not trail_hit and current_state == 'LONG':
+                    # ✅ SPLIT-TP1 — الجني المقسم (جزئي) قبل التيبي الكامل:
+                    # الستوب الحامي فُحص أولاً (إن لمسه فلا جني — إغلاق كامل
+                    # عنده)؛ الآن المستويات الملموسة تُجنى جزئياً، وإن
+                    # استُنفدت الكمية كاملة بالجني فهو الختام نفسه.
+                    if (split_tp_active and split_tp_pending
+                            and position_size > 0.0 and entry_price > 0):
+                        _nsz, _pts, _full, _ltrig = _fire_split_tp_levels(
+                            trade_id, current_state, entry_price,
+                            position_size, split_tp_original_size,
+                            split_tp_pending, current_time,
+                            high_price, low_price)
+                        if _pts:
+                            split_exits_bar.extend(_pts)
+                            position_size = _nsz
+                        if _full:
+                            exit_price = _ltrig
+                            exit_reason = "Split TP Hit (Full)"
                             take_profit_hit = True
-                elif not trail_hit and current_state == 'SHORT':
-                    if sl_active and high_price >= sl_price:
-                        exit_price = sl_price
-                        exit_reason = "Stop Loss Hit"
-                        stop_hit = True
-                    else:
-                        # ✅ SPLIT-TP1 — الجني المقسم (جزئي) — SHORT: ربح = هبوط
-                        if (split_tp_active and split_tp_pending
-                                and position_size > 0.0 and entry_price > 0):
-                            _nsz, _pts, _full, _ltrig = _fire_split_tp_levels(
-                                trade_id, current_state, entry_price,
-                                position_size, split_tp_original_size,
-                                split_tp_pending, current_time,
-                                high_price, low_price)
-                            if _pts:
-                                split_exits_bar.extend(_pts)
-                                position_size = _nsz
-                            if _full:
-                                exit_price = _ltrig
-                                exit_reason = "Split TP Hit (Full)"
-                                take_profit_hit = True
-                        if (not take_profit_hit) and tp_active and low_price <= tp_price:
-                            exit_price = tp_price
-                            exit_reason = "Take Profit Hit"
+                    if (not take_profit_hit) and tp_active and high_price >= tp_price:
+                        exit_price = tp_price
+                        exit_reason = "Take Profit Hit"
+                        take_profit_hit = True
+                elif not stop_hit and not trail_hit and current_state == 'SHORT':
+                    # ✅ SPLIT-TP1 — الجني المقسم (جزئي) — SHORT: ربح = هبوط
+                    if (split_tp_active and split_tp_pending
+                            and position_size > 0.0 and entry_price > 0):
+                        _nsz, _pts, _full, _ltrig = _fire_split_tp_levels(
+                            trade_id, current_state, entry_price,
+                            position_size, split_tp_original_size,
+                            split_tp_pending, current_time,
+                            high_price, low_price)
+                        if _pts:
+                            split_exits_bar.extend(_pts)
+                            position_size = _nsz
+                        if _full:
+                            exit_price = _ltrig
+                            exit_reason = "Split TP Hit (Full)"
                             take_profit_hit = True
+                    if (not take_profit_hit) and tp_active and low_price <= tp_price:
+                        exit_price = tp_price
+                        exit_reason = "Take Profit Hit"
+                        take_profit_hit = True
                 
                 if stop_hit or take_profit_hit or trail_hit:
                     if current_state == 'LONG':
@@ -2039,10 +2425,130 @@ class BacktestEngine:
                     trail_peak = 0.0  # ✅ R55
                     split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
                     split_tp_original_size = 0.0
+                    # ✅ R9-DCA — الدورة انتهت (إغلاق كامل): إسقاط التعزيزات
+                    dca_pending = []
+                    dca_base_entry_price = 0.0
+                    dca_base_notional_usd = 0.0
                     
                     # ✅ تمت إزالة 'continue' للسماح بتسجيل البيانات البصرية للشمعة الحالية
                     # إذا أردت منع فتح صفقة جديدة في نفس الشمعة بعد إغلاق، يمكن إضافة flag هنا.
                     pending_decision = None
+
+            # ==========================================================
+            # ✅ R9-DCA — تعزيزات الشراء عند الهبوط ( داخل الشمعة):
+            # المركز الأساسي صمد شمعةَ الحالية (لا ستوب/تريلينق/جني كامل
+            # أُغلق المركز) ⇒ تُفحص الزنادات على لمسة اللمّة — نفس ترتيب
+            # محرك الخروج ج41 داخل الشمعة: الخروج أولًا ثم التعزيز ثم الجني
+            # (التعزيز قبل حلقة إدارة المراكز الإضافية أدناه ⇒ يُدار من
+            # شمعة إطلاقه نفسها — جنيه المقسم/تريلينقه على شمعة الإطلاق).
+            # فتحة هبوط تحت الزناد (open < الزناد) تُنفّذ عند الافتتاح
+            # (أمر حد — أفضل للمشتري، نفس ج41).
+            # ==========================================================
+            if (dca_active and dca_pending
+                    and current_state != 'NEUTRAL'
+                    and account_balance > 0):
+                for _dca_p in list(dca_pending):
+                    _dca_fill = None
+                    if current_state == 'LONG':
+                        _trig = dca_base_entry_price * (1.0 - _dca_p['drop'] / 100.0)
+                        if low_price <= _trig:
+                            _dca_fill = _trig
+                            if open_price < _trig:
+                                _dca_fill = open_price  # فجوة هبوط — تنفيذ عند الافتتاح
+                    else:  # SHORT — الهبوط نسبي للشورت = صعود ضدّه
+                        _trig = dca_base_entry_price * (1.0 + _dca_p['drop'] / 100.0)
+                        if high_price >= _trig:
+                            _dca_fill = _trig
+                            if open_price > _trig:
+                                _dca_fill = open_price
+                    if _dca_fill is None or _dca_fill <= 0:
+                        continue
+                    # الحجم: نفس القيمة الاسمية للشراء الأول (1:1:1)
+                    _dca_size = (dca_base_notional_usd / _dca_fill
+                                 if _dca_fill else 0.0)
+                    if _dca_size <= 0:
+                        continue
+                    _dca_sl = 0.0
+                    _dca_tp = 0.0
+                    if sl_active and sl_frac is not None:
+                        _dca_off = _dca_fill * sl_frac
+                        _dca_sl = (_dca_fill - _dca_off if current_state == 'LONG'
+                                   else _dca_fill + _dca_off)
+                    if tp_active and tp_frac is not None:
+                        _dca_off = _dca_fill * tp_frac
+                        _dca_tp = (_dca_fill + _dca_off if current_state == 'LONG'
+                                   else _dca_fill - _dca_off)
+                    _dca_id = str(uuid.uuid4())
+                    _dca_trade = Trade(
+                        id=_dca_id,
+                        symbol=symbol,
+                        entry_time=current_time,
+                        exit_time=None,
+                        entry_price=_dca_fill,
+                        exit_price=None,
+                        position_type='long' if current_state == 'LONG' else 'short',
+                        position_size=_dca_size,
+                        pnl=None,
+                        pnl_percentage=None,
+                        commission=0.0,
+                        slippage=0.0,
+                        stop_loss=_dca_sl if sl_active else None,
+                        take_profit=_dca_tp if tp_active else None,
+                        exit_reason=None,
+                        direction='long' if current_state == 'LONG' else 'short',
+                        fill_entry=fill_model_str,
+                        fill_exit=fill_model_str,
+                        metadata={
+                            'strategy': config.strategy_config.get('name', 'Unknown') if config.strategy_config else 'Unknown',
+                            'position_kind': 'dca_rebuy',
+                            'risk_reward_ratio': 0.0,
+                            'dca_drop_pct': float(_dca_p['drop']),
+                            'dca_base_entry_price': float(dca_base_entry_price),
+                            'dca_notional_usd': float(dca_base_notional_usd),
+                        },
+                    )
+                    trades.append(_dca_trade)
+                    # مركز مستقل بإدارة كاملة (جني مقسم + تريلينق خاصة به)
+                    extra_positions.append({
+                        'trade_id': _dca_id,
+                        'trade': _dca_trade,
+                        'direction': current_state,
+                        'entry_price': _dca_fill,
+                        'entry_time': current_time,
+                        'position_size': _dca_size,
+                        'sl_price': _dca_sl,
+                        'tp_price': _dca_tp,
+                        'trail_peak': _dca_fill,  # قمة التريلينق تبدأ من سعر التنفيذ
+                        'splits_pending': [dict(_l) for _l in split_tp_levels],
+                        'splits_original_size': float(_dca_size),
+                        'position_kind': 'dca_rebuy',
+                        'dca_drop_pct': float(_dca_p['drop']),
+                    })
+                    dca_pending.remove(_dca_p)  # مرة واحدة لكل دورة
+                    dca_fired_total += 1
+                    _open_now = (1 if current_state != 'NEUTRAL' else 0) + len(extra_positions)
+                    if _open_now > max_open_observed:
+                        max_open_observed = _open_now
+                    extra_entries_bar.append({
+                        "timestamp": current_time,
+                        "type": "entry",
+                        "trade_id": _dca_id,
+                        "price": float(_dca_fill),
+                        "position_type": current_state.lower(),
+                        "position_size": float(_dca_size),
+                        "entry_price": float(_dca_fill),
+                        "stop_loss": float(_dca_sl) if (sl_active and _dca_sl) else None,
+                        "take_profit": float(_dca_tp) if (tp_active and _dca_tp) else None,
+                        "decision_reason": f"R9-DCA: تعزيز عند هبوط {_dca_p['drop']:g}%",
+                        "confidence": None,
+                        "account_balance_before": account_balance,
+                        "commission": 0.0,
+                        "fill_entry": fill_model_str,
+                        "fill_exit": fill_model_str,
+                        "direction": current_state.lower(),
+                        "symbol": symbol,
+                        "position_kind": "dca_rebuy",
+                    })
 
             # ✅ R55 — إدارة مخاطر المراكز الإضافية (مستقلة لكل مركز):
             # كل مركز إضافي يُدار بسل/تيبي/تريلينق خاصة به — خروج أحدها لا
@@ -2051,15 +2557,21 @@ class BacktestEngine:
                 _x_exit = None
                 _x_reason = None
                 if _xp['direction'] == 'LONG':
-                    if trail_active and trail_frac is not None:
-                        if high_price > _xp['trail_peak']:
-                            _xp['trail_peak'] = high_price
-                        if close_price <= _xp['trail_peak'] * (1.0 - trail_frac):
-                            _x_exit = close_price
-                            _x_reason = "Trailing Stop (additional position)"
-                    if _x_exit is None and sl_active and low_price <= _xp['sl_price']:
+                    # ✅ TP3-SLTRAIL1 — الستوب الحامي أولًا (لمسة داخل الشمعة
+                    # تسبق إغلاقها سببيًا — نفس أولوية المركز الأساسي).
+                    if sl_active and low_price <= _xp['sl_price']:
                         _x_exit = _xp['sl_price']
                         _x_reason = "Stop Loss Hit (additional position)"
+                    if _x_exit is None and trail_active and trail_frac is not None:
+                        if high_price > _xp['trail_peak']:
+                            _xp['trail_peak'] = high_price
+                        # ✅ TRAILMODE1 — نفس دالة الخط للمركز الأساسي
+                        _x_line = _trail_stop_level(
+                            _trail_mode, _xp['trail_peak'],
+                            _xp['entry_price'], trail_frac, 'LONG')
+                        if close_price <= _x_line:
+                            _x_exit = close_price
+                            _x_reason = "Trailing Stop (additional position)"
                     # ✅ SPLIT-TP1 — الجني المقسم للمركز الإضافي (بين الستوب
                     # والتيبي — نفس أولوية المركز الأساسي داخل الشمعة)
                     if (_x_exit is None and split_tp_active
@@ -2080,15 +2592,20 @@ class BacktestEngine:
                         _x_exit = _xp['tp_price']
                         _x_reason = "Take Profit Hit (additional position)"
                 else:  # SHORT
-                    if trail_active and trail_frac is not None:
-                        if low_price < _xp['trail_peak']:
-                            _xp['trail_peak'] = low_price
-                        if close_price >= _xp['trail_peak'] * (1.0 + trail_frac):
-                            _x_exit = close_price
-                            _x_reason = "Trailing Stop (additional position)"
-                    if _x_exit is None and sl_active and high_price >= _xp['sl_price']:
+                    # ✅ TP3-SLTRAIL1 — الستوب الحامي أولًا (نفس الأولوية).
+                    if sl_active and high_price >= _xp['sl_price']:
                         _x_exit = _xp['sl_price']
                         _x_reason = "Stop Loss Hit (additional position)"
+                    if _x_exit is None and trail_active and trail_frac is not None:
+                        if low_price < _xp['trail_peak']:
+                            _xp['trail_peak'] = low_price
+                        # ✅ TRAILMODE1 — نفس دالة الخط للمركز الأساسي
+                        _x_line = _trail_stop_level(
+                            _trail_mode, _xp['trail_peak'],
+                            _xp['entry_price'], trail_frac, 'SHORT')
+                        if close_price >= _x_line:
+                            _x_exit = close_price
+                            _x_reason = "Trailing Stop (additional position)"
                     # ✅ SPLIT-TP1 — الجني المقسم للمركز الإضافي — SHORT
                     if (_x_exit is None and split_tp_active
                             and _xp.get('splits_pending')):
@@ -2146,7 +2663,7 @@ class BacktestEngine:
                         "fill_exit": fill_model_str,
                         "direction": _xp['direction'].lower(),
                         "symbol": symbol,
-                        "position_kind": "additional",
+                        "position_kind": _xp.get('position_kind', 'additional'),
                     })
                     extra_positions.remove(_xp)
 
@@ -2285,6 +2802,9 @@ class BacktestEngine:
                     trail_peak = 0.0  # ✅ R55
                     split_tp_pending = []  # ✅ SPLIT-TP1 — الصفقة انتهت
                     split_tp_original_size = 0.0
+                    dca_pending = []  # ✅ R9-DCA — الدورة انتهت (signal_close)
+                    dca_base_entry_price = 0.0
+                    dca_base_notional_usd = 0.0
 
                     # ✅ R55 — إشارة خروج/انعكاس تغلق كل المراكز الإضافية أيضاً (مسار signal_close)
                     _x_reason_root = f"{exit_reason} (additional position)"
@@ -2326,10 +2846,34 @@ class BacktestEngine:
                             "fill_exit": fill_model_str,
                             "direction": _xp['direction'].lower(),
                             "symbol": symbol,
-                            "position_kind": "additional",
+                            "position_kind": _xp.get('position_kind', 'additional'),
                         })
                         extra_positions.remove(_xp)
 
+                # ✅ B9-T100-GATE1 — نفس بوابة التنفيذ لمسار signal_close
+                # (سعر التنفيذ هنا = إغلاق شمعة الإشارة نفسها). رفض ⇒ تسجيل
+                # نقطة skipped_entry ولا يُفتح المركز — عقد موحّد للنموذجين.
+                if (_exec_gates_active and target_state_sc != 'NEUTRAL'
+                        and current_state == 'NEUTRAL' and account_balance > 0):
+                    _gate_block_sc = _entry_gate_check(
+                        target_state_sc, float(fill_price_sc), i)
+                    _gate_stats_ref["checked"] = int(_gate_stats_ref.get("checked") or 0) + 1
+                    if _gate_block_sc is not None:
+                        _gate_stats_ref["blocked"] = int(_gate_stats_ref.get("blocked") or 0) + 1
+                        _skipped_store.append({
+                            "timestamp": current_time,
+                            "type": "skipped_entry",
+                            "symbol": symbol,
+                            "direction": str(target_state_sc).lower(),
+                            "would_be_price": float(fill_price_sc),
+                            "position_type": str(target_state_sc).lower(),
+                            "decision_reason": (
+                                decision_sc.reason if decision_sc is not None else None
+                            ),
+                            "fill_entry": fill_model_str,
+                            **_gate_block_sc,
+                        })
+                        target_state_sc = 'NEUTRAL'   # ← الدخول مرفوض: لا فتح مركز
                 if target_state_sc != 'NEUTRAL' and current_state == 'NEUTRAL' and account_balance > 0:  # ✅ R58
                     entry_price = fill_price_sc
                     entry_time = current_time
@@ -2398,6 +2942,17 @@ class BacktestEngine:
                     # ✅ SPLIT-TP1 — تهيئة مستويات الجني المقسم (مسار signal_close)
                     split_tp_pending = [dict(_l) for _l in split_tp_levels]
                     split_tp_original_size = float(position_size)
+
+                    # ✅ R9-DCA — تهيئة التعزيزات (مسار signal_close): مرجع
+                    # الزناد = سعر الدخول الأول والقيمة الاسمية 1:1:1
+                    dca_pending = ([
+                        {"drop": float(d),
+                         "price": (entry_price * (1.0 - float(d) / 100.0)
+                                    if target_state_sc == 'LONG'
+                                    else entry_price * (1.0 + float(d) / 100.0))}
+                        for d in dca_drops] if dca_active else [])
+                    dca_base_entry_price = float(entry_price)
+                    dca_base_notional_usd = float(entry_price) * float(position_size)
 
                     # ✅ R55 — تتبع أقصى تزامن (المركز الأساسي — مسار signal_close)
                     _open_now = 1 + len(extra_positions)
@@ -2872,7 +3427,7 @@ class BacktestEngine:
                     "fill_exit": fill_model_str,
                     "direction": _xp['direction'].lower(),
                     "symbol": symbol,
-                    "position_kind": "additional",
+                    "position_kind": _xp.get('position_kind', 'additional'),
                 })
                 extra_positions.remove(_xp)
 
@@ -2894,9 +3449,10 @@ class BacktestEngine:
         """✅ R55 — صدى سياسة المخاطر المطبّقة فعلاً (نفس منطق المحاكاة حرفياً).
 
         يُبنى من الكونفيق النظيف: الحقول غير المُرسلة = null = معطّلة،
-        SL=0/100 = تعطيل، التريلينق يُلغي SL/TP عند تفعيله، والسقف الرقمي
-        max_positions يُطبَّق في المحركين. يُحقن في math_audit ليصل للفرونت
-        والمكتبة — انتهى عصر الافتراضات المخفية (5/10/2 غصباً).
+        SL=0/100 = تعطيل، ✅ TP3-SLTRAIL1: التريلينق يُلغي التيبي الكامل فقط
+        والستوب الحامي يتعايش معه (نفس منطق المحاكاة الجديد حرفيًا)، والسقف
+        الرقمي max_positions يُطبَّق في المحركين. يُحقن في math_audit ليصل
+        للفرونت والمكتبة — انتهى عصر الافتراضات المخفية (5/10/2 غصباً).
         """
         _sl = config.stop_loss_percent
         _tp = config.take_profit_percent
@@ -2904,8 +3460,8 @@ class BacktestEngine:
         sl_active = _sl is not None and 0.0 < float(_sl) < 100.0
         tp_active = _tp is not None and float(_tp) > 0.0
         trail_active = _tr is not None and float(_tr) > 0.0
+        # ✅ TP3-SLTRAIL1 — نفس منطق المحاكاة حرفيًا: التيبي الكامل فقط يُلغى.
         if trail_active:
-            sl_active = False
             tp_active = False
         # أقصى تزامن ملحوظ من فترات الصفقات المتداخلة (إن وُجدت)
         _max_open = 0
@@ -2930,7 +3486,24 @@ class BacktestEngine:
             "take_profit_active": bool(tp_active),
             "trailing_stop_percent": float(_tr) if _tr is not None else None,
             "trailing_active": bool(trail_active),
-            "trailing_cancels_sl_tp": bool(trail_active),
+            # ✅ TRAILMODE1 — نفس صدى المحاكاة (None = التاريخي peak_pct)
+            "trailing_stop_mode": _trail_stop_mode(config),
+            "trailing_stop_semantics": (
+                "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — "
+                "النزول من إجمالي الارتفاع من سعر الشراء إلى القمة"
+                if _trail_stop_mode(config) == "rise_pct" else
+                "TRAILMODE1-peak_pct (التاريخي): خط التريلينق = القمة×(1−نسبة%) — "
+                "النزول من أعلى قمة سعرية نفسها"),
+            # ✅ TP3-SLTRAIL1 — نفس منطق المحاكاة: صادق فقط بلا ستوب مُرسل.
+            "trailing_cancels_sl_tp": bool(trail_active and not sl_active),
+            "trailing_cancels_tp": bool(trail_active),
+            "sl_trailing_coexist": bool(trail_active and sl_active),
+            "sl_trailing_semantics": (
+                "TP3-SLTRAIL1: الستوب الحامي قاع صلب يعمل مع التريلينق — "
+                "الأولوية داخل الشمعة: (1) لمسة الستوب تُغلق الكمية كاملة "
+                "عند سعر الستوب ثم (2) إغلاق التريلينق (هبوط النسبة من "
+                "أعلى قمة) ثم (3) الجني المقسم"
+                if (trail_active and sl_active) else None),
             "max_positions_requested": int(config.max_positions) if config.max_positions is not None else None,
             "max_concurrent_applied": (
                 _multi_position_compounding_enabled(config)
@@ -3013,6 +3586,22 @@ class BacktestEngine:
                 len((tr.metadata or {}).get("structure_split", {}).get("events") or [])
                 for tr in trades
                 if isinstance(getattr(tr, "metadata", None), dict)),
+            # ✅ R9-DCA — صدى تعزيزات الشراء عند الهبوط في effective_config
+            # (يصل للفرونت والمكتبة) — غياب الحقل ⇒ الميزة معطلة (بت-بت)
+            "dca_rebuy_drops_pct": (
+                [float(d) for d in _normalize_dca_rebuy_drops(config)]
+                if _normalize_dca_rebuy_drops(config) else None),
+            "dca_rebuy_active": bool(_normalize_dca_rebuy_drops(config)),
+            "dca_rebuy_trades": sum(
+                1 for tr in trades
+                if isinstance(getattr(tr, "metadata", None), dict)
+                and (tr.metadata or {}).get("position_kind") == "dca_rebuy"),
+            "dca_rebuy_semantics": (
+                "R9-DCA: لمس اللمّة تحت (الدخول الأول × (1−drop%)) يفتح شراءً"
+                " تعزيزياً بنفس القيمة الاسمية USD للشراء الأول (1:1:1 — عقد"
+                " ج41)؛ كل تعزيز مركز مستقل بإدارة كاملة (جني مقسم + تريلينق"
+                " خاصة به) يُدار من شمعة إطلاقه، وإشارة الخروج تغلق الجميع"
+                if _normalize_dca_rebuy_drops(config) else None),
         }
 
     def _convert_to_serializable(self, obj):
@@ -3358,6 +3947,60 @@ class BacktestEngine:
                 )
             except Exception:
                 pass
+        # ✅ B9-T100-GATE1 — رسومات الترند + نقاط الدخول المرفوضة + صدى
+        # البوابة: تجميع لكل الرموز من قنوات المحرك (نفس نمط R77 تماماً —
+        # بلا أي تغيير تواقيع/عقود قائمة). trend_drawings يحمل إحداثيات
+        # كل خط ترند وُلد (x/t/y للطرفين + الميل + لحظة الولادة + الإحلال)
+        # لكل فترة — يصل إلى chart_data.trend_lines كي يرسمه الفرونت اند.
+        _trend_drawings: Optional[Dict[str, Any]] = None
+        _skipped_entry_points: List[Dict[str, Any]] = []
+        _gate_echo: Optional[Dict[str, Any]] = None
+        try:
+            _trf_by_sym = getattr(self, "_trf_drawings_by_symbol", None) or {}
+            _ok_sym = {s: v for s, v in _trf_by_sym.items() if v}
+            if _ok_sym:
+                _first = next(iter(_ok_sym.values()))
+                _trend_drawings = {
+                    "engine": _first.get("engine"),
+                    "name": _first.get("name"),
+                    "spec": _first.get("spec"),
+                    "params": _first.get("params"),
+                    "by_symbol": {
+                        s: {
+                            "lines": v.get("lines"),
+                            "current": v.get("current"),
+                            "events": v.get("events"),
+                        }
+                        for s, v in _ok_sym.items()
+                    },
+                }
+            _sk_by_sym = getattr(self, "_gate_skipped_by_symbol", None) or {}
+            for _s, _lst in _sk_by_sym.items():
+                if isinstance(_lst, list):
+                    _skipped_entry_points.extend(_lst)
+            _gst_by_sym = getattr(self, "_gate_stats_by_symbol", None) or {}
+            _gst_ok = {s: v for s, v in _gst_by_sym.items() if v}
+            if _gst_ok:
+                _gate_echo = {
+                    "contract": (
+                        "B9-T100-GATE1 (بوابة التنفيذ عند الدخول: لا دخول والسعر "
+                        "تحت خط الترند-100 — سببية كاملة عند شمعة التنفيذ)"
+                    ),
+                    "by_symbol": _gst_ok,
+                }
+                try:
+                    logger.info(
+                        "B9-T100-GATE1: checked=%s blocked=%s",
+                        sum(int((v or {}).get("checked") or 0) for v in _gst_ok.values()),
+                        sum(int((v or {}).get("blocked") or 0) for v in _gst_ok.values()),
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            logger.exception("B9-T100-GATE1: فشل تجميع رسومات الترند/إحصاء البوابة — تجاهل")
+            _trend_drawings = None
+            _skipped_entry_points = []
+            _gate_echo = None
         math_audit = {
             "checked_trades": checked,
             # ✅ الجولة 13: قيمة خام بلا تقريب (عقد الدقة المتناهية)
@@ -3398,6 +4041,10 @@ class BacktestEngine:
             # التحذيرات + مصدر الأزمنة/فريم القاعدة. None عند عدم وجود
             # محرك زخم في الاستراتيجية (استراتيجيات أخرى = العقد القديم بت-بت).
             "momentum_gate": _mom_osc_echo,
+            # ✅ B9-T100-GATE1 — صدى بوابة التنفيذ عند الدخول (إحصاء لكل رمز:
+            # active/gates/checked/blocked). None عند عدم وجود execution_gates
+            # في الاستراتيجية (استراتيجيات أخرى = العقد القديم بت-بت).
+            "execution_gates": _gate_echo,
         }
         
         # 3. حساب منحنى الانخفاض
@@ -3454,6 +4101,12 @@ class BacktestEngine:
             visual_candles=visual_candles,
             trade_points=trade_points,
             indicator_data=indicator_data,
+            # ✅ B9-T100-GATE1 — رسومات الترند (إحداثيات كل خط وُلد لكل
+            # فترة: x/t/y للطرفين + الميل + لحظة الولادة + الإحلال) ونقاط
+            # الدخول المرفوضة بالبوابة — تصل إلى chart_data للفرونت اند.
+            # None/[] عند استراتيجيات بلا trend_fractal/execution_gates (بت-بت).
+            trend_drawings=_trend_drawings,
+            skipped_entry_points=(_skipped_entry_points or None),
             # ★ الأداء العام
             initial_capital=config.initial_capital,
             final_capital=final_capital,

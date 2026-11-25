@@ -1,0 +1,58 @@
+--- trailmode1/post_tree/app/backtest/schemas.py	2026-11-20 20:07:59.000000000 +0000
++++ r9-dca/merge_package/app/backtest/schemas.py	2026-11-21 11:12:44.831326052 +0000
+@@ -435,6 +435,55 @@
+                     "كل قاعدة تبيع نسبة من الكمية عند كل انعكاس هيكل (LL+LH) "
+                     "على أي فريم (same/أدق/أعلى) — قابل للتخصيص على أي استراتيجية.",
+     )
++    # ✅ R9-DCA — «تعزيزات الشراء عند الهبوط» (DCA re-buys على المركز الأساسي):
++    # قائمة نسب هبوط ٪ من سعر الدخول الأول — لمس الشمعة (اللمّة) تحت الزناد
++    # يفتح شراءً ثانياً/ثالثاً بنفس القيمة الاسمية (USD) للشراء الأول (بنية
++    # 1:1:1 — نفس دلالات محرك الخروج ج41). كل شراء تعزيزي مركز مستقل بإدارة
++    # مخاطر كاملة (جني مقسم + تريلينق + ستوب خاصة به). غياب الحقل/قائمة
++    # فارغة ⇒ الميزة معطلة والسلوك التاريخي بت-بت (لا مفتاح يُبث إطلاقاً).
++    # مثال طلب صاحب القرار: شراء ثانٍ عند هبوط 2% وثالث عند 4.5% ⇒
++    #   "dca_rebuy_drops_pct": [2.0, 4.5]
++    dca_rebuy_drops_pct: Optional[List[float]] = Field(
++        None,
++        description="R9-DCA — نسب هبوط ٪ من سعر الدخول الأول تفتح شراءً "
++                    "تعزيزياً بنفس قيمة الشراء الأول (مثل [2.0, 4.5] — تصاعدية "
++                    "إجبارياً، حتى 5 تعزيزات).",
++    )
++
++    @model_validator(mode="after")
++    def validate_dca_rebuy_drops(self):
++        """R9-DCA — تحقق دلالي: نسب موجبة، تصاعدية صارمة، ≤ 5 تعزيزات.
++
++        الهبوط الأعمق يأتي لاحقًا (نفس قاعدة محرك الخروج ج41) — رفع
++        صريح برسالة عربية (لا إعادة ترتيب صامتة).
++        """
++        drops = getattr(self, "dca_rebuy_drops_pct", None)
++        if not drops:
++            return self
++        vals = []
++        for v in drops:
++            try:
++                fv = float(v)
++            except (TypeError, ValueError):
++                raise ValueError(
++                    "dca_rebuy_drops_pct يجب أن تكون قائمة أرقام — "
++                    f"عنصر غير مفهوم: {v!r}")
++            if not (0.0 < fv < 100.0):
++                raise ValueError(
++                    f"كل نسبة هبوط في dca_rebuy_drops_pct يجب أن تكون "
++                    f"ضمن (0..100) حصرياً — وصل: {fv}")
++            vals.append(fv)
++        if len(vals) > 5:
++            raise ValueError(
++                "dca_rebuy_drops_pct: حتى 5 تعزيزات مسموحة — "
++                f"وصل {len(vals)}")
++        for i in range(1, len(vals)):
++            if vals[i] <= vals[i - 1]:
++                raise ValueError(
++                    "dca_rebuy_drops_pct يجب أن تكون تصاعدية صارمة "
++                    f"(الهبوط الأعمق لاحقاً): {vals} — مثلاً [2.0, 4.5]")
++        object.__setattr__(self, "_dca_drops_normalized", vals)
++        return self
+ 
+     @model_validator(mode="before")
+     @classmethod

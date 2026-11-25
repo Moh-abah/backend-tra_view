@@ -1,0 +1,431 @@
+{
+ "B3-peak": {
+  "key": "B3-peak",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 4.7,
+     "size_percent": 33.33
+    },
+    {
+     "gain_percent": 7.4,
+     "size_percent": 33.33
+    }
+   ],
+   "stop_loss_percent": 5,
+   "trailing_stop_percent": 15,
+   "trailing_stop_mode": "(none ⇒ peak_pct)",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 3122.7745658669037,
+  "total_pnl_percent": 212.27745658669036,
+  "total_trades": 205,
+  "win_rate": 52.19512195121951,
+  "max_drawdown_percent": 27.30177184201764,
+  "profit_factor": 1.4215312645085911,
+  "sharpe_ratio": 1.7818250952964862,
+  "sortino_ratio": 4.573676060459777,
+  "calmar_ratio": 3.7123818431740507,
+  "expectancy": 10.354997882277555,
+  "winning_trades": 107,
+  "exit_reasons": {
+   "Stop Loss Hit": 96,
+   "Trailing Stop": 23,
+   "Exit Signal: Exit Condition: خروج المنطقة الكمومية — LL+LH": 86
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": null,
+  "trailing_stop_semantics": "TRAILMODE1-peak_pct (التاريخي): خط التريلينق = القمة×(1−نسبة%) — النزول من أعلى قمة سعرية نفسها",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 145.2
+ },
+ "B3-rise": {
+  "key": "B3-rise",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 4.7,
+     "size_percent": 33.33
+    },
+    {
+     "gain_percent": 7.4,
+     "size_percent": 33.33
+    }
+   ],
+   "stop_loss_percent": 5,
+   "trailing_stop_percent": 15,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 945.913930371906,
+  "total_pnl_percent": -5.425315714514071,
+  "total_trades": 639,
+  "win_rate": 46.79186228482003,
+  "max_drawdown_percent": 10.414537563845858,
+  "profit_factor": 0.9323009005062869,
+  "sharpe_ratio": -0.6262734775539082,
+  "sortino_ratio": -0.7838441562563677,
+  "calmar_ratio": -0.1047019358923562,
+  "expectancy": -0.08464173650718987,
+  "winning_trades": 299,
+  "exit_reasons": {
+   "Trailing Stop": 634,
+   "Stop Loss Hit": 5
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 144.9
+ },
+ "B1-rise": {
+  "key": "B1-rise",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 4.7,
+     "size_percent": 33.33
+    },
+    {
+     "gain_percent": 7.4,
+     "size_percent": 33.33
+    }
+   ],
+   "stop_loss_percent": null,
+   "trailing_stop_percent": 15,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 952.9166531149593,
+  "total_pnl_percent": -4.708334688504067,
+  "total_trades": 639,
+  "win_rate": 46.79186228482003,
+  "max_drawdown_percent": 11.16062679756099,
+  "profit_factor": 0.9411728598214254,
+  "sharpe_ratio": -0.5952277768620496,
+  "sortino_ratio": -0.7436475889451125,
+  "calmar_ratio": -0.08480383834993147,
+  "expectancy": -0.07368285897502269,
+  "winning_trades": 299,
+  "exit_reasons": {
+   "Trailing Stop": 639
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": false,
+  "elapsed_s": 141.8
+ },
+ "E7-rise": {
+  "key": "E7-rise",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 3.0,
+     "size_percent": 70
+    },
+    {
+     "gain_percent": 6.0,
+     "size_percent": 15
+    }
+   ],
+   "stop_loss_percent": 5,
+   "trailing_stop_percent": 10,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 971.9977709569359,
+  "total_pnl_percent": -2.8116442615950197,
+  "total_trades": 642,
+  "win_rate": 47.35202492211838,
+  "max_drawdown_percent": 7.802227050553241,
+  "profit_factor": 0.9641246650772605,
+  "sharpe_ratio": -0.5387302805541619,
+  "sortino_ratio": -0.6836841313690935,
+  "calmar_ratio": -0.07124468153501584,
+  "expectancy": -0.04361717919480368,
+  "winning_trades": 304,
+  "exit_reasons": {
+   "Trailing Stop": 637,
+   "Stop Loss Hit": 5
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 141.5
+ },
+ "E3-rise": {
+  "key": "E3-rise",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 3.0,
+     "size_percent": 70
+    },
+    {
+     "gain_percent": 6.0,
+     "size_percent": 15
+    }
+   ],
+   "stop_loss_percent": 5,
+   "trailing_stop_percent": 15,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 991.8022147905505,
+  "total_pnl_percent": -0.8197785209449535,
+  "total_trades": 639,
+  "win_rate": 47.104851330203445,
+  "max_drawdown_percent": 7.430478239710596,
+  "profit_factor": 0.9896284932300928,
+  "sharpe_ratio": -0.4409520046273646,
+  "sortino_ratio": -0.5712386921907125,
+  "calmar_ratio": -0.021826458929943567,
+  "expectancy": -0.012829084834819815,
+  "winning_trades": 301,
+  "exit_reasons": {
+   "Trailing Stop": 634,
+   "Stop Loss Hit": 5
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 143.6
+ },
+ "E6-rise": {
+  "key": "E6-rise",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 3.0,
+     "size_percent": 70
+    },
+    {
+     "gain_percent": 6.0,
+     "size_percent": 15
+    }
+   ],
+   "stop_loss_percent": 4,
+   "trailing_stop_percent": 15,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 995.3240432562253,
+  "total_pnl_percent": -0.46759567437746913,
+  "total_trades": 639,
+  "win_rate": 47.104851330203445,
+  "max_drawdown_percent": 8.51643895639745,
+  "profit_factor": 0.9941167137766374,
+  "sharpe_ratio": -0.4350699369531144,
+  "sortino_ratio": -0.5775083109138022,
+  "calmar_ratio": -0.010846729779136515,
+  "expectancy": -0.007317616187439757,
+  "winning_trades": 301,
+  "exit_reasons": {
+   "Trailing Stop": 632,
+   "Stop Loss Hit": 7
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 143.1
+ },
+ "F1-rise": {
+  "key": "F1-rise",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 1.0,
+     "size_percent": 100
+    }
+   ],
+   "stop_loss_percent": 5,
+   "trailing_stop_percent": 15,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 902.0575426255491,
+  "total_pnl_percent": -19.42822227969474,
+  "total_trades": 643,
+  "win_rate": 47.43390357698289,
+  "max_drawdown_percent": 12.628154286576246,
+  "profit_factor": 0.8691534180950325,
+  "sharpe_ratio": -0.9404547963187259,
+  "sortino_ratio": -1.0963960474295344,
+  "calmar_ratio": -0.15834437306231422,
+  "expectancy": -0.1523210845636882,
+  "winning_trades": 305,
+  "exit_reasons": {
+   "Split TP Hit": 41,
+   "Trailing Stop": 598,
+   "Stop Loss Hit": 4
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 143.6
+ },
+ "B3-rise25": {
+  "key": "B3-rise25",
+  "config": {
+   "length": 100,
+   "ema_lengths": [
+    21,
+    50,
+    100,
+    200,
+    350,
+    500
+   ],
+   "signals": "S1+S2+S3",
+   "gates": "trend 7/15/25 majority + zone كاملة + ema كاملة",
+   "splits": [
+    {
+     "gain_percent": 4.7,
+     "size_percent": 33.33
+    },
+    {
+     "gain_percent": 7.4,
+     "size_percent": 33.33
+    }
+   ],
+   "stop_loss_percent": 5,
+   "trailing_stop_percent": 25,
+   "trailing_stop_mode": "rise_pct",
+   "max_positions": 2,
+   "multi_position_compounding": true,
+   "engine": "TP3-SLTRAIL1 + TRAILMODE1 (trailmode1/post_tree)"
+  },
+  "final_capital": 979.8290645753106,
+  "total_pnl_percent": -2.0247528565400255,
+  "total_trades": 632,
+  "win_rate": 45.41139240506329,
+  "max_drawdown_percent": 9.44854207800057,
+  "profit_factor": 0.9747843367711946,
+  "sharpe_ratio": -0.4471323499585448,
+  "sortino_ratio": -0.5992898127938754,
+  "calmar_ratio": -0.04290917481287881,
+  "expectancy": -0.03191603706438206,
+  "winning_trades": 287,
+  "exit_reasons": {
+   "Trailing Stop": 627,
+   "Stop Loss Hit": 5
+  },
+  "max_positions_requested": 2,
+  "max_concurrent_applied": 2,
+  "multi_position_compounding_echo": true,
+  "trailing_stop_mode_echo": "rise_pct",
+  "trailing_stop_semantics": "TRAILMODE1-rise_pct: خط التريلينق = القمة − نسبة%×(القمة−الدخول) — النزول من إجمالي الارتفاع من سعر الشراء إلى القمة",
+  "sl_trailing_coexist": true,
+  "elapsed_s": 145.2
+ }
+}

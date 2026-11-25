@@ -1,0 +1,30 @@
+--- download/extracted/app/services/indicators/overlay_columns.py	2026-11-23 17:10:46.687183116 +0000
++++ package/app/services/indicators/overlay_columns.py	2026-11-23 17:17:40.264499734 +0000
+@@ -333,6 +333,12 @@
+         "ind_zzfetqe_struct_last_high", "ind_zzfetqe_struct_prev_high",
+         "ind_zzfetqe_struct_last_low", "ind_zzfetqe_struct_prev_low",
+         "ind_zzfetqe_struct_hh_hl",
++        # ✅ EBREAK1 — أعمدة آلة الدخول الثاني (كسر EMA-N → نزول X% →
++        # استرداد قمة الشمعة الكاسرة): حدث الكسر + مرجعا الحلقة +
++        # التسليح + إشارة الدخول الثاني.
++        "ind_zzfetqe_ebreak_break", "ind_zzfetqe_ebreak_ref_high",
++        "ind_zzfetqe_ebreak_ref_close", "ind_zzfetqe_ebreak_drop_ok",
++        "ind_zzfetqe_ebreak_reclaim",
+         # الخطوط الستة (رصة EMA — محسوبة على فريم الساعة «60» افتراضياً)
+         "ind_zzfetqe_ema_21", "ind_zzfetqe_ema_50", "ind_zzfetqe_ema_100",
+         "ind_zzfetqe_ema_200", "ind_zzfetqe_ema_350", "ind_zzfetqe_ema_500",
+@@ -861,6 +867,14 @@
+         srp = _num(("struct_reversal_pct", "macro_reversal_pct"), float)
+         if srp is not None:
+             out["struct_reversal_pct"] = max(2.0, srp)
++        # ✅ EBREAK1 — آلة الدخول الثاني (كسر EMA-N → نزول X% → استرداد
++        # قمة الشمعة الكاسرة) — مرادفات مرونة للواجهة.
++        ebl = _num(("ema_break_length", "break_ema_length"), int)
++        if ebl is not None:
++            out["ema_break_length"] = max(2, ebl)
++        ebp = _num(("ema_break_drop_pct", "break_drop_pct"), float)
++        if ebp is not None:
++            out["ema_break_drop_pct"] = min(90.0, max(0.1, ebp))
+     elif base == "zzfib_e2e_trendy_quantum_ema_mom":
+         # QMOM1 — "quantum momentum first" (كموميه الزخم الاولى): same
+         # quantum-EMA params verbatim (all of them) + the flexible conditions

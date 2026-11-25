@@ -1,0 +1,337 @@
+{
+ "name": "👑 B9-T100 · ETHUSDT · 15m · دخول B9 (ماكد متعدد الفريمات) + فوق ترند 100 — خروج: ولادة خط علوي فقط + الخط فوق السعر",
+ "description": "«ماكد 9B» (MACD Buy Strategy 9B) محوّلة من Pine ومدمجة مع ترند 100: الدخول = شروط B9 الأربعة (إيجابية الماكد الأسبوعي A/B/C + اليومي B/C + نواة 4H B فوق إشارته وفوق الصفر + أي ماكد أعلى فوق إشارته وفوق خط 4H B) مع الإغلاق فوق خط الترند 100. الخروج = ولادة خط ترند-100 علوي جديد فقط ∧ الخط العلوي فوق السعر (قيمة الخط أعلى من الإغلاق) — التصحيح المطلوب من المستخدم. إدارة نقية بإشارات فقط (بلا SL/TP/تريلينق/جني مقسم/تعزيز). البيانات من 2024-08-08 (إحماء MACD الأسبوعي كما يراه TradingView) والصفقات محصورة في نافذة التقييم 2026-02-08 → 2026-11-09 عبر active_start/active_end.",
+ "mode": "standard",
+ "start_date": "2024-08-08T00:00:00Z",
+ "end_date": "2026-11-09T00:00:00Z",
+ "days": null,
+ "timeframe": "15m",
+ "timezone": "UTC",
+ "tz_offset_minutes": 0,
+ "market": "crypto",
+ "symbols": [
+  "ETHUSDT"
+ ],
+ "strategy_config": {
+  "name": "B9-Trend100 (MACD multi-TF gates + trend-100 gate & new-line exit)",
+  "base_timeframe": "15m",
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "b9_macd_gates",
+    "type": "momentum",
+    "params": {
+     "instances": [
+      {
+       "id": "macd_4h_12_26_6",
+       "timeframe": "240",
+       "fast": 12,
+       "slow": 26,
+       "signal": 6,
+       "doc": "4H B (12/26/6) — نواة الشرط المؤكدة (confirmed on 4h close)"
+      },
+      {
+       "id": "macd_1d_6_13_4",
+       "timeframe": "1D",
+       "fast": 6,
+       "slow": 13,
+       "signal": 4,
+       "doc": "1D A (6/13/4)"
+      },
+      {
+       "id": "macd_1d_12_26_6",
+       "timeframe": "1D",
+       "fast": 12,
+       "slow": 26,
+       "signal": 6,
+       "doc": "1D B (12/26/6)"
+      },
+      {
+       "id": "macd_1d_18_39_4",
+       "timeframe": "1D",
+       "fast": 18,
+       "slow": 39,
+       "signal": 4,
+       "doc": "1D C (18/39/4)"
+      },
+      {
+       "id": "macd_1w_6_13_4",
+       "timeframe": "1W",
+       "fast": 6,
+       "slow": 13,
+       "signal": 4,
+       "doc": "1W A (6/13/4)"
+      },
+      {
+       "id": "macd_1w_12_26_4",
+       "timeframe": "1W",
+       "fast": 12,
+       "slow": 26,
+       "signal": 4,
+       "doc": "1W B (12/26/4)"
+      },
+      {
+       "id": "macd_1w_18_39_4",
+       "timeframe": "1W",
+       "fast": 18,
+       "slow": 39,
+       "signal": 4,
+       "doc": "1W C (18/39/4)"
+      }
+     ],
+     "conditions": {
+      "logic": "and",
+      "conditions": [
+       {
+        "name": "condW_pos — الماكد الأسبوعي الثلاثة فوق إشاراتها (1W A/B/C)",
+        "logic": "and",
+        "conditions": [
+         {
+          "left": "osc:macd_1w_6_13_4.line",
+          "op": ">",
+          "right": "osc:macd_1w_6_13_4.signal"
+         },
+         {
+          "left": "osc:macd_1w_12_26_4.line",
+          "op": ">",
+          "right": "osc:macd_1w_12_26_4.signal"
+         },
+         {
+          "left": "osc:macd_1w_18_39_4.line",
+          "op": ">",
+          "right": "osc:macd_1w_18_39_4.signal"
+         }
+        ]
+       },
+       {
+        "name": "condD_pos — الماكد اليومي B/C فوق إشارتيهما",
+        "logic": "and",
+        "conditions": [
+         {
+          "left": "osc:macd_1d_12_26_6.line",
+          "op": ">",
+          "right": "osc:macd_1d_12_26_6.signal"
+         },
+         {
+          "left": "osc:macd_1d_18_39_4.line",
+          "op": ">",
+          "right": "osc:macd_1d_18_39_4.signal"
+         }
+        ]
+       },
+       {
+        "name": "cond4H_core — 4H B فوق إشارته وفوق الصفر (مؤكد)",
+        "logic": "and",
+        "conditions": [
+         {
+          "left": "osc:macd_4h_12_26_6.line",
+          "op": ">",
+          "right": "osc:macd_4h_12_26_6.signal"
+         },
+         {
+          "left": "osc:macd_4h_12_26_6.line",
+          "op": ">",
+          "right": 0
+         }
+        ]
+       },
+       {
+        "name": "condAnyAbove4H — أي ماكد أعلى (1D A/B/C · 1W A/B/C) فوق إشارته وفوق خط 4H B",
+        "logic": "or",
+        "conditions": [
+         {
+          "logic": "and",
+          "conditions": [
+           {
+            "left": "osc:macd_1d_6_13_4.line",
+            "op": ">",
+            "right": "osc:macd_1d_6_13_4.signal"
+           },
+           {
+            "left": "osc:macd_1d_6_13_4.line",
+            "op": ">",
+            "right": "osc:macd_4h_12_26_6.line"
+           }
+          ]
+         },
+         {
+          "logic": "and",
+          "conditions": [
+           {
+            "left": "osc:macd_1d_12_26_6.line",
+            "op": ">",
+            "right": "osc:macd_1d_12_26_6.signal"
+           },
+           {
+            "left": "osc:macd_1d_12_26_6.line",
+            "op": ">",
+            "right": "osc:macd_4h_12_26_6.line"
+           }
+          ]
+         },
+         {
+          "logic": "and",
+          "conditions": [
+           {
+            "left": "osc:macd_1d_18_39_4.line",
+            "op": ">",
+            "right": "osc:macd_1d_18_39_4.signal"
+           },
+           {
+            "left": "osc:macd_1d_18_39_4.line",
+            "op": ">",
+            "right": "osc:macd_4h_12_26_6.line"
+           }
+          ]
+         },
+         {
+          "logic": "and",
+          "conditions": [
+           {
+            "left": "osc:macd_1w_6_13_4.line",
+            "op": ">",
+            "right": "osc:macd_1w_6_13_4.signal"
+           },
+           {
+            "left": "osc:macd_1w_6_13_4.line",
+            "op": ">",
+            "right": "osc:macd_4h_12_26_6.line"
+           }
+          ]
+         },
+         {
+          "logic": "and",
+          "conditions": [
+           {
+            "left": "osc:macd_1w_12_26_4.line",
+            "op": ">",
+            "right": "osc:macd_1w_12_26_4.signal"
+           },
+           {
+            "left": "osc:macd_1w_12_26_4.line",
+            "op": ">",
+            "right": "osc:macd_4h_12_26_6.line"
+           }
+          ]
+         },
+         {
+          "logic": "and",
+          "conditions": [
+           {
+            "left": "osc:macd_1w_18_39_4.line",
+            "op": ">",
+            "right": "osc:macd_1w_18_39_4.signal"
+           },
+           {
+            "left": "osc:macd_1w_18_39_4.line",
+            "op": ">",
+            "right": "osc:macd_4h_12_26_6.line"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sub_labels": [
+      "w_pos",
+      "d_pos",
+      "4h_core",
+      "any_above_4h"
+     ],
+     "active_start": "2026-02-08T00:00:00Z",
+     "active_end": "2026-11-09T00:00:00Z"
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   },
+   {
+    "name": "trend_fractal",
+    "type": "support_resistance",
+    "params": {
+     "periods": [
+      100
+     ],
+     "confirm_mode": "all"
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "دخول B9 + الإغلاق فوق خط الترند 100 (شراء B9 حرفياً مع بوابة ترند 100)",
+    "condition": {
+     "type": "and",
+     "conditions": [
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:b9_macd_gates:b9g_buy",
+       "right_value": 0
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:trend_fractal:trf_p100_bias",
+       "right_value": 0
+      }
+     ]
+    },
+    "position_side": "long",
+    "weight": 1.0,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "خروج عند ولادة خط ترند-100 علوي جديد فقط (الخط فوق السعر — أعلى من الإغلاق)",
+    "condition": {
+     "type": "and",
+     "conditions": [
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:trend_fractal:trf_p100_new_upper",
+       "right_value": 0
+      },
+      {
+       "type": "indicator_value",
+       "operator": ">",
+       "left_value": "indicator:trend_fractal:trf_p100_upper",
+       "right_value": "price:close"
+      }
+     ]
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   }
+  ],
+  "risk_management": {
+   "stop_loss_percentage": 2,
+   "take_profit_percentage": 99
+  }
+ },
+ "initial_capital": 300.0,
+ "position_sizing": "percentage",
+ "position_size_percent": 100.0,
+ "max_positions": 1,
+ "compounding": true,
+ "multi_position_compounding": false,
+ "commission_rate": 0.0,
+ "slippage_percent": 0.0,
+ "fill_model": "next_open",
+ "stop_loss_percent": null,
+ "take_profit_percent": null,
+ "take_profit_splits": null,
+ "structure_split_exits": null,
+ "dca_rebuy_drops_pct": null,
+ "trailing_stop_percent": null,
+ "trailing_stop_mode": null,
+ "max_daily_loss_percent": null,
+ "enable_short_selling": false,
+ "enable_margin": false,
+ "leverage": 1.0,
+ "require_confirmation": false,
+ "exit_strategy": null
+}

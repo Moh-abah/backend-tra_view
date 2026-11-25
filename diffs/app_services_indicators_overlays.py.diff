@@ -1,67 +1,55 @@
---- /home/z/my-project/trading-system/quantum-momentum/basis_original/app/services/indicators/overlays.py	2026-11-18 15:57:24.940735538 +0000
-+++ app/services/indicators/overlays.py	2026-11-18 15:50:14.368099658 +0000
-@@ -1161,6 +1161,13 @@
-                  # الساعة (EMA 21/50/100/200/350/500 تنازلياً تحت السعر) — محرك
-                  # معزول جديد كلياً (أسماء zzfetqe_*) — إضافة تسجيل فقط، لا مساس بأي قائم.
-                  "zzfib_e2e_trendy_quantum_ema",
-+                 # QMOM1: "quantum momentum first" — quantum-EMA in full
-+                 # (zzfetqe_* renamed zzfetqem_* + pass-through zzfetq_*/zzfet_*)
-+                 # + flexible multi-timeframe oscillator conditions gate
-+                 # (macd/rsi/mom any instance any tf 1s..1mo + and/or/not tree
-+                 # — PRO76 core) over the entry signals — isolated new engine
-+                 # (zzfetqem_* names) — registration only, no existing touched.
-+                 "zzfib_e2e_trendy_quantum_ema_mom",
-                  # ✅ QMOM1: «كموميه الزخم الاولى» — الكمومية-EMA بحذافيرها
-                  # (أعمدتها zzfetqe_* تُعاد تسميتها zzfetqem_* + تمرير zzfetq_*/zzfet_*)
-                  # + بوابة الشروط المرنة للموشرات متعددة الفريمات (macd/rsi/mom
-@@ -1256,6 +1263,18 @@
-                                          "zone_gate", "ema_lengths", "ema_resolution",
-                                          "ema_source", "ema_offset", "ema_gate",
-                                          "zone_exit_resolution", "zone_exit_length"},
-+        # QMOM1: quantum momentum first — same quantum-EMA params verbatim
-+        # + the flexible conditions gate template (osc_instances: macd/rsi/mom
-+        # copies, any count, 22 timeframes · osc_conditions: composable
-+        # and/or/not tree — both passed through as-is to the engine).
-+        "zzfib_e2e_trendy_quantum_ema_mom": {"length", "reverse", "levels", "extend_right",
-+                                              "extend_leg_to_live", "mode", "depth", "deviation",
-+                                              "backstep", "launch_touch_ticks",
-+                                              "trend_periods", "trend_confirm", "trend_gate",
-+                                              "zone_gate", "ema_lengths", "ema_resolution",
-+                                              "ema_source", "ema_offset", "ema_gate",
-+                                              "zone_exit_resolution", "zone_exit_length",
-+                                              "osc_instances", "osc_conditions"},
-         # ✅ MTFEMA1: MTF EMA — معاملات Pine الأربعة + النسخ المتعددة.
+--- /tmp/orig_p109/app/services/indicators/overlays.py	2026-11-19 10:04:08.000000000 +0000
++++ app/services/indicators/overlays.py	2026-11-22 14:35:35.294278935 +0000
+@@ -1179,7 +1179,12 @@
+                  # بحذافيره بلا استشراف — آخر شريط HTF مغلق فقط) — محرك
+                  # معزول جديد كلياً (أعمدة mtfema_*) — إضافة تسجيل فقط.
+                  "mtf_ema",
+-                 "trend_fractal")
++                 "trend_fractal",
++                 # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy
++                 # Strategy 9B محوّلاً حرفياً — إسقاط سببي confirmed + إحماء
++                 # فشل-إغلاق + نافذة تفعيل) — محرك معزول جديد كلياً (أعمدة
++                 # b9g_*) — إضافة تسجيل فقط.
++                 "b9_macd_gates")
+ 
+ 
+ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+@@ -1285,6 +1290,10 @@
          "mtf_ema": {"length", "source", "offset", "resolution", "instances"},
          # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
-@@ -1306,6 +1325,11 @@
-         # في طلب «كل الأنواع» الافتراضي للوحات الحي نتجاوزها (لا مضاعفة
-         # حساب الكمومية بلا بيانات مطلوبة).
-         wanted.discard("zzfib_e2e_trendy_quantum_ema")
-+        # QMOM1 — same protection: quantum momentum first is a strategy
-+        # engine (explicit request from strategy config always computes it —
-+        # with or without the osc template); in the default "all types" live
-+        # panels request we skip it (no duplicate quantum-EMA compute).
-+        wanted.discard("zzfib_e2e_trendy_quantum_ema_mom")
+         "trend_fractal": {"periods", "confirm_mode"},
++        # ✅ B9: «ماكد 9B» — نسخ MACD متعددة الفريمات + شجرة شروط قابلة
++        # للتركيب (مقارنات قيم عابرة للفريمات) + نافذة تفعيل للإشارة.
++        "b9_macd_gates": {"instances", "conditions", "sub_labels",
++                           "active_start", "active_end"},
+         "zigzag": {"length", "extend_right"},
+         "trendline": {"period", "max_pairs"},
+     }
+@@ -1336,6 +1345,10 @@
+         # with or without the osc template); in the default "all types" live
+         # panels request we skip it (no duplicate quantum-EMA compute).
+         wanted.discard("zzfib_e2e_trendy_quantum_ema_mom")
++        # ✅ B9 — نفس الحماية: «ماكد 9B» محرك استراتيجي (طلبه الصريح من
++        # تكوين الاستراتيجية يحسبه دائماً)؛ في طلب «كل الأنواع» الافتراضي
++        # للوحات الحي نتجاوزه (لا حساب MACD متعدد الفريمات بلا طلب).
++        wanted.discard("b9_macd_gates")
  
      t, o, h, l, c = _norm_candles(candles)
      N = len(c)
-@@ -1393,6 +1417,19 @@
-         from app.services.indicators.overlays_zlf_e2e_trendy_quantum_ema import zigzag_fib_e2e_trendy_quantum_ema
-         qe_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum_ema", params.get("zzfib_e2e_trendy_quantum_ema") or {})
-         out["overlays"]["zzfib_e2e_trendy_quantum_ema"] = zigzag_fib_e2e_trendy_quantum_ema(candles, **qe_params)
-+    if "zzfib_e2e_trendy_quantum_ema_mom" in wanted:
-+        # QMOM1: "quantum momentum first" — deferred call to the isolated new
-+        # engine (quantum-EMA verbatim + flexible multi-timeframe oscillator
-+        # conditions gate — PRO76 core — over the final entry signals). With
-+        # no template (osc_instances/osc_conditions) it is bit-identical mirror
-+        # mode of quantum-EMA with the gate always open (no oscillator compute
-+        # at all — memory-safe for the default "all types" path). Series carry
-+        # the differentiation contract: zzfetqem_* (final entry after the
-+        # momentum gate + iblocked transparency + oscillator series
-+        # zzfetqem_osc_<id>_<field>) + zzfetq_* + zzfet_* passed verbatim.
-+        from app.services.indicators.overlays_zlf_e2e_trendy_quantum_ema_mom import zigzag_fib_e2e_trendy_quantum_ema_mom
-+        qm_params = _normalize_overlay_params("zzfib_e2e_trendy_quantum_ema_mom", params.get("zzfib_e2e_trendy_quantum_ema_mom") or {})
-+        out["overlays"]["zzfib_e2e_trendy_quantum_ema_mom"] = zigzag_fib_e2e_trendy_quantum_ema_mom(candles, **qm_params)
-     if "mtf_ema" in wanted:
-         # ✅ MTFEMA1: «MTF EMA» — المتوسط الأسي متعدد الفريمات — استدعاء مؤجل
-         # للمحرك المعزول الجديد (Pine بحذافيره: length/source/offset/resolution
+@@ -1444,5 +1457,16 @@
+         from app.services.indicators.overlays_mtf_ema import mtf_ema_engine
+         mte_params = _normalize_overlay_params("mtf_ema", params.get("mtf_ema") or {})
+         out["overlays"]["mtf_ema"] = mtf_ema_engine(candles, **mte_params)
++    if "b9_macd_gates" in wanted:
++        # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy Strategy 9B
++        # محوّلاً حرفياً) — استدعاء مؤجل للمحرك المعزول الجديد (MACD على
++        # 4H/1D/1W بمرساة TradingView — الأسبوع من الاثنين · إسقاط سببي
++        # confirmed · إحماء فشل-إغلاق · نافذة تفعيل active_start/active_end
++        # تحصر b9g_buy داخل نافذة التداول بينما تُحسب القيم على كامل
++        # البيانات الممتدة). السلاسل: b9g_buy (الأساسية) + b9g_cond/b9g_sub_*
++        # (الشفافية) + b9g_osc_<id>_line|signal|hist (قيم النسخ للرسم).
++        from app.services.indicators.overlays_b9_macd_gates import b9_macd_gates
++        b9_params = _normalize_overlay_params("b9_macd_gates", params.get("b9_macd_gates") or {})
++        out["overlays"]["b9_macd_gates"] = b9_macd_gates(candles, **b9_params)
+ 
+     return out

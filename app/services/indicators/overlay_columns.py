@@ -148,6 +148,10 @@ OVERLAY_ALIASES: Dict[str, str] = {
     "multi_timeframe_exponential_moving_average": "mtf_ema",
     "trend_fractal": "trend_fractal",
     "fractal_trendlines": "trend_fractal",
+    # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy Strategy 9B).
+    "b9_macd_gates": "b9_macd_gates",
+    "b9": "b9_macd_gates",
+    "b9_macd": "b9_macd_gates",
 }
 
 KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
@@ -157,7 +161,8 @@ KNOWN_OVERLAY_BASES = ("zigzag", "fib", "trendline", "zzfib", "zzfib_e2e",
                        "zzfib_e2e_trendy_quantum_ema",  # ✅ QUANTUMEMA1 — الكمومية المتوسطة المتحركة الأسية
                        "zzfib_e2e_trendy_quantum_ema_mom",  # QMOM1 — quantum momentum first: quantum-EMA + flexible conditions gate
                        "mtf_ema",  # ✅ MTFEMA1 — MTF EMA متعدد الفريمات
-                       "trend_fractal")
+                       "trend_fractal",  # ✅ ROUND32 — مؤشر الترند المستقل (فراكتالات)
+                       "b9_macd_gates")  # ✅ B9 — «ماكد 9B» بوابات MACD متعددة الفريمات
 
 # أسماء الأعمدة التعاقدية لكل base (للتوثيق والفحص)
 CONTRACT_COLUMNS: Dict[str, List[str]] = {
@@ -322,6 +327,12 @@ CONTRACT_COLUMNS: Dict[str, List[str]] = {
         # النسخة الأصلية على فريم الشارت + أحداث/حالة HTF المسقطة سببياً.
         "ind_zzfetqe_zone_exit_base", "ind_zzfetqe_zone_exit_htf_enter",
         "ind_zzfetqe_zone_exit_htf_on",
+        # ✅ STRUCT1 — أعمدة الهيكل الكبير (صرامة حرفية: القمة>القمة ∧
+        # القاع>القاع على المحاور الكبرى المتبادلة المؤكدة سببياً) — العلم
+        # struct_hh_hl = 1.0 فقط عند تحقق الشرطين معاً عند الشمعة نفسها.
+        "ind_zzfetqe_struct_last_high", "ind_zzfetqe_struct_prev_high",
+        "ind_zzfetqe_struct_last_low", "ind_zzfetqe_struct_prev_low",
+        "ind_zzfetqe_struct_hh_hl",
         # الخطوط الستة (رصة EMA — محسوبة على فريم الساعة «60» افتراضياً)
         "ind_zzfetqe_ema_21", "ind_zzfetqe_ema_50", "ind_zzfetqe_ema_100",
         "ind_zzfetqe_ema_200", "ind_zzfetqe_ema_350", "ind_zzfetqe_ema_500",
@@ -464,6 +475,15 @@ CONTRACT_COLUMNS: Dict[str, List[str]] = {
         "ind_trf_p25_cross_upper", "ind_trf_p25_cross_lower",
         "ind_trf_bull_votes", "ind_trf_bear_votes", "ind_trf_bias",
         "ind_trf_trend_ok", "ind_trf_threshold",
+    ],
+    # ✅ B9 — عقد «ماكد 9B»: الإشارة النهائية + شفافية الشجرة وفروعها
+    # الأربعة + أحداث ولادة خط الترند (قيم النسخ ديناميكية حسب معرفات
+    # instances — ind_b9g_osc_<id>_line|signal|hist).
+    "b9_macd_gates": [
+        "ind_b9g_buy", "ind_b9g_cond",
+        "ind_b9g_sub_w_pos", "ind_b9g_sub_d_pos",
+        "ind_b9g_sub_4h_core", "ind_b9g_sub_any_above_4h",
+        # الديناميكية: ind_b9g_osc_<id>_line|signal|hist لكل نسخة
     ],
 }
 
@@ -739,6 +759,15 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         zxl_ = _num(("zone_exit_length", "exit_length"), int)
         if zxl_ is not None:
             out["zone_exit_length"] = max(2, zxl_)
+        # ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي
+        # فريم — فارغ/none/base/chart = فريم الشارت بت-بت)
+        zr = p.get("zone_resolution",
+                   p.get("entry_zone_resolution", p.get("zone_tf")))
+        if zr is not None:
+            out["zone_resolution"] = zr
+        zl_ = _num(("zone_length", "entry_zone_length"), int)
+        if zl_ is not None:
+            out["zone_length"] = max(2, zl_)
     elif base == "zzfib_e2e_trendy_quantum_ema":
         # ✅ QUANTUMEMA1 — الكمومية المتوسطة المتحركة الأسية: نفس معاملات
         # الكمومية حرفياً + قالب EMA (الأطوال الستة/فريم الساعة/المصدر/
@@ -818,6 +847,20 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         zxl_ = _num(("zone_exit_length", "exit_length"), int)
         if zxl_ is not None:
             out["zone_exit_length"] = max(2, zxl_)
+        # ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي
+        # فريم — فارغ/none/base/chart = فريم الشارت بت-بت)
+        zr = p.get("zone_resolution",
+                   p.get("entry_zone_resolution", p.get("zone_tf")))
+        if zr is not None:
+            out["zone_resolution"] = zr
+        zl_ = _num(("zone_length", "entry_zone_length"), int)
+        if zl_ is not None:
+            out["zone_length"] = max(2, zl_)
+        # ✅ STRUCT1 — نسبة انعكاس تأكيد محاور الهيكل الكبير (صرامة
+        # القمة>القمة ∧ القاع>القاع على المحاور الكبرى المتبادلة).
+        srp = _num(("struct_reversal_pct", "macro_reversal_pct"), float)
+        if srp is not None:
+            out["struct_reversal_pct"] = max(2.0, srp)
     elif base == "zzfib_e2e_trendy_quantum_ema_mom":
         # QMOM1 — "quantum momentum first" (كموميه الزخم الاولى): same
         # quantum-EMA params verbatim (all of them) + the flexible conditions
@@ -897,6 +940,15 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
         zxl_ = _num(("zone_exit_length", "exit_length"), int)
         if zxl_ is not None:
             out["zone_exit_length"] = max(2, zxl_)
+        # ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي
+        # فريم — فارغ/none/base/chart = فريم الشارت بت-بت)
+        zr = p.get("zone_resolution",
+                   p.get("entry_zone_resolution", p.get("zone_tf")))
+        if zr is not None:
+            out["zone_resolution"] = zr
+        zl_ = _num(("zone_length", "entry_zone_length"), int)
+        if zl_ is not None:
+            out["zone_length"] = max(2, zl_)
         # QMOM1 — the flexible conditions gate template (passed as-is)
         oi = p.get("osc_instances", p.get("instances"))
         if oi is not None:
@@ -1060,6 +1112,27 @@ def config_to_overlay_params(cfg: Any) -> Optional[Dict[str, Dict[str, Any]]]:
             out["periods"] = tp
         if "confirm_mode" in p:
             out["confirm_mode"] = p["confirm_mode"]
+    elif base == "b9_macd_gates":
+        # ✅ B9 — «ماكد 9B»: نسخ MACD متعددة الفريمات + شجرة شروط قابلة
+        # للتركيب (مقارنات قيم عابرة للفريمات) + تسميات فروع الشفافية +
+        # نافذة تفعيل الإشارة (تحصر b9g_buy داخل نافذة التداول بينما
+        # تُحسب القيم على كامل البيانات الممتدة — إحماء MACD الأسبوعي).
+        inst = p.get("instances", p.get("osc_instances"))
+        if inst is not None:
+            out["instances"] = inst
+        cond = p.get("conditions", p.get("osc_conditions"))
+        if cond is not None:
+            out["conditions"] = cond
+        sl = p.get("sub_labels", p.get("labels"))
+        if sl is not None:
+            out["sub_labels"] = sl
+        for k in ("active_start", "active_end"):
+            if p.get(k) is not None:
+                out[k] = p[k]
+        # ✅ v4 (LIVE1) — وضع إسقاط الفريم الأعلى: confirmed (افتراضي) | live
+        hm = p.get("htf_mode", p.get("projection_mode"))
+        if hm is not None:
+            out["htf_mode"] = str(hm).strip().lower()
     else:  # trendline
         period = _num(("period", "n", "fractal_period"), int)
         if period is not None:
@@ -1438,6 +1511,22 @@ def _trf_columns(trf: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     return out
 
 
+def _b9g_columns(b9: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
+    """✅ B9: نتيجة b9_macd_gates → أعمدة ind_b9g_* (b9g_X → ind_b9g_X).
+
+    «ماكد 9B» — الإشارة النهائية ind_b9g_buy + شفافية الشجرة ind_b9g_cond
+    وفروعها ind_b9g_sub_* + قيم نسخ MACD ind_b9g_osc_<id>_* (ديناميكية).
+    """
+    out: Dict[str, List[Optional[float]]] = {}
+    s = b9.get("series") or {}
+    for key, vals in s.items():
+        k = str(key)
+        if not k.startswith("b9g_"):
+            continue
+        out["ind_" + k] = vals if vals is not None else []
+    return out
+
+
 def _mtfema_columns(mte: Dict[str, Any]) -> Dict[str, List[Optional[float]]]:
     """✅ MTFEMA1: نتيجة mtf_ema_engine → أعمدة ind_mtfema_* (mtfema_X → ind_mtfema_X).
 
@@ -1519,6 +1608,11 @@ def columns_from_overlays_result(res: Dict[str, Any]) -> Dict[str, List[Optional
     trf = ovl.get("trend_fractal")
     if isinstance(trf, dict) and trf.get("series"):
         out.update(_trf_columns(trf))
+    # ✅ B9 — أعمدة «ماكد 9B» b9g_* → ind_b9g_* (الإشارة النهائية +
+    # شفافية الشجرة وفروعها + قيم نسخ MACD المسقطة سببياً).
+    b9g = ovl.get("b9_macd_gates")
+    if isinstance(b9g, dict) and b9g.get("series"):
+        out.update(_b9g_columns(b9g))
     # ✅ MTFEMA1 — أعمدة MTF EMA (mtfema_X → ind_mtfema_X — خط النسخة
     # الأساسية + خط كل نسخة)
     mte = ovl.get("mtf_ema")
@@ -1605,5 +1699,23 @@ def columns_for_configs(
                         "name": _o.get("name"),
                         "osc": _o.get("osc"),
                     }
+            # ✅ B9-T100-GATE1 — قسم رسومات الترند (إحداثيات كل خط وُلد):
+            # trend_fractal يُنتج أصلاً في نتيجته قسماً كاملاً lines لكل فترة
+            # (x/t/y للطرفين + الميل + لحظة الولادة + الإحلال) لكن كانت تُهمل
+            # عند التسوية إلى أعمدة ind_trf_* — الآن تصل عبر sections إلى
+            # indicator_sections لمحرك الاستراتيجية ومنه إلى نتيجة الباك-تست
+            # (chart_data.trend_lines) كي يرسمها الفرونت اند. عقد إضافي بحت:
+            # استراتيجيات بلا trend_fractal لا يظهر عندها القسم بت-بت.
+            _trf = ovl_res.get("trend_fractal")
+            if isinstance(_trf, dict) and _trf.get("lines"):
+                sections["trend_fractal"] = {
+                    "engine": _trf.get("engine"),
+                    "name": _trf.get("name"),
+                    "spec": _trf.get("spec"),
+                    "params": _trf.get("params"),
+                    "lines": _trf.get("lines"),
+                    "current": _trf.get("current"),
+                    "events": _trf.get("events"),
+                }
         return cols, sections
     return cols

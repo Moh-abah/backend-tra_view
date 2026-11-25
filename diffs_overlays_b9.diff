@@ -1,0 +1,55 @@
+--- /tmp/orig_p109/app/services/indicators/overlays.py	2026-11-19 10:04:08.000000000 +0000
++++ app/services/indicators/overlays.py	2026-11-22 14:35:35.294278935 +0000
+@@ -1179,7 +1179,12 @@
+                  # بحذافيره بلا استشراف — آخر شريط HTF مغلق فقط) — محرك
+                  # معزول جديد كلياً (أعمدة mtfema_*) — إضافة تسجيل فقط.
+                  "mtf_ema",
+-                 "trend_fractal")
++                 "trend_fractal",
++                 # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy
++                 # Strategy 9B محوّلاً حرفياً — إسقاط سببي confirmed + إحماء
++                 # فشل-إغلاق + نافذة تفعيل) — محرك معزول جديد كلياً (أعمدة
++                 # b9g_*) — إضافة تسجيل فقط.
++                 "b9_macd_gates")
+ 
+ 
+ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+@@ -1285,6 +1290,10 @@
+         "mtf_ema": {"length", "source", "offset", "resolution", "instances"},
+         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
+         "trend_fractal": {"periods", "confirm_mode"},
++        # ✅ B9: «ماكد 9B» — نسخ MACD متعددة الفريمات + شجرة شروط قابلة
++        # للتركيب (مقارنات قيم عابرة للفريمات) + نافذة تفعيل للإشارة.
++        "b9_macd_gates": {"instances", "conditions", "sub_labels",
++                           "active_start", "active_end"},
+         "zigzag": {"length", "extend_right"},
+         "trendline": {"period", "max_pairs"},
+     }
+@@ -1336,6 +1345,10 @@
+         # with or without the osc template); in the default "all types" live
+         # panels request we skip it (no duplicate quantum-EMA compute).
+         wanted.discard("zzfib_e2e_trendy_quantum_ema_mom")
++        # ✅ B9 — نفس الحماية: «ماكد 9B» محرك استراتيجي (طلبه الصريح من
++        # تكوين الاستراتيجية يحسبه دائماً)؛ في طلب «كل الأنواع» الافتراضي
++        # للوحات الحي نتجاوزه (لا حساب MACD متعدد الفريمات بلا طلب).
++        wanted.discard("b9_macd_gates")
+ 
+     t, o, h, l, c = _norm_candles(candles)
+     N = len(c)
+@@ -1444,5 +1457,16 @@
+         from app.services.indicators.overlays_mtf_ema import mtf_ema_engine
+         mte_params = _normalize_overlay_params("mtf_ema", params.get("mtf_ema") or {})
+         out["overlays"]["mtf_ema"] = mtf_ema_engine(candles, **mte_params)
++    if "b9_macd_gates" in wanted:
++        # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy Strategy 9B
++        # محوّلاً حرفياً) — استدعاء مؤجل للمحرك المعزول الجديد (MACD على
++        # 4H/1D/1W بمرساة TradingView — الأسبوع من الاثنين · إسقاط سببي
++        # confirmed · إحماء فشل-إغلاق · نافذة تفعيل active_start/active_end
++        # تحصر b9g_buy داخل نافذة التداول بينما تُحسب القيم على كامل
++        # البيانات الممتدة). السلاسل: b9g_buy (الأساسية) + b9g_cond/b9g_sub_*
++        # (الشفافية) + b9g_osc_<id>_line|signal|hist (قيم النسخ للرسم).
++        from app.services.indicators.overlays_b9_macd_gates import b9_macd_gates
++        b9_params = _normalize_overlay_params("b9_macd_gates", params.get("b9_macd_gates") or {})
++        out["overlays"]["b9_macd_gates"] = b9_macd_gates(candles, **b9_params)
+ 
+     return out

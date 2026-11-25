@@ -1179,7 +1179,12 @@ OVERLAY_TYPES = ("zigzag", "fib", "trendline", "zzfib",
                  # بحذافيره بلا استشراف — آخر شريط HTF مغلق فقط) — محرك
                  # معزول جديد كلياً (أعمدة mtfema_*) — إضافة تسجيل فقط.
                  "mtf_ema",
-                 "trend_fractal")
+                 "trend_fractal",
+                 # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy
+                 # Strategy 9B محوّلاً حرفياً — إسقاط سببي confirmed + إحماء
+                 # فشل-إغلاق + نافذة تفعيل) — محرك معزول جديد كلياً (أعمدة
+                 # b9g_*) — إضافة تسجيل فقط.
+                 "b9_macd_gates")
 
 
 def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -1245,12 +1250,15 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
         # (zone_gate: الأنواع المبوّبة بالمنطقة s1/s2/s3 أو "none" للتعطيل)
         # + ✅ ZONE-EXIT-TF1: فريم هيكل الخروج (zone_exit_resolution/
         # zone_exit_length — CHoCH LL+LH على أي فريم).
+        # + ✅ ZONE-ENTRY-MTF1: فريم المنطقة المسموحة للدخول
+        # (zone_resolution/zone_length — HH+HL على أي فريم).
         "zzfib_e2e_trendy_quantum": {"length", "reverse", "levels", "extend_right",
                                      "extend_leg_to_live", "mode", "depth", "deviation",
                                      "backstep", "launch_touch_ticks",
                                      "trend_periods", "trend_confirm", "trend_gate",
                                      "zone_gate", "zone_exit_resolution",
-                                     "zone_exit_length"},
+                                     "zone_exit_length",
+                                     "zone_resolution", "zone_length"},
         # ✅ QUANTUMEMA1: الكمومية المتوسطة المتحركة الأسية — نفس معاملات
         # الكمومية حرفياً + قالب EMA (الأطوال الستة/فريم الساعة/المصدر/الإزاحة/
         # بوابة الرصة ema_gate: s1/s2/s3 أو "none" للتعطيل)
@@ -1259,6 +1267,12 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
         # وقاعدة الإعفاء ema_stack_base (افتراضي 21).
         # + ✅ ZONE-EXIT-TF1: فريم هيكل الخروج (zone_exit_resolution/
         # zone_exit_length — CHoCH LL+LH على أي فريم).
+        # + ✅ ZONE-ENTRY-MTF1: فريم المنطقة المسموحة للدخول
+        # (zone_resolution/zone_length — HH+HL على أي فريم).
+        # + ✅ STRUCT1: نسبة انعكاس تأكيد محاور الهيكل الكبير (صرامة
+        # القمة>القمة ∧ القاع>القاع — أعمدة zzfetqe_struct_*).
+        # + ✅ EBREAK1: آلة الدخول الثاني — كسر EMA-N → نزول X% → استرداد
+        # قمة الشمعة الكاسرة (أعمدة zzfetqe_ebreak_*).
         "zzfib_e2e_trendy_quantum_ema": {"length", "reverse", "levels", "extend_right",
                                          "extend_leg_to_live", "mode", "depth", "deviation",
                                          "backstep", "launch_touch_ticks",
@@ -1266,12 +1280,17 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
                                          "zone_gate", "ema_lengths", "ema_resolution",
                                          "ema_source", "ema_offset", "ema_gate",
                                          "ema_stack_mode", "ema_stack_base",
-                                         "zone_exit_resolution", "zone_exit_length"},
+                                         "zone_exit_resolution", "zone_exit_length",
+                                         "zone_resolution", "zone_length",
+                                         "struct_reversal_pct",
+                                         "ema_break_length", "ema_break_drop_pct"},
         # QMOM1: quantum momentum first — same quantum-EMA params verbatim
         # + the flexible conditions gate template (osc_instances: macd/rsi/mom
         # copies, any count, 22 timeframes · osc_conditions: composable
         # and/or/not tree — both passed through as-is to the engine)
         # + ✅ EMAGATE-UNIFIED ema_stack_mode/ema_stack_base (pass-through).
+        # + ✅ ZONE-ENTRY-MTF1: zone_resolution/zone_length — فريم المنطقة
+        # المسموحة للدخول (HH+HL على أي فريم مستقل).
         "zzfib_e2e_trendy_quantum_ema_mom": {"length", "reverse", "levels", "extend_right",
                                               "extend_leg_to_live", "mode", "depth", "deviation",
                                               "backstep", "launch_touch_ticks",
@@ -1280,11 +1299,17 @@ def _normalize_overlay_params(base: str, raw: Dict[str, Any]) -> Dict[str, Any]:
                                               "ema_source", "ema_offset", "ema_gate",
                                               "ema_stack_mode", "ema_stack_base",
                                               "zone_exit_resolution", "zone_exit_length",
+                                              "zone_resolution", "zone_length",
                                               "osc_instances", "osc_conditions"},
         # ✅ MTFEMA1: MTF EMA — معاملات Pine الأربعة + النسخ المتعددة.
         "mtf_ema": {"length", "source", "offset", "resolution", "instances"},
         # ✅ ROUND32: مؤشر الترند المستقل (فراكتالات Pine) — فترات قالبية بأي طول.
         "trend_fractal": {"periods", "confirm_mode"},
+        # ✅ B9: «ماكد 9B» — نسخ MACD متعددة الفريمات + شجرة شروط قابلة
+        # للتركيب (مقارنات قيم عابرة للفريمات) + نافذة تفعيل للإشارة
+        # + وضع إسقاط HTF (v4 · LIVE1: confirmed | live).
+        "b9_macd_gates": {"instances", "conditions", "sub_labels",
+                           "active_start", "active_end", "htf_mode"},
         "zigzag": {"length", "extend_right"},
         "trendline": {"period", "max_pairs"},
     }
@@ -1336,6 +1361,10 @@ def compute_overlays(
         # with or without the osc template); in the default "all types" live
         # panels request we skip it (no duplicate quantum-EMA compute).
         wanted.discard("zzfib_e2e_trendy_quantum_ema_mom")
+        # ✅ B9 — نفس الحماية: «ماكد 9B» محرك استراتيجي (طلبه الصريح من
+        # تكوين الاستراتيجية يحسبه دائماً)؛ في طلب «كل الأنواع» الافتراضي
+        # للوحات الحي نتجاوزه (لا حساب MACD متعدد الفريمات بلا طلب).
+        wanted.discard("b9_macd_gates")
 
     t, o, h, l, c = _norm_candles(candles)
     N = len(c)
@@ -1444,5 +1473,16 @@ def compute_overlays(
         from app.services.indicators.overlays_mtf_ema import mtf_ema_engine
         mte_params = _normalize_overlay_params("mtf_ema", params.get("mtf_ema") or {})
         out["overlays"]["mtf_ema"] = mtf_ema_engine(candles, **mte_params)
+    if "b9_macd_gates" in wanted:
+        # ✅ B9: «ماكد 9B» — بوابات MACD متعددة الفريمات (MACD Buy Strategy 9B
+        # محوّلاً حرفياً) — استدعاء مؤجل للمحرك المعزول الجديد (MACD على
+        # 4H/1D/1W بمرساة TradingView — الأسبوع من الاثنين · إسقاط سببي
+        # confirmed · إحماء فشل-إغلاق · نافذة تفعيل active_start/active_end
+        # تحصر b9g_buy داخل نافذة التداول بينما تُحسب القيم على كامل
+        # البيانات الممتدة). السلاسل: b9g_buy (الأساسية) + b9g_cond/b9g_sub_*
+        # (الشفافية) + b9g_osc_<id>_line|signal|hist (قيم النسخ للرسم).
+        from app.services.indicators.overlays_b9_macd_gates import b9_macd_gates
+        b9_params = _normalize_overlay_params("b9_macd_gates", params.get("b9_macd_gates") or {})
+        out["overlays"]["b9_macd_gates"] = b9_macd_gates(candles, **b9_params)
 
     return out

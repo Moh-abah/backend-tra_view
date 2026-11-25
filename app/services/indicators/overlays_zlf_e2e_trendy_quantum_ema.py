@@ -41,6 +41,19 @@
 # القرار بالصورة: أخضر/بنفسجي/أصفر/أحمر/أزرق/رمادي) في ema.colors
 # ليستخدمه الفرونت إند مباشرة.
 #
+# ✅ STRUCT1 — بوابة الهيكل الكبير (STRUCT-STRICT · صرامة حرفية):
+#      «قمة أعلى من القمة السابقة ∧ قاع أعلى من القاع السابق» مقروءة على
+#      الهيكل الكبير المرئي (المحاور الكبرى المتبادلة قمة/قاع — لا المحاور
+#      الصغيرة اليومية التي يرسمها زقزاق length=226 داخل الصعود الواحد).
+#      كل محور كبير يُقرأ عند شمعة تأكيده فقط (سببية كاملة بلا استشراف
+#      ولا إعادة رسم): القمة الكبرى تؤكد عند أول إغلاق ≤ قمته×(1−R%)
+#      والقاع الكبير عند أول إغلاق ≥ قاعه×(1+R%) — R = struct_reversal_pct
+#      (افتراضي 22% — قابل للتخصيص من الحمولة/الواجهة).
+#      الأعمدة الجديدة (إضافة صرفة — لا يمس أي عمود قائم بت-بت):
+#        zzfetqe_struct_last_high / zzfetqe_struct_prev_high
+#        zzfetqe_struct_last_low  / zzfetqe_struct_prev_low
+#        zzfetqe_struct_hh_hl  (1.0 فقط عندما القمة>القمة ∧ القاع>القاع)
+#
 # العقد: كل الأسماء الجديدة zzfetqe_* → ind_zzfetqe_* لا تتداخل مع zzfet_*
 # (الترندية) ولا zzfetq_* (الكمومية) ولا zzfe_*/zzf_*/trf_*/zzfb_*/zzfetm_*.
 # =============================================================================
@@ -179,6 +192,191 @@ def _ema_line_color(length: Any) -> str:
         (n * 7 + 3) % len(ZLF_E2E_TRENDY_QUANTUM_EMA_COLOR_FALLBACKS)]
 
 _EMA_GATE_KIND = {"s1": 1, "1": 1, "s2": 2, "2": 2, "s3": 3, "3": 3}
+
+
+# ✅ STRUCT1 — افتراضي نسبة انعكاس تأكيد محاور الهيكل الكبير (22%).
+#      معايرة على GOLD-MC1 · THETAUSDT · 15m (2020→2026): أعلى نسبة حجب
+#      للخاسرات مع أقل تضحية بالرابحات وفق قراءة صاحب القرار للهيكل.
+ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_STRUCT_REVERSAL_PCT: float = 22.0
+
+# ✅ EBREAK1 — افتراضيات آلة «كسر EMA-N → نزول X% → استرداد قمة الشمعة
+#      الكاسرة» (الدخول الثاني): خط الكسر = EMA-100 من رصة الساعة (طلب
+#      صاحب القرار: «خروج كسر ال100»)، ونزوع التسليح = 3% من سعر الكسر
+#      («ونزول السعر 3% من هذا الكسر»).
+ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_LENGTH: int = 100
+ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_DROP_PCT: float = 3.0
+
+
+def _compute_ema_break_reclaim(
+    high: List[float],
+    low: List[float],
+    close: List[float],
+    ema_line: Sequence[Optional[float]],
+    drop_pct: float,
+) -> Tuple[List[float], List[Optional[float]], List[Optional[float]],
+            List[float], List[float], List[Dict[str, Any]]]:
+    """✅ EBREAK1 — آلة حالة «الكسر → النزول → الاسترداد» (الدخول الثاني).
+
+    سببية كاملة بلا استشراف وبلا إعادة رسم: كل عمود عند الشمعة i لا يعتمد
+    إلا على الشموع ≤ i. الحلقة (episode) تُدار بقيم شمعة الكسر نفسها:
+
+    1. **شمعة الكسر** (break): أول شمعة يغلق فيها السعر تحت خط EMA-N بعد
+       شمعة أغلقت ≥ الخط (عبور هابط — وأول شمعة صالحة تحت الخط تُحسب
+       كسراً تحفظياً عند بداية البيانات). عند الكسر نثبّت مرجعي الحلقة:
+       قمة الشمعة الكاسرة (ref_high) وسعر كسرها = إغلاقها (ref_close).
+    2. **التسليح** (drop_ok): أول قاع low ≤ ref_close×(1−X%) من شمعة
+       الكسر نفسها فصاعداً (ذيل شمعة الكسر جزء من النزول) — «نزول
+       السعر X% من هذا الكسر».
+    3. **الاسترداد** (reclaim): بعد التسليح، أول شمعة يغلق فيها >
+       قمة الشمعة الكاسرة → إشارة الدخول الثاني (قيمة واحدة في الحلقة)
+       — «اذا اغلقت الشمعة فوق قمة الشمعة الكاسرة اشتري دخول ثاني».
+       يجوز أن يكتمل التسليح والإطلاق في نفس الشمعة (مطرقة استرداد:
+       ذيل ينزل 3% ثم إغلاق فوق قمة شمعة الكسر).
+
+    انتهاء الحلقة: إما بإطلاق الاسترداد (إشارة واحدة لكل حلقة — «دخول
+    ثاني» مفرد) أو بكسر جديد (عبور هابط جديد يفتح حلقة بقيم الشمعة
+    الكاسرة الجديدة). الشمعة التي تغلق ≥ الخط لا تلغي حلقة قائمة ولا
+    تطلق شيئاً — قيم الحلقة تظل من شمعة الكسر الأصلية حرفياً.
+
+    يرجع (break_ev[], ref_high[], ref_close[], drop_ok[], reclaim[], events).
+    """
+    N = len(close)
+    break_ev: List[float] = [0.0] * N
+    ref_high: List[Optional[float]] = [None] * N
+    ref_close: List[Optional[float]] = [None] * N
+    drop_ok: List[float] = [0.0] * N
+    reclaim: List[float] = [0.0] * N
+    events: List[Dict[str, Any]] = []
+    p = float(drop_pct) / 100.0
+    below_prev: Optional[bool] = None   # حالة آخر شمعة صالحة (None = بداية)
+    active = False
+    r_high: Optional[float] = None
+    r_close: Optional[float] = None
+    armed = False
+    for i in range(N):
+        e = ema_line[i] if i < len(ema_line) else None
+        if e is None:
+            continue                        # إحماء EMA — لا حالة بعد
+        ci = float(close[i])
+        below = ci < float(e)
+        if below and below_prev is not True:
+            # حدث كسر: عبور هابط جديد (أول شمعة صالحة تحت الخط تُحسب كسراً
+            # تحفظياً عند بداية البيانات — below_prev=None)
+            active = True
+            r_high = float(high[i])
+            r_close = ci
+            armed = float(low[i]) <= r_close * (1.0 - p)
+            break_ev[i] = 1.0
+            events.append({
+                "bar": i, "kind": "break", "ref_high": r_high,
+                "ref_close": r_close, "armed": bool(armed),
+            })
+        elif active and not armed:
+            # داخل حلقة قائمة — حدّث التسليح بقاع هذه الشمعة أياً كانت
+            # ناحيتها من الخط (ذيل مطرقة فوق الخط جزء من النزول أيضاً)
+            if float(low[i]) <= r_close * (1.0 - p):
+                armed = True
+        if active:
+            ref_high[i] = r_high
+            ref_close[i] = r_close
+            drop_ok[i] = 1.0 if armed else 0.0
+            if armed and ci > r_high:
+                reclaim[i] = 1.0
+                events.append({
+                    "bar": i, "kind": "reclaim", "ref_high": r_high,
+                    "ref_close": r_close, "close": ci,
+                })
+                # إشارة واحدة لكل حلقة — تُغلق وينتظر كسر جديد
+                active = False
+                r_high = None
+                r_close = None
+                armed = False
+        below_prev = below
+    return break_ev, ref_high, ref_close, drop_ok, reclaim, events
+
+
+def _compute_macro_structure(
+    high: List[float],
+    low: List[float],
+    close: List[float],
+    reversal_pct: float,
+) -> Tuple[List[Optional[float]], List[Optional[float]],
+           List[Optional[float]], List[Optional[float]], List[Dict[str, Any]]]:
+    """✅ STRUCT1 — حالة الهيكل الكبير (زقزاق الانحراف السببي المتبادل).
+
+    المحاور الكبرى متبادلة قمة/قاع: القمة الكبرى المرشحة = أعلى قيمة high
+    منذ آخر قاع كبرى مؤكد، وتؤكد عند أول شمعة يغلق فيها ≤ قمته×(1−R%).
+    والقاع الكبرى المرشح = أدنى قيمة low منذ آخر قمة كبرى مؤكدة، ويؤكد
+    عند أول شمعة يغلق فيها ≥ قاعه×(1+R%). بعد تأكيد القمة نبحث عن القاع
+    (والعكس) — تبادل كامل بلا استشراف وبلا إعادة رسم (كل حالة نهائية
+    عند شمعة تأكيدها ولا تتغير بعدها أبداً).
+
+    يرجع (last_high[], prev_high[], last_low[], prev_low[], events):
+    قيم الأعمدة عند كل شمعة = حالة آخر قمة/قاع كبريين مؤكدين حتىها
+    (None قبل اكتمال أول زوج قمم/قيعان مؤكد).
+    """
+    N = len(close)
+    lh: List[Optional[float]] = [None] * N
+    ph: List[Optional[float]] = [None] * N
+    ll: List[Optional[float]] = [None] * N
+    pl: List[Optional[float]] = [None] * N
+    events: List[Dict[str, Any]] = []
+    if N == 0:
+        return lh, ph, ll, pl, events
+    last_h: Optional[float] = None
+    prev_h: Optional[float] = None
+    last_l: Optional[float] = None
+    prev_l: Optional[float] = None
+    cand_h_price: float = high[0]
+    cand_h_bar: int = 0
+    cand_l_price: float = low[0]
+    cand_l_bar: int = 0
+    mode: Optional[str] = None  # None=غير محدد · 'up'=بحث عن قمة · 'down'=بحث عن قاع
+    down_thr = 1.0 - reversal_pct / 100.0
+    up_thr = 1.0 + reversal_pct / 100.0
+    for i in range(N):
+        if mode in (None, "up") and high[i] > cand_h_price:
+            cand_h_price = high[i]
+            cand_h_bar = i
+        if mode in (None, "down") and low[i] < cand_l_price:
+            cand_l_price = low[i]
+            cand_l_bar = i
+        confirmed: Optional[Tuple[str, float, int]] = None
+        if mode in (None, "up") and close[i] <= cand_h_price * down_thr:
+            confirmed = ("top", cand_h_price, cand_h_bar)
+        elif mode in (None, "down") and close[i] >= cand_l_price * up_thr:
+            confirmed = ("bottom", cand_l_price, cand_l_bar)
+        if confirmed is not None:
+            kind, price, pbar = confirmed
+            if kind == "top":
+                prev_h = last_h
+                last_h = price
+                mode = "down"
+                seg = low[pbar:i + 1]
+                cand_l_price = min(seg)
+                cand_l_bar = pbar + seg.index(cand_l_price)
+            else:
+                prev_l = last_l
+                last_l = price
+                mode = "up"
+                seg = high[pbar:i + 1]
+                cand_h_price = max(seg)
+                cand_h_bar = pbar + seg.index(cand_h_price)
+            events.append({
+                "bar": int(i),
+                "pivot_bar": int(pbar),
+                "kind": kind,
+                "price": float(price),
+                "prev_price": (
+                    float(prev_h) if kind == "top" and prev_h is not None
+                    else (float(prev_l) if kind == "bottom" and prev_l is not None
+                          else None)),
+            })
+        lh[i] = last_h
+        ph[i] = prev_h
+        ll[i] = last_l
+        pl[i] = prev_l
+    return lh, ph, ll, pl, events
 
 
 def _norm_ema_gate(raw: Any) -> List[int]:
@@ -368,8 +566,19 @@ def zigzag_fib_e2e_trendy_quantum_ema(
     ema_gate: Any = None,
     zone_exit_resolution: Any = None,
     zone_exit_length: Any = None,
+    # ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي فريم)
+    zone_resolution: Any = None,
+    zone_length: Any = None,
     ema_stack_mode: Any = None,
     ema_stack_base: Any = None,
+    # ✅ STRUCT1 — نسبة انعكاس تأكيد محاور الهيكل الكبير (قمة/قاع كبرى).
+    #      None = الافتراضي 22.0 (معايرة GOLD-MC1 على THETAUSDT 15m).
+    struct_reversal_pct: Any = None,
+    # ✅ EBREAK1 — آلة «كسر EMA-N → نزول X% → استرداد قمة الشمعة الكاسرة»
+    #      (الدخول الثاني بعد الخروج على كسر الـEMA). افتراضياً: خط 100
+    #      من رصة الساعة ونزول 3% — حرفي طلب صاحب القرار.
+    ema_break_length: Any = None,
+    ema_break_drop_pct: Any = None,
 ) -> Dict[str, Any]:
     """ZLF-End-To-End-Trendy-Quantum-EMA — الكمومية بحذافيرها + بوابة رصة EMA.
 
@@ -401,6 +610,13 @@ def zigzag_fib_e2e_trendy_quantum_ema(
       zone_exit_length      : طول زقزاق هيكل الخروج على HTF (اختياري —
                      افتراضياً نفس length). يتيح ضبط حساسية بنية الخروج
                      مستقلة عن حساسية الدخول.
+      ema_break_length      : ✅ EBREAK1 — طول خط EMA الذي تُدار عليه آلة
+                     الدخول الثاني (كسره → نزول → استرداد) — افتراضياً 100
+                     (من رصة الساعة نفسها؛ وإن لم يكن ضمن الأطوال حُسب خط
+                     إضافي بنفس البناء).
+      ema_break_drop_pct    : ✅ EBREAK1 — نسبة النزول من سعر الكسر لتسليح
+                     الدخول الثاني (افتراضياً 3%) — من إغلاق شمعة الكسر،
+                     عدّاً ذيلها فصاعداً.
 
     المخرجات: سلاسل تحتوي عقد التمايز معاً — zzfetqe_* الجديدة + zzfetq_*
     الكمية (62) + zzfet_* الترندية (47) ممرَّرة بت-بت (بيانات الرسم الكاملة
@@ -426,6 +642,9 @@ def zigzag_fib_e2e_trendy_quantum_ema(
         trend_confirm=trend_confirm,
         trend_gate=trend_gate,
         zone_gate=zone_gate,
+        # ✅ ZONE-ENTRY-MTF1 — تمرير حرفي لفريم المنطقة المسموحة للدخول
+        zone_resolution=zone_resolution,
+        zone_length=zone_length,
     )
     base_series: Dict[str, List[Optional[float]]] = base.get("series") or {}
 
@@ -659,6 +878,147 @@ def zigzag_fib_e2e_trendy_quantum_ema(
                         "داخلي) — السلوك التاريخي يسود بت-بت.",
             }
 
+    # (د-3) ✅ STRUCT1 — بوابة الهيكل الكبير (STRUCT-STRICT · إضافة صرفة):
+    #      حالة آخر قمة/قاع كبريين مؤكدين (زقزاق الانحراف السببي المتبادل)
+    #      تُحسب هنا ولا تُقرأ إلا من أعمدة zzfetqe_struct_* الجديدة — لا
+    #      أي عمود قائم يتغير بت-بت (الدخول والمخارج والمنطقة والرصة كما
+    #      هي حرفياً؛ البوابة الصارمة تُفعَّل من الحمولة بشروط تشير لهذه
+    #      الأعمدة: zzfetqe_struct_last_high > zzfetqe_struct_prev_high ∧
+    #      zzfetqe_struct_last_low > zzfetqe_struct_prev_low).
+    # ------------------------------------------------------------------
+    try:
+        struct_r = float(struct_reversal_pct) if struct_reversal_pct is not None \
+            else ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_STRUCT_REVERSAL_PCT
+    except (TypeError, ValueError):
+        struct_r = ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_STRUCT_REVERSAL_PCT
+    if struct_r < 2.0:
+        struct_r = 2.0
+    h_list = [float(x) for x in h]
+    l_list = [float(x) for x in l]
+    c_list = [float(x) for x in c]
+    st_lh, st_ph, st_ll, st_pl, struct_events = _compute_macro_structure(
+        h_list, l_list, c_list, struct_r)
+    st_hh_hl: List[float] = [0.0] * N
+    for i in range(N):
+        if (st_lh[i] is not None and st_ph[i] is not None
+                and st_ll[i] is not None and st_pl[i] is not None
+                and st_lh[i] > st_ph[i] and st_ll[i] > st_pl[i]):
+            st_hh_hl[i] = 1.0
+    quantum_ema_series["zzfetqe_struct_last_high"] = st_lh
+    quantum_ema_series["zzfetqe_struct_prev_high"] = st_ph
+    quantum_ema_series["zzfetqe_struct_last_low"] = st_ll
+    quantum_ema_series["zzfetqe_struct_prev_low"] = st_pl
+    quantum_ema_series["zzfetqe_struct_hh_hl"] = st_hh_hl
+
+    # (د-4) ✅ EBREAK1 — آلة «كسر EMA-N → نزول X% → استرداد قمة الشمعة
+    #      الكاسرة» (الدخول الثاني · إضافة صرفة): آلة حالة سببية على خط
+    #      EMA-N من عائلة رصة الساعة نفسها (أو خط إضافي بنفس البناء إن
+    #      لم يكن ضمن الأطوال). لا تلمس أي عمود قائم بت-بت — أعمدة
+    #      zzfetqe_ebreak_* الجديدة فقط تُضاف.
+    # ------------------------------------------------------------------
+    try:
+        eb_len = int(ema_break_length) if ema_break_length is not None \
+            else ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_LENGTH
+    except (TypeError, ValueError):
+        eb_len = ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_LENGTH
+    if eb_len < 2:
+        eb_len = ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_LENGTH
+    try:
+        eb_drop = float(ema_break_drop_pct) if ema_break_drop_pct is not None \
+            else ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_DROP_PCT
+    except (TypeError, ValueError):
+        eb_drop = ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_DROP_PCT
+    if not (0.0 < eb_drop <= 90.0):
+        eb_drop = ZLF_E2E_TRENDY_QUANTUM_EMA_DEFAULT_EMA_BREAK_DROP_PCT
+    if eb_len in ema_lengths_norm:
+        eb_line = ema_cols.get(f"ema_{int(eb_len)}") or [None] * N
+        eb_source = "stack-family"
+    else:
+        # خط إضافي بنفس بناء العائلة (نفس المصدر/الإزاحة/الفريم) — حتمي
+        # ومتطابق بت-بت مع ما كانت العائلة سترجعه لو ضُمّن الطول نفسه
+        eb_extra, _ = _compute_mtf_ema_family(
+            candles, [int(eb_len)], src_norm, int(ema_offset or 0), str(res_raw))
+        eb_line = eb_extra.get(f"ema_{int(eb_len)}") or [None] * N
+        eb_source = "extra-family"
+    eb_break, eb_ref_high, eb_ref_close, eb_drop_ok, eb_reclaim, eb_events = \
+        _compute_ema_break_reclaim(h_list, l_list, c_list, eb_line, eb_drop)
+    quantum_ema_series["zzfetqe_ebreak_break"] = eb_break
+    quantum_ema_series["zzfetqe_ebreak_ref_high"] = eb_ref_high
+    quantum_ema_series["zzfetqe_ebreak_ref_close"] = eb_ref_close
+    quantum_ema_series["zzfetqe_ebreak_drop_ok"] = eb_drop_ok
+    quantum_ema_series["zzfetqe_ebreak_reclaim"] = eb_reclaim
+    for ev in eb_events:
+        ev["time"] = int(t[int(ev["bar"])]) if int(ev["bar"]) < len(t) else None
+    eb_n_break = int(sum(1 for v in eb_break if v and v > 0))
+    eb_n_reclaim = int(sum(1 for v in eb_reclaim if v and v > 0))
+    eb_n_armed_events = int(sum(1 for ev in eb_events if ev.get("kind") == "break" and ev.get("armed")))
+    ema_break_section: Dict[str, Any] = {
+        "enabled": True,
+        "spec": "EBREAK1-break-drop-reclaim",
+        "break_length": int(eb_len),
+        "drop_pct": float(eb_drop),
+        "line_source": eb_source,
+        "resolution": ema_meta.get("resolution"),
+        "rule": "آلة الدخول الثاني (EBREAK1): عند كسر خط EMA-N (أول إغلاق "
+                "تحته بعد إغلاق ≥ الخط) تُثبَّت قمة الشمعة الكاسرة وسعر "
+                "كسرها (إغلاقها). ثم يُسلَّط الشرط عند نزول السعر X% من "
+                "سعر الكسر (أول low ≤ سعر الكسر ×(1−X%)) — من شمعة الكسر "
+                "نفسها فصاعداً. وبعد التسليح، أول شمعة تغلق فوق قمة الشمعة "
+                "الكاسرة = إشارة دخول ثاني (واحدة لكل حلقة كسر — حلقة "
+                "جديدة عند كسر جديد). كل الأعمدة سببية بت-بت (بلا استشراف "
+                "وبلا إعادة رسم). الخروج على كسر الخط نفسه يُفعَّل من "
+                "الحمولة بقاعدة close < zzfetqe_ema_N — آلة الأعمدة "
+                "للدخول الثاني فقط.",
+        "columns": {
+            "break": "zzfetqe_ebreak_break",
+            "ref_high": "zzfetqe_ebreak_ref_high",
+            "ref_close": "zzfetqe_ebreak_ref_close",
+            "drop_ok": "zzfetqe_ebreak_drop_ok",
+            "reclaim": "zzfetqe_ebreak_reclaim",
+        },
+        "counts": {
+            "breaks": eb_n_break,
+            "armed_at_break": eb_n_armed_events,
+            "reclaims": eb_n_reclaim,
+            "events": len(eb_events),
+        },
+        "events": eb_events,
+    }
+
+    for ev in struct_events:
+        ev["time"] = int(t[int(ev["bar"])]) if int(ev["bar"]) < len(t) else None
+        ev["pivot_time"] = int(t[int(ev["pivot_bar"])]) \
+            if int(ev["pivot_bar"]) < len(t) else None
+    struct_section: Dict[str, Any] = {
+        "enabled": True,
+        "spec": "STRUCT1-macro-hh-hl",
+        "reversal_pct": float(struct_r),
+        "rule": "بوابة الهيكل الكبير (صرامة حرفية): آخر قمة كبرى مؤكدة أعلى "
+                "حرفياً من القمة الكبرى السابقة لها ∧ آخر قاع كبرٍ مؤكد أعلى "
+                "حرفياً من القاع الكبر السابق له — عند شمعة الإشارة نفسها. "
+                "المحاور الكبرى متبادلة قمة/قاع وكل محور يُؤكَّد سببياً فقط: "
+                "القمة عند أول إغلاق ≤ قمته×(1−R%) والقاع عند أول إغلاق ≥ "
+                "قاعه×(1+R%) — بلا استشراف وبلا إعادة رسم. القيم None قبل "
+                "اكتمال أول زوج مؤكد ⇒ البوابة مقفلة (تحفظياً). الأعمدة: "
+                "zzfetqe_struct_last_high/prev_high/last_low/prev_low + "
+                "العلم zzfetqe_struct_hh_hl (1.0 فقط عند تحقق الشرطين معاً).",
+        "columns": {
+            "last_high": "zzfetqe_struct_last_high",
+            "prev_high": "zzfetqe_struct_prev_high",
+            "last_low": "zzfetqe_struct_last_low",
+            "prev_low": "zzfetqe_struct_prev_low",
+            "hh_hl_flag": "zzfetqe_struct_hh_hl",
+        },
+        "counts": {
+            "confirmed_tops": sum(1 for e in struct_events
+                                   if e.get("kind") == "top"),
+            "confirmed_bottoms": sum(1 for e in struct_events
+                                     if e.get("kind") == "bottom"),
+            "hh_hl_bars": int(sum(st_hh_hl)),
+        },
+        "events": struct_events,
+    }
+
     # (هـ) ✅ تمرير عقدَي الكمومية كما هما (zzfetq_* + zzfet_* — بت-بت)
     passthrough = {k: v for k, v in base_series.items()
                    if str(k).startswith("zzfetq_") or str(k).startswith("zzfet_")}
@@ -759,6 +1119,11 @@ def zigzag_fib_e2e_trendy_quantum_ema(
             int(zone_exit_section.get("length")) if zone_exit_section.get("enabled") else None)
     except (TypeError, ValueError):
         params_echo["zone_exit_length"] = None
+    # ✅ STRUCT1 — صدى نسبة انعكاس الهيكل الكبير الفعلية بعد التطبيع
+    params_echo["struct_reversal_pct"] = float(struct_r)
+    # ✅ EBREAK1 — صدى آلة الدخول الثاني (خط الكسر ونسبة النزول) بعد التطبيع
+    params_echo["ema_break_length"] = int(eb_len)
+    params_echo["ema_break_drop_pct"] = float(eb_drop)
 
     base_zone = dict(base.get("zone") or {})
 
@@ -783,8 +1148,14 @@ def zigzag_fib_e2e_trendy_quantum_ema(
         "series": full_series,
         "trend": dict(base.get("trend") or {}),
         "zone": base_zone,
+        # ✅ ZONE-ENTRY-MTF1 — قسم فريم المنطقة المسموحة للدخول (من الأساس):
+        "zone_entry": base.get("zone_entry") or {"enabled": False},
         # ✅ ZONE-EXIT-TF1 — قسم فريم هيكل الخروج (CHoCH على أي فريم):
         "zone_exit": zone_exit_section,
+        # ✅ STRUCT1 — قسم الهيكل الكبير (صرامة القمة>القمة ∧ القاع>القاع):
+        "struct": struct_section,
+        # ✅ EBREAK1 — قسم آلة الدخول الثاني (كسر EMA-N → نزول X% → استرداد):
+        "ema_break": ema_break_section,
         "ema": {
             "enabled": True,
             "engine": ZLF_E2E_TRENDY_QUANTUM_EMA_ENGINE_NAME,
@@ -884,6 +1255,10 @@ def _register_quantum_ema_indicator() -> None:
                     "ema_resolution": "60", "ema_source": "close",
                     "ema_offset": 0, "ema_gate": ["s1", "s2", "s3"],
                     "ema_stack_mode": "hierarchical", "ema_stack_base": 21,
+                    # ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة (None = الشارت)
+                    "zone_resolution": None, "zone_length": None,
+                    # ✅ STRUCT1 — نسبة انعكاس الهيكل الكبير (افتراضي معايرة)
+                    "struct_reversal_pct": 22,
                 }
 
             def calculate(self, data: pd.DataFrame) -> IndicatorResult:

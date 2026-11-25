@@ -284,6 +284,14 @@ async def _execute_backtest(config_dict: dict, task_ref=None, session_maker=None
                 "trade_points": result.trade_points,
                 "equity_curve": result.equity_curve,
                 "drawdown_curve": result.drawdown_curve,
+                # ✅ B9-T100-GATE1 — رسومات الترند بإحداثياتها (لكل خط وُلد:
+                # x/t/y للطرفين + الميل + لحظة الولادة + الإحلال) كي يرسمها
+                # الفرونت اند من نتيجة /get مباشرة، ونقاط الدخول المرفوضة
+                # ببوابة التنفيذ (سعر التنفيذ تحت خط الترند-100). None عند
+                # استراتيجيات بلا trend_fractal/execution_gates (بت-بت) —
+                # clean_for_db يسقط المفتاح None فيبقى العقد القديم كما هو.
+                "trend_lines": getattr(result, "trend_drawings", None),
+                "skipped_entry_points": getattr(result, "skipped_entry_points", None),
             })
 
             # ✅ JSON-آمن بالكامل (كان config.dict() يحتوي datetime objects)

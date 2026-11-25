@@ -1847,6 +1847,253 @@ PRESET_NOTES: List[str] = [
 ]
 
 
+# ✅ B9 — «ماكد 9B + ترند 100» (2026-11-22): MACD Buy Strategy 9B محوّلة من
+# Pine حرفياً (7 نسخ MACD على 4H/1D/1W — إسقاط سببي confirmed + إحماء
+# فشل-إغلاق + نافذة تفعيل) ومدمجة مع ترند 100: الدخول = شروط B9 الأربعة
+# ∧ الإغلاق فوق خط الترند 100 · الخروج = استجد خط ترند-100 في رسم جديد.
+B9_TREND100: Dict[str, Any] = { 'name': '👑 B9-T100 · ETHUSDT · 15m · دخول B9 (ماكد متعدد الفريمات) + فوق ترند 100 — خروج عند '
+          'استجد ترند 100 (رسم جديد)',
+  'description': '«ماكد 9B» (MACD Buy Strategy 9B) محوّلة من Pine ومدمجة مع ترند 100: الدخول = '
+                 'شروط B9 الأربعة (إيجابية الماكد الأسبوعي A/B/C + اليومي B/C + نواة 4H B فوق '
+                 'إشارته وفوق الصفر + أي ماكد أعلى فوق إشارته وفوق خط 4H B) مع الإغلاق فوق خط '
+                 'الترند 100. الخروج = استجد خط ترند 100 في رسم جديد (ولادة خط جديد علوي أو سفلي). '
+                 'إدارة نقية بإشارات فقط (بلا SL/TP/تريلينق/جني مقسم/تعزيز). البيانات من '
+                 '2024-08-08 (إحماء MACD الأسبوعي كما يراه TradingView) والصفقات محصورة في نافذة '
+                 'التقييم 2026-02-08 → 2026-11-09 عبر active_start/active_end.',
+  'mode': 'standard',
+  'start_date': '2024-08-08T00:00:00Z',
+  'end_date': '2026-11-09T00:00:00Z',
+  'days': None,
+  'timeframe': '15m',
+  'timezone': 'UTC',
+  'tz_offset_minutes': 0,
+  'market': 'crypto',
+  'symbols': ['ETHUSDT'],
+  'strategy_config': { 'name': 'B9-Trend100 (MACD multi-TF gates + trend-100 gate & new-line exit)',
+                       'base_timeframe': '15m',
+                       'position_side': 'long',
+                       'indicators': [ { 'name': 'b9_macd_gates',
+                                         'type': 'momentum',
+                                         'params': { 'instances': [ { 'id': 'macd_4h_12_26_6',
+                                                                      'timeframe': '240',
+                                                                      'fast': 12,
+                                                                      'slow': 26,
+                                                                      'signal': 6,
+                                                                      'doc': '4H B (12/26/6) — '
+                                                                             'نواة الشرط المؤكدة '
+                                                                             '(confirmed on 4h '
+                                                                             'close)'},
+                                                                    { 'id': 'macd_1d_6_13_4',
+                                                                      'timeframe': '1D',
+                                                                      'fast': 6,
+                                                                      'slow': 13,
+                                                                      'signal': 4,
+                                                                      'doc': '1D A (6/13/4)'},
+                                                                    { 'id': 'macd_1d_12_26_6',
+                                                                      'timeframe': '1D',
+                                                                      'fast': 12,
+                                                                      'slow': 26,
+                                                                      'signal': 6,
+                                                                      'doc': '1D B (12/26/6)'},
+                                                                    { 'id': 'macd_1d_18_39_4',
+                                                                      'timeframe': '1D',
+                                                                      'fast': 18,
+                                                                      'slow': 39,
+                                                                      'signal': 4,
+                                                                      'doc': '1D C (18/39/4)'},
+                                                                    { 'id': 'macd_1w_6_13_4',
+                                                                      'timeframe': '1W',
+                                                                      'fast': 6,
+                                                                      'slow': 13,
+                                                                      'signal': 4,
+                                                                      'doc': '1W A (6/13/4)'},
+                                                                    { 'id': 'macd_1w_12_26_4',
+                                                                      'timeframe': '1W',
+                                                                      'fast': 12,
+                                                                      'slow': 26,
+                                                                      'signal': 4,
+                                                                      'doc': '1W B (12/26/4)'},
+                                                                    { 'id': 'macd_1w_18_39_4',
+                                                                      'timeframe': '1W',
+                                                                      'fast': 18,
+                                                                      'slow': 39,
+                                                                      'signal': 4,
+                                                                      'doc': '1W C (18/39/4)'}],
+                                                     'conditions': { 'logic': 'and',
+                                                                     'conditions': [ { 'name': 'condW_pos '
+                                                                                               '— '
+                                                                                               'الماكد '
+                                                                                               'الأسبوعي '
+                                                                                               'الثلاثة '
+                                                                                               'فوق '
+                                                                                               'إشاراتها '
+                                                                                               '(1W '
+                                                                                               'A/B/C)',
+                                                                                       'logic': 'and',
+                                                                                       'conditions': [ { 'left': 'osc:macd_1w_6_13_4.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 'osc:macd_1w_6_13_4.signal'},
+                                                                                                       { 'left': 'osc:macd_1w_12_26_4.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 'osc:macd_1w_12_26_4.signal'},
+                                                                                                       { 'left': 'osc:macd_1w_18_39_4.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 'osc:macd_1w_18_39_4.signal'}]},
+                                                                                     { 'name': 'condD_pos '
+                                                                                               '— '
+                                                                                               'الماكد '
+                                                                                               'اليومي '
+                                                                                               'B/C '
+                                                                                               'فوق '
+                                                                                               'إشارتيهما',
+                                                                                       'logic': 'and',
+                                                                                       'conditions': [ { 'left': 'osc:macd_1d_12_26_6.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 'osc:macd_1d_12_26_6.signal'},
+                                                                                                       { 'left': 'osc:macd_1d_18_39_4.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 'osc:macd_1d_18_39_4.signal'}]},
+                                                                                     { 'name': 'cond4H_core '
+                                                                                               '— '
+                                                                                               '4H '
+                                                                                               'B '
+                                                                                               'فوق '
+                                                                                               'إشارته '
+                                                                                               'وفوق '
+                                                                                               'الصفر '
+                                                                                               '(مؤكد)',
+                                                                                       'logic': 'and',
+                                                                                       'conditions': [ { 'left': 'osc:macd_4h_12_26_6.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 'osc:macd_4h_12_26_6.signal'},
+                                                                                                       { 'left': 'osc:macd_4h_12_26_6.line',
+                                                                                                         'op': '>',
+                                                                                                         'right': 0}]},
+                                                                                     { 'name': 'condAnyAbove4H '
+                                                                                               '— '
+                                                                                               'أي '
+                                                                                               'ماكد '
+                                                                                               'أعلى '
+                                                                                               '(1D '
+                                                                                               'A/B/C '
+                                                                                               '· '
+                                                                                               '1W '
+                                                                                               'A/B/C) '
+                                                                                               'فوق '
+                                                                                               'إشارته '
+                                                                                               'وفوق '
+                                                                                               'خط '
+                                                                                               '4H '
+                                                                                               'B',
+                                                                                       'logic': 'or',
+                                                                                       'conditions': [ { 'logic': 'and',
+                                                                                                         'conditions': [ { 'left': 'osc:macd_1d_6_13_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_1d_6_13_4.signal'},
+                                                                                                                         { 'left': 'osc:macd_1d_6_13_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_4h_12_26_6.line'}]},
+                                                                                                       { 'logic': 'and',
+                                                                                                         'conditions': [ { 'left': 'osc:macd_1d_12_26_6.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_1d_12_26_6.signal'},
+                                                                                                                         { 'left': 'osc:macd_1d_12_26_6.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_4h_12_26_6.line'}]},
+                                                                                                       { 'logic': 'and',
+                                                                                                         'conditions': [ { 'left': 'osc:macd_1d_18_39_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_1d_18_39_4.signal'},
+                                                                                                                         { 'left': 'osc:macd_1d_18_39_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_4h_12_26_6.line'}]},
+                                                                                                       { 'logic': 'and',
+                                                                                                         'conditions': [ { 'left': 'osc:macd_1w_6_13_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_1w_6_13_4.signal'},
+                                                                                                                         { 'left': 'osc:macd_1w_6_13_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_4h_12_26_6.line'}]},
+                                                                                                       { 'logic': 'and',
+                                                                                                         'conditions': [ { 'left': 'osc:macd_1w_12_26_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_1w_12_26_4.signal'},
+                                                                                                                         { 'left': 'osc:macd_1w_12_26_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_4h_12_26_6.line'}]},
+                                                                                                       { 'logic': 'and',
+                                                                                                         'conditions': [ { 'left': 'osc:macd_1w_18_39_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_1w_18_39_4.signal'},
+                                                                                                                         { 'left': 'osc:macd_1w_18_39_4.line',
+                                                                                                                           'op': '>',
+                                                                                                                           'right': 'osc:macd_4h_12_26_6.line'}]}]}]},
+                                                     'sub_labels': [ 'w_pos',
+                                                                     'd_pos',
+                                                                     '4h_core',
+                                                                     'any_above_4h'],
+                                                     'active_start': '2026-02-08T00:00:00Z',
+                                                     'active_end': '2026-11-09T00:00:00Z'},
+                                         'enabled': True,
+                                         'timeframe': '15m'},
+                                       { 'name': 'trend_fractal',
+                                         'type': 'support_resistance',
+                                         'params': {'periods': [100], 'confirm_mode': 'all'},
+                                         'enabled': True,
+                                         'timeframe': '15m'}],
+                       'entry_rules': [ { 'name': 'دخول B9 + الإغلاق فوق خط الترند 100 (شراء B9 '
+                                                  'حرفياً مع بوابة ترند 100)',
+                                          'condition': { 'type': 'and',
+                                                         'conditions': [ { 'type': 'indicator_value',
+                                                                           'operator': '>',
+                                                                           'left_value': 'indicator:b9_macd_gates:b9g_buy',
+                                                                           'right_value': 0},
+                                                                         { 'type': 'indicator_value',
+                                                                           'operator': '>',
+                                                                           'left_value': 'indicator:trend_fractal:trf_p100_bias',
+                                                                           'right_value': 0}]},
+                                          'position_side': 'long',
+                                          'weight': 1.0,
+                                          'enabled': True}],
+                       'exit_rules': [ { 'name': 'خروج عند ولادة خط ترند-100 علوي جديد فقط '
+                                                '(الخط فوق السعر — أعلى من الإغلاق)',
+                                         'condition': { 'type': 'and',
+                                                        'conditions': [ { 'type': 'indicator_value',
+                                                                          'operator': '>',
+                                                                          'left_value': 'indicator:trend_fractal:trf_p100_new_upper',
+                                                                          'right_value': 0},
+                                                                        { 'type': 'indicator_value',
+                                                                          'operator': '>',
+                                                                          'left_value': 'indicator:trend_fractal:trf_p100_upper',
+                                                                          'right_value': 'price:close'}]},
+                                         'exit_type': 'signal_exit',
+                                         'enabled': True}],
+                       'risk_management': { 'stop_loss_percentage': 2,
+                                            'take_profit_percentage': 99}},
+  'initial_capital': 300.0,
+  'position_sizing': 'percentage',
+  'position_size_percent': 100.0,
+  'max_positions': 1,
+  'compounding': True,
+  'multi_position_compounding': False,
+  'commission_rate': 0.0,
+  'slippage_percent': 0.0,
+  'fill_model': 'next_open',
+  'stop_loss_percent': None,
+  'take_profit_percent': None,
+  'take_profit_splits': None,
+  'structure_split_exits': None,
+  'dca_rebuy_drops_pct': None,
+  'trailing_stop_percent': None,
+  'trailing_stop_mode': None,
+  'max_daily_loss_percent': None,
+  'enable_short_selling': False,
+  'enable_margin': False,
+  'leverage': 1.0,
+  'require_confirmation': False,
+  'exit_strategy': None}
+
+
 def get_presets() -> List[Dict[str, Any]]:
     """قائمة القوالب الرسمية — كل قالب حمولة كاملة جاهزة لـ POST /backtest/run."""
     return [
@@ -2112,5 +2359,40 @@ def get_presets() -> List[Dict[str, Any]]:
                                 "المرجعية بعد النشر",
             "payload": QMOM1_TRIPLE_SIGNAL,
             "notes": PRESET_NOTES,
+        },
+        # ✅ B9 (2026-11-22) — «ماكد 9B + ترند 100» (إضافة — القوالب السابقة كما هي)
+        {
+            "id": "b9_trend100_zero_fee",
+            "title": "B9-T100 — ماكد 9B + ترند 100 · خروج ولادة خط علوي فقط + الخط فوق السعر — ZERO FEE",
+            "description": "«MACD Buy Strategy 9B» محوّلة من Pine ومدمجة مع ترند 100: "
+                           "الدخول = شروط B9 الأربعة (إيجابية الماكد الأسبوعي A/B/C "
+                           "6-13-4/12-26-4/18-39-4 + اليومي B/C 12-26-6/18-39-4 + نواة "
+                           "4H B 12-26-6 فوق إشارته وفوق الصفر + أي ماكد أعلى فوق إشارته "
+                           "وفوق خط 4H B) ∧ الإغلاق فوق خط الترند 100 (fractal فترة 100). "
+                           "الخروج = ولادة خط ترند-100 علوي جديد فقط ∧ الخط العلوي فوق "
+                           "السعر (قيمته أعلى من الإغلاق) — تصحيح صاحب القرار. إدارة نقية بإشارات فقط — بلا SL/TP/تريلينق/جني "
+                           "مقسم/تعزيز. الإسقاط سببي (آخر شريط HTF مكتمل — confirmed) "
+                           "والإحماء فشل-إغلاق ونافذة تفعيل active_start/active_end تحصر "
+                           "الصفقات داخل نافذة التقييم بينما تُحسب القيم على البيانات "
+                           "الممتدة قبلها (إحماء MACD الأسبوعي كما يراه TradingView).",
+            "source": "B9 — طلب صاحب القرار (2026-11-22): «استراتيجيه جديده مبنيه "
+                      "باستخدام بين سكربت اريد منك ان تحولها وتدمجها في النظام "
+                      "ونختبرها ع العملات eth,xrp,mbl ... سندمج عليها ترند 100 هنا "
+                      "يتحقق شرط الشراء · الخروج او البيع يكون اذا استجد ترند 100 "
+                      "في رسم جديد»",
+            "reference_result": "التحقق المحلي الكامل (2026-11-22): مطابقة قيم MACD "
+                                "للنسخ السبع بمرجع مستقل بت-بت (خطأ 0.00e+00 على "
+                                "~500 ألف نقطة) · ETHUSDT (نافذة 2026-02-08→2026-11-09): "
+                                "5 صفقات · +20.50% · MaxDD 4.31% · XRPUSDT "
+                                "(2025-12-18→2026-11-09): صفقة واحدة · −1.52% · "
+                                "MBLUSDT (2025-03-13→2026-11-11): 14 صفقة · +1.24% · "
+                                "كل الصفقات داخل نافذتها وكل المخارج بشرط ولادة خط "
+                                "الترند-100 حصراً (تحقق شمعة-بشمعة 20/20)",
+            "payload": B9_TREND100,
+            "notes": "قالب B9: عدّل symbols/start_date/end_date و active_start/"
+                     "active_end معًا (نافذة التقييم) — أزل active_start/active_end "
+                     "لتشغيل الإشارات على كامل نافذة البيانات. بيانات ما قبل "
+                     "start_date في الحمولة = إحماء MACD الأسبوعي (≈18 شهراً) — "
+                     "احتفظ بها لنتائج مطابقة لـ TradingView.",
         },
     ]

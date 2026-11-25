@@ -1,0 +1,157 @@
+{
+ "name": "👑 R9-DCA · XRPUSDT · 15m · تصريف رباعي 4.7/7.4/15 @25% + تريلينق-15 (الهدف الرابع) + تعزيز شراء عند هبوط 2%/4.5% (نفس قيمة الأول 1:1:1) — أساس مهمة #10001099",
+ "description": "رحلة إعادة تقييم الملك — الجولة السابعة «محاكمة الملوك الثلاثة»: أضيق رصة ممكنة تلتزم بأمر صاحب القرار: خطان ساعيان فقط — EMA-21 (المعفى من الترتيب الهرمي) وEMA-50. الشرط العملي: السعر فوق الخمسين على الساعة. — XRPUSDT · فريم 15 دقيقة · نافذة 2025-12-18 → 2026-11-09 · عقد الخروج الموحد: TP1 4.7% ×33% · TP2 7.4% ×33% · تريلينق 15% للباقي.",
+ "mode": "standard",
+ "start_date": "2025-12-18T00:00:00Z",
+ "end_date": "2026-11-09T00:00:00Z",
+ "days": null,
+ "timeframe": "15m",
+ "timezone": "UTC",
+ "tz_offset_minutes": 0,
+ "market": "crypto",
+ "symbols": [
+  "XRPUSDT"
+ ],
+ "strategy_config": {
+  "name": "ZLF-End-To-End-Trendy-Quantum-EMA (3 Entry Signals — Trend+Zone+EMA-stack gated)",
+  "base_timeframe": "15m",
+  "position_side": "long",
+  "indicators": [
+   {
+    "name": "zigzag_fib_e2e_trendy_quantum_ema",
+    "type": "support_resistance",
+    "params": {
+     "mode": "luxalgo",
+     "length": 100,
+     "touch_level": 0.618,
+     "trend_periods": [
+      7,
+      15,
+      25
+     ],
+     "trend_confirm": "majority",
+     "trend_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "zone_gate": [
+      "s1",
+      "s2",
+      "s3"
+     ],
+     "ema_lengths": [
+      21,
+      50
+     ],
+     "ema_resolution": "60",
+     "ema_source": "close",
+     "ema_offset": 0,
+     "ema_gate": [
+      "s1"
+     ],
+     "ema_stack_mode": "hierarchical",
+     "ema_stack_base": 21
+    },
+    "enabled": true,
+    "timeframe": "15m"
+   }
+  ],
+  "entry_rules": [
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA S1 · الاختراق الكامل المؤكد + الترند (7/15/25) + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s1",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.34,
+    "enabled": true
+   },
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA S2 · الاختراق بدون هيمنة الحجم + الترند + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s2",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   },
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA S3 · الامتصاص قبل الاختراق + الترند + المنطقة الكمومية (HH+HL) + رصة EMA الستة على الساعة",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_entry_s3",
+     "right_value": 0
+    },
+    "position_side": "long",
+    "weight": 0.33,
+    "enabled": true
+   }
+  ],
+  "exit_rules": [
+   {
+    "name": "ZLF-E2E-Trendy-Quantum-EMA · خروج المنطقة الكمومية — LL+LH (أي صفقة مفتوحة يجب أن تخرج)",
+    "condition": {
+     "type": "indicator_value",
+     "operator": ">",
+     "left_value": "indicator:zigzag_fib_e2e_trendy_quantum_ema:zzfetqe_zone_exit",
+     "right_value": 0
+    },
+    "exit_type": "signal_exit",
+    "enabled": true
+   }
+  ],
+  "risk_management": {
+   "stop_loss_percentage": 2,
+   "take_profit_percentage": 99
+  }
+ },
+ "initial_capital": 300.0,
+ "position_sizing": "percentage",
+ "position_size_percent": 100.0,
+ "max_positions": 1,
+ "compounding": true,
+ "multi_position_compounding": false,
+ "commission_rate": 0.0,
+ "slippage_percent": 0.0,
+ "fill_model": "next_open",
+ "stop_loss_percent": null,
+ "take_profit_percent": null,
+ "take_profit_splits": [
+  {
+   "gain_percent": 4.7,
+   "size_percent": 25.0,
+   "name": "التصريف 1 — جني عند +4.7% (ربع الكمية)"
+  },
+  {
+   "gain_percent": 7.4,
+   "size_percent": 25.0,
+   "name": "التصريف 2 — جني عند +7.4% (ربع الكمية)"
+  },
+  {
+   "gain_percent": 15.0,
+   "size_percent": 25.0,
+   "name": "الهدف الثالث — جني عند +15% (ربع الكمية)"
+  }
+ ],
+ "structure_split_exits": null,
+ "trailing_stop_percent": 15.0,
+ "trailing_stop_mode": null,
+ "max_daily_loss_percent": null,
+ "enable_short_selling": false,
+ "enable_margin": false,
+ "leverage": 1.0,
+ "require_confirmation": false,
+ "exit_strategy": null,
+ "dca_rebuy_drops_pct": [
+  2.0,
+  4.5
+ ]
+}

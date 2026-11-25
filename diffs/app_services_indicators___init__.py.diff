@@ -1,12 +1,10 @@
---- /home/z/my-project/trading-system/quantum-momentum/basis_original/app/services/indicators/__init__.py	2026-11-18 15:57:24.959735526 +0000
-+++ app/services/indicators/__init__.py	2026-11-18 15:51:01.482054709 +0000
-@@ -18,7 +18,8 @@
- from . import overlays_zlf_e2e_trendy_macd as _overlays_zlf_e2e_trendy_macd  # noqa: F401  # ✅ PRO73: «الترندية الماكدية» (تسجيل ذاتي — إضافة فقط)
- from . import overlays_zlf_e2e_blazing_macd as _overlays_zlf_e2e_blazing_macd  # noqa: F401  # 🔥 PRO73: «الملتهبة الماكدية» (تسجيل ذاتي — إضافة فقط)
- from . import overlays_zlf_e2e_trendy_quantum as _overlays_zlf_e2e_trendy_quantum  # noqa: F401  # ✅ QUANTUM1: «الاستراتيجية الترندية الكمومية» (تسجيل ذاتي — إضافة فقط؛ يستورد الترندية أيضاً)
--from . import overlays_zlf_e2e_trendy_quantum_ema as _overlays_zlf_e2e_trendy_quantum_ema  # noqa: F401  # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» (تسجيل ذاتي — إضافة فقط؛ يستورد الكمومية أيضاً)
-+from . import overlays_zlf_e2e_trendy_quantum_ema as _overlays_zlf_e2e_trendy_quantum_ema  # noqa: F401
-+from . import overlays_zlf_e2e_trendy_quantum_ema_mom as _overlays_zlf_e2e_trendy_quantum_ema_mom  # noqa: F401  # QMOM1: 'quantum momentum first' (self-registering; imports quantum_ema too)  # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» (تسجيل ذاتي — إضافة فقط؛ يستورد الكمومية أيضاً)
+--- /tmp/orig_p109/app/services/indicators/__init__.py	2026-11-18 19:08:04.000000000 +0000
++++ app/services/indicators/__init__.py	2026-11-22 14:36:18.786357562 +0000
+@@ -21,6 +21,7 @@
+ from . import overlays_zlf_e2e_trendy_quantum_ema as _overlays_zlf_e2e_trendy_quantum_ema  # noqa: F401
+ from . import overlays_zlf_e2e_trendy_quantum_ema_mom as _overlays_zlf_e2e_trendy_quantum_ema_mom  # noqa: F401  # QMOM1: 'quantum momentum first' (self-registering; imports quantum_ema too)  # ✅ QUANTUMEMA1: «الاستراتيجية الترندية الكمومية المتوسطة المتحركة الأسية» (تسجيل ذاتي — إضافة فقط؛ يستورد الكمومية أيضاً)
  from . import overlays_mtf_ema as _overlays_mtf_ema  # noqa: F401  # ✅ MTFEMA1: «MTF EMA» متعدد الفريمات (تسجيل ذاتي — إضافة فقط)
++from . import overlays_b9_macd_gates as _overlays_b9_macd_gates  # noqa: F401  # ✅ B9: «ماكد 9B» بوابات MACD متعددة الفريمات (تسجيل ذاتي — إضافة فقط)
  from .pine_transpiler import PineScriptTranspiler
+ 
  

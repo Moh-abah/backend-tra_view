@@ -42,6 +42,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+import numpy as np
+
 # المحرك الموحد (المصدر الوحيد للزقزاق/الفيبو/التطبيع) + المحرك الترندي
 from app.services.indicators.zigzag_fib_core import (
     ZIGZAG_FIB_CORE_SPEC,
@@ -61,12 +63,23 @@ from app.services.indicators.overlays_zone_exit_mtf import (
     compute_zone_exit_mtf,
     norm_zone_exit_resolution,
 )
+# ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي فريم):
+# بناء شموع الفريم المستقل + الإسقاط السببي — نفس نواة MTFEMA1 المثبتة
+# (لا استيراد دائري: overlays_mtf_ema لا يستورد شيئًا من حزمة المؤشرات
+# على مستوى الوحدة).
+from app.services.indicators.overlays_mtf_ema import (
+    _build_htf_bars,
+    _norm_candles_arrays,
+    _parse_resolution,
+)
 
 __all__ = [
     "zigzag_fib_e2e_trendy_quantum",
     "ZLF_E2E_TRENDY_QUANTUM_ENGINE_NAME",
     "ZLF_E2E_TRENDY_QUANTUM_SPEC",
     "ZLF_E2E_TRENDY_QUANTUM_DEFAULT_ZONE_GATE",
+    "ZONE_ENTRY_MTF_SPEC",
+    "norm_zone_entry_resolution",
 ]
 
 # ---------------------------------------------------------------------------
@@ -78,6 +91,16 @@ ZLF_E2E_TRENDY_QUANTUM_SPEC = "QUANTUM1-e2e-trendy-quantum"
 # بوابة المنطقة الافتراضية: الثلاثة كلها (وقوعة احتياطية عند الاستدعاء بلا
 # معاملات — المرجع المعتمد يعيش في بريسِت الاستراتيجية، لا أرقام داخل الكود)
 ZLF_E2E_TRENDY_QUANTUM_DEFAULT_ZONE_GATE: Tuple[str, ...] = ("s1", "s2", "s3")
+
+# ✅ ZONE-ENTRY-MTF1 — مواصفة فريم المنطقة المسموحة للدخول (HH+HL على أي
+# فريم). فارغ/«none»/«base»/«chart» = فريم الشارت (السلوك التاريخي بت-بت).
+ZONE_ENTRY_MTF_SPEC = "ZONE-ENTRY-MTF1-entry-zone-timeframe"
+
+# القيم المفسَّرة كـ «معطَّل» — نفس عقد ZONE-EXIT-TF1 حرفياً
+_ZONE_ENTRY_DISABLED_TOKENS = {
+    "", "none", "off", "false", "0", "no", "base", "chart", "current", "same",
+}
+
 
 _ZONE_GATE_KIND = {"s1": 1, "1": 1, "s2": 2, "2": 2, "s3": 3, "3": 3}
 
@@ -105,6 +128,334 @@ def _norm_zone_gate(raw: Any) -> List[int]:
     return sorted(out)
 
 
+def norm_zone_entry_resolution(raw: Any) -> Optional[str]:
+    """✅ ZONE-ENTRY-MTF1 — تطبيع فريم المنطقة المسموحة للدخول.
+
+    يرجع None عند التعطيل (السلوك التاريخي بت-بت على فريم الشارت).
+    يقبل كل صيغ فريمات Pine/الواجهة («60»/«1h»/«240»/«4h»/«1D»/«1W»/«1M»...)
+    عبر _parse_resolution نفسها التي تستخدمها رصة EMA. القيم الفارغة
+    والمرادفات الصريحة للتعطيل («none»/«off»/«base»/«chart»...) ترجع None.
+    (نفس عقد norm_zone_exit_resolution حرفياً.)
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        # قيمة منطقية ليست فريماً — التعطيل الآمن (السلوك التاريخي)
+        return None
+    s = str(raw).strip()
+    if s.lower() in _ZONE_ENTRY_DISABLED_TOKENS:
+        return None
+    return s
+
+
+def _zone_entry_machine_on_pivots(
+    pivots: List[Dict[str, Any]],
+    n_bars: int,
+) -> Dict[str, List[Any]]:
+    """آلة المنطقة الكمية على محاور الفريم المستقل — نسخة حرفية من منطق
+    الكمومية على فريم الشارت، تُخرج كل أعمدة الحالة (لا الأعلام فقط).
+
+    المخرجات (كلها بأطوال n_bars):
+      on/struct          : حالة المنطقة والبنية (استمرائية)
+      enter/exit         : أعلام أحداث الفتح/الإغلاق (لمرة واحدة)
+      hh/hl/lh/ll        : أعلام مقارنات المحاور (لمرة واحدة)
+      last_high/prev_high/last_low/prev_low : قيم آخر/سابق قمة/قاع
+    """
+    m_last_high: List[Any] = [None] * n_bars
+    m_prev_high: List[Any] = [None] * n_bars
+    m_last_low: List[Any] = [None] * n_bars
+    m_prev_low: List[Any] = [None] * n_bars
+    m_hh: List[float] = [0.0] * n_bars
+    m_hl: List[float] = [0.0] * n_bars
+    m_lh: List[float] = [0.0] * n_bars
+    m_ll: List[float] = [0.0] * n_bars
+    m_on: List[float] = [0.0] * n_bars
+    m_struct: List[float] = [0.0] * n_bars
+    m_enter: List[float] = [0.0] * n_bars
+    m_exit: List[float] = [0.0] * n_bars
+
+    last_high: Optional[float] = None
+    last_low: Optional[float] = None
+    prev_high: Optional[float] = None
+    prev_low: Optional[float] = None
+    high_state: Optional[float] = None
+    low_state: Optional[float] = None
+    zone_on = False
+    zone_struct = 0.0
+
+    pi = 0
+    for j in range(n_bars):
+        while pi < len(pivots) and int(pivots[pi]["confirmed_at_bar"]) <= j:
+            p = pivots[pi]
+            pi += 1
+            price = clean_float(p.get("price"))
+            kind = str(p.get("kind") or "")
+            if price is None:
+                continue
+            if kind in ("top", "high"):
+                prev_high = last_high
+                last_high = price
+                if prev_high is not None:
+                    up = price > prev_high
+                    high_state = 1.0 if up else -1.0
+                    if up:
+                        m_hh[j] = 1.0
+                    else:
+                        m_lh[j] = 1.0
+            else:
+                prev_low = last_low
+                last_low = price
+                if prev_low is not None:
+                    up = price > prev_low
+                    low_state = 1.0 if up else -1.0
+                    if up:
+                        m_hl[j] = 1.0
+                    else:
+                        m_ll[j] = 1.0
+            both_up = high_state == 1.0 and low_state == 1.0
+            both_down = high_state == -1.0 and low_state == -1.0
+            zone_struct = 1.0 if both_up else (-1.0 if both_down else 0.0)
+            if both_up and not zone_on:
+                zone_on = True
+                m_enter[j] = 1.0
+            elif both_down and zone_on:
+                zone_on = False
+                m_exit[j] = 1.0
+        m_last_high[j] = clean_float(last_high)
+        m_prev_high[j] = clean_float(prev_high)
+        m_last_low[j] = clean_float(last_low)
+        m_prev_low[j] = clean_float(prev_low)
+        m_on[j] = 1.0 if zone_on else 0.0
+        m_struct[j] = zone_struct
+
+    return {
+        "on": m_on, "struct": m_struct,
+        "enter": m_enter, "exit": m_exit,
+        "hh": m_hh, "hl": m_hl, "lh": m_lh, "ll": m_ll,
+        "last_high": m_last_high, "prev_high": m_prev_high,
+        "last_low": m_last_low, "prev_low": m_prev_low,
+    }
+
+
+def _compute_zone_entry_mtf(
+    candles: Any,
+    resolution: str,
+    length: int,
+    reverse: bool = False,
+    levels: Optional[Any] = None,
+    extend_right: bool = True,
+    extend_leg_to_live: bool = True,
+    mode: str = "luxalgo",
+    depth: int = 12,
+    deviation: float = 20.0,
+    backstep: int = 3,
+    launch_touch_ticks: float = 1.0,
+) -> Optional[Dict[str, Any]]:
+    """✅ ZONE-ENTRY-MTF1 — المنطقة المسموحة للدخول على فريم مستقل، سببية كاملة.
+
+    نفس أنماط compute_zone_exit_mtf المثبتة (ZONE-EXIT-TF1) بت-بت:
+      1) شموع الفريم المستقل: أعلى من الشارت تُبنى من شموع القاعدة
+         (_build_htf_bars) · أدق من الشارت تُؤخذ حقيقية من سياق الباك-تست
+         (set_zone_exit_ltf_context — نفس السياق المسجل لمحرك الباك-تست).
+      2) محرك الزقزاق الترندي على شموع الفريم المستقل → محاور مؤكدة.
+      3) آلة المنطقة الكمية نفسها حرفياً على تلك المحاور (كل أعمدة الحالة).
+      4) الإسقاط السببي على شموع القاعدة: الحالة تُقرأ من آخر شريط مستقل
+         مُغلق فقط (الشريط النامي لا يُرى) · الأعلام/الأحداث لمرة واحدة عند
+         أول شمعة قاعدة إغلاقها ≥ إغلاق شمعة الفريم المستقل التي أكدتها.
+
+    يرجع None عند فشل دفاعي (السلوك التاريخي يسود — لا كسر أبداً).
+    """
+    try:
+        t, o, h, l, c = _norm_candles_arrays(candles)
+    except Exception:
+        return None
+    N = int(t.size)
+    if N == 0:
+        return None
+
+    # خطوة شمعة القاعدة (متينة أمام فجوات البيانات — نفس عقد MTFEMA1)
+    if N > 1:
+        diffs = np.diff(t)
+        pos = diffs[diffs > 0]
+        base_step = int(pos.min()) if pos.size else 60_000
+    else:
+        base_step = 60_000
+
+    res_info = _parse_resolution(resolution)
+
+    # فريم أدق من الشارت: سياق بيانات حقيقية أو التقييد الدفاعي (نفس عقد
+    # ZONE-EXIT-LTF1 — محرك الباك-تست يسجل كليهما في نفس السياق).
+    htf_step = res_info.get("step_ms")
+    clamped = False
+    ltf_ctx: Optional[Any] = None
+    if res_info["kind"] == "fixed" and htf_step is not None and htf_step < base_step:
+        try:
+            from app.services.indicators.overlays_zone_exit_mtf import _ltf_context_for
+            ltf_ctx = _ltf_context_for(res_info["label"])
+        except Exception:
+            ltf_ctx = None
+        if ltf_ctx is None:
+            htf_step = base_step
+            res_info = dict(res_info, step_ms=base_step)
+            clamped = True
+
+    # 1) شموع الفريم المستقل
+    if ltf_ctx is not None:
+        try:
+            lt, lo, lh, llo, lc = _norm_candles_arrays(ltf_ctx)
+        except Exception:
+            return None
+        M = int(lt.size)
+        if M == 0:
+            return None
+        if M > 1:
+            ld = np.diff(lt)
+            lp = ld[ld > 0]
+            ltf_step_real = int(lp.min()) if lp.size else int(htf_step)
+        else:
+            ltf_step_real = int(htf_step)
+        starts = lt
+        closes = lt + ltf_step_real
+        b_o, b_h, b_l, b_c = lo, lh, llo, lc
+    else:
+        try:
+            starts, closes, b_o, b_h, b_l, b_c = _build_htf_bars(t, o, h, l, c, res_info)
+        except Exception:
+            return None
+        M = int(starts.size)
+        if M == 0:
+            return None
+
+    # 2) محرك الزقزاق الترندي على شموع الفريم المستقل (المحاور فقط المطلوبة)
+    mtf_candles = [
+        {
+            "time": int(starts[j]),
+            "open": float(b_o[j]),
+            "high": float(b_h[j]),
+            "low": float(b_l[j]),
+            "close": float(b_c[j]),
+        }
+        for j in range(M)
+    ]
+    try:
+        trendy = zigzag_fib_e2e_trendy(
+            mtf_candles,
+            length=length,
+            reverse=reverse,
+            levels=levels,
+            extend_right=extend_right,
+            extend_leg_to_live=extend_leg_to_live,
+            mode=mode,
+            depth=depth,
+            deviation=deviation,
+            backstep=backstep,
+            launch_touch_ticks=launch_touch_ticks,
+        )
+    except Exception:
+        return None
+    pivots_mtf: List[Dict[str, Any]] = trendy.get("pivots") or []
+
+    # 3) آلة المنطقة على محاور الفريم المستقل (كل أعمدة الحالة)
+    mach = _zone_entry_machine_on_pivots(pivots_mtf, M)
+
+    # 4) الإسقاط السببي على شموع القاعدة:
+    #    (أ) الحالة الاستمرائية من آخر شريط مستقل مُغلق (نفس محاذاة رصة EMA)
+    jlast = np.searchsorted(closes, t + base_step, side="right") - 1
+    p_on = [0.0] * N
+    p_struct = [0.0] * N
+    p_last_high: List[Any] = [None] * N
+    p_prev_high: List[Any] = [None] * N
+    p_last_low: List[Any] = [None] * N
+    p_prev_low: List[Any] = [None] * N
+    for i in range(N):
+        jj = int(jlast[i])
+        if jj >= 0:
+            p_on[i] = float(mach["on"][jj])
+            p_struct[i] = float(mach["struct"][jj])
+            p_last_high[i] = mach["last_high"][jj]
+            p_prev_high[i] = mach["prev_high"][jj]
+            p_last_low[i] = mach["last_low"][jj]
+            p_prev_low[i] = mach["prev_low"][jj]
+
+    #    (ب) الأعلام/الأحداث لمرة واحدة: أول شمعة قاعدة إغلاقها ≥ إغلاق
+    #        الشريط المستقل الذي وقع فيه الحدث (الشريط النامي لا يُرى).
+    p_enter = [0.0] * N
+    p_exit = [0.0] * N
+    p_hh = [0.0] * N
+    p_hl = [0.0] * N
+    p_lh = [0.0] * N
+    p_ll = [0.0] * N
+    events: List[Dict[str, Any]] = []
+    for j in range(M):
+        fire = None
+        if mach["enter"][j]:
+            fire = "enter"
+        elif mach["exit"][j]:
+            fire = "exit"
+        elif mach["hh"][j]:
+            fire = "hh"
+        elif mach["hl"][j]:
+            fire = "hl"
+        elif mach["lh"][j]:
+            fire = "lh"
+        elif mach["ll"][j]:
+            fire = "ll"
+        if fire is None:
+            continue
+        i0 = int(np.searchsorted(t, closes[j] - base_step, side="left"))
+        if i0 >= N:
+            # الحدث لم يُغلق بعد ضمن نافذة البيانات — لا يُرى (سببية كاملة)
+            continue
+        if fire == "enter":
+            p_enter[i0] = 1.0
+        elif fire == "exit":
+            p_exit[i0] = 1.0
+        elif fire == "hh":
+            p_hh[i0] = 1.0
+        elif fire == "hl":
+            p_hl[i0] = 1.0
+        elif fire == "lh":
+            p_lh[i0] = 1.0
+        else:
+            p_ll[i0] = 1.0
+        events.append({
+            "kind": fire, "mtf_bar": int(j),
+            "mtf_close_time": int(closes[j]),
+            "base_bar": int(i0), "base_time": int(t[i0]),
+        })
+
+    return {
+        "spec": ZONE_ENTRY_MTF_SPEC,
+        "resolution": res_info["label"],
+        "htf_kind": res_info["kind"],
+        "length": int(length),
+        "mtf_bars": M,
+        "htf_step_ms": int(htf_step) if htf_step is not None else None,
+        "base_step_ms": int(base_step),
+        "resolution_clamped_to_chart_tf": clamped,
+        "ltf_real_context": bool(ltf_ctx is not None),
+        "zone_on": p_on,
+        "zone_struct": p_struct,
+        "zone_enter": p_enter,
+        "zone_exit": p_exit,
+        "zone_hh": p_hh,
+        "zone_hl": p_hl,
+        "zone_lh": p_lh,
+        "zone_ll": p_ll,
+        "zone_last_high": p_last_high,
+        "zone_prev_high": p_prev_high,
+        "zone_last_low": p_last_low,
+        "zone_prev_low": p_prev_low,
+        "events": events,
+        "counts": {
+            "zone_enters": int(sum(p_enter)),
+            "zone_exits": int(sum(p_exit)),
+            "hh": int(sum(p_hh)), "hl": int(sum(p_hl)),
+            "lh": int(sum(p_lh)), "ll": int(sum(p_ll)),
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # المحرك الرئيسي — ZLF-End-To-End-Trendy-Quantum (طبقة المنطقة فوق الترندية)
 # ---------------------------------------------------------------------------
@@ -126,6 +477,10 @@ def zigzag_fib_e2e_trendy_quantum(
     zone_gate: Any = None,
     zone_exit_resolution: Any = None,
     zone_exit_length: Any = None,
+    # ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي فريم).
+    #      None/فارغ/«none»/«base»/«chart» = فريم الشارت (السلوك التاريخي بت-بت).
+    zone_resolution: Any = None,
+    zone_length: Any = None,
 ) -> Dict[str, Any]:
     """ZLF-End-To-End-Trendy-Quantum — الترندية بحذافيرها + بوابة المنطقة الكمومية.
 
@@ -134,6 +489,15 @@ def zigzag_fib_e2e_trendy_quantum(
     trend_periods/trend_confirm/trend_gate) + قالب المنطقة:
       zone_gate: أنواع الإشارات المبوّبة بالمنطقة — s1/s2/s3 (افتراضياً الثلاثة)
                  أو "none" لتعطيل بوابة الدخول (بيانات المنطقة تبقى محسوبة).
+      zone_exit_resolution/zone_exit_length: ✅ ZONE-EXIT-TF1 — فريم هيكل
+                 الخروج (CHoCH LL+LH) — None = فريم الشارت (السلوك التاريخي).
+      zone_resolution/zone_length: ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة
+                 للدخول (HH+HL) — تُحسب آلة المنطقة على شموع الفريم المستقل
+                 (زقزاق length=zone_length أو نفس length افتراضياً) وتُسقط
+                 سببياً على شموع القاعدة (آخر شريط مستقل مُغلق فقط). النسخة
+                 الأصلية على فريم الشارت تُحفظ بأعمدة zzfetq_zone_*_base.
+                 None/فارغ/«none»/«base»/«chart» = فريم الشارت بت-بت بلا أي
+                 تغيير (عقد الإضافة الصرفة — لا مساس بأي مسار قائم).
 
     المخرجات: سلاسل تحتوي عقدَي التمايز معاً — zzfetq_* الكمية (62 عموداً)
     + zzfet_* الترندية (47 عموداً) ممرَّرة بت-بت (إصلاح بيانات الرسم الكاملة).
@@ -262,6 +626,126 @@ def zigzag_fib_e2e_trendy_quantum(
         z_struct[i] = zone_struct
 
     # ------------------------------------------------------------------
+    # 2-ب) ✅ ZONE-ENTRY-MTF1 — فريم المنطقة المسموحة للدخول (HH+HL على أي
+    #      فريم): آلة المنطقة نفسها تُحسب على شموع الفريم المستقل وتُسقط
+    #      سببياً على شموع القاعدة، فتحل محل نسخة فريم الشارت في كل أعمدة
+    #      المنطقة (البوابة الرباعية أدناه تقرأ الحالة المسقطة). النسخة
+    #      الأصلية على فريم الشارت تُحفظ للأعمدة الشفافة zzfetq_zone_*_base.
+    #      عند التعطيل (None — الافتراضي) لا يتغير أي عمود بت-بت إطلاقاً.
+    # ------------------------------------------------------------------
+    zone_entry_section: Dict[str, Any] = {
+        "enabled": False,
+        "spec": ZONE_ENTRY_MTF_SPEC,
+        "rule": "المنطقة المسموحة للدخول (HH+HL) محسوبة على فريم الشارت نفسه "
+                "(السلوك التاريخي) — zone_resolution غير مفعّل.",
+    }
+    zone_entry_base_mirror: Dict[str, List[Any]] = {}
+    zr_raw = norm_zone_entry_resolution(zone_resolution)
+    if zr_raw is not None:
+        try:
+            zl_int = int(zone_length) if zone_length is not None else int(length)
+        except (TypeError, ValueError):
+            zl_int = int(length)
+        if zl_int < 2:
+            zl_int = 2
+        ze = _compute_zone_entry_mtf(
+            candles,
+            resolution=zr_raw,
+            length=zl_int,
+            reverse=reverse,
+            levels=levels,
+            extend_right=extend_right,
+            extend_leg_to_live=extend_leg_to_live,
+            mode=mode,
+            depth=depth,
+            deviation=deviation,
+            backstep=backstep,
+            launch_touch_ticks=launch_touch_ticks,
+        )
+        if ze is not None:
+            # حفظ النسخة الأصلية على فريم الشارت (شفافية A/B والرسم)
+            zone_entry_base_mirror = {
+                "zzfetq_zone_on_base": list(z_on),
+                "zzfetq_zone_struct_base": list(z_struct),
+                "zzfetq_zone_enter_base": list(z_enter),
+                "zzfetq_zone_exit_base": list(z_exit),
+                "zzfetq_zone_hh_base": list(z_hh),
+                "zzfetq_zone_hl_base": list(z_hl),
+                "zzfetq_zone_lh_base": list(z_lh),
+                "zzfetq_zone_ll_base": list(z_ll),
+                "zzfetq_zone_last_high_base": list(z_last_high),
+                "zzfetq_zone_prev_high_base": list(z_prev_high),
+                "zzfetq_zone_last_low_base": list(z_last_low),
+                "zzfetq_zone_prev_low_base": list(z_prev_low),
+            }
+            # ⬅ الحالة الفعالة تصبح نسخة الفريم المستقل المسقطة سببياً
+            z_on = ze["zone_on"]
+            z_struct = ze["zone_struct"]
+            z_enter = ze["zone_enter"]
+            z_exit = ze["zone_exit"]
+            z_hh = ze["zone_hh"]
+            z_hl = ze["zone_hl"]
+            z_lh = ze["zone_lh"]
+            z_ll = ze["zone_ll"]
+            z_last_high = ze["zone_last_high"]
+            z_prev_high = ze["zone_prev_high"]
+            z_last_low = ze["zone_last_low"]
+            z_prev_low = ze["zone_prev_low"]
+            # أحداث المنطقة الفعالة تأتي من الفريم المستقل (مُسقطة سببياً)
+            zone_signals = []
+            for ev in ze["events"] or []:
+                if ev.get("kind") not in ("enter", "exit"):
+                    continue
+                i0 = int(ev.get("base_bar") or 0)
+                is_enter = ev.get("kind") == "enter"
+                zone_signals.append({
+                    "bar": i0,
+                    "time": t[i0] if i0 < len(t) else None,
+                    "side": "zone",
+                    "signal": ("ZLF-E2E-Trendy-Quantum Zone ENTER (HH+HL) @ "
+                               f"{ze.get('resolution')}")
+                              if is_enter else
+                              ("ZLF-E2E-Trendy-Quantum Zone EXIT (LL+LH) @ "
+                               f"{ze.get('resolution')}"),
+                    "engine": ZLF_E2E_TRENDY_QUANTUM_ENGINE_NAME,
+                    "last_high": clean_float(z_last_high[i0]) if i0 < N else None,
+                    "prev_high": clean_float(z_prev_high[i0]) if i0 < N else None,
+                    "last_low": clean_float(z_last_low[i0]) if i0 < N else None,
+                    "prev_low": clean_float(z_prev_low[i0]) if i0 < N else None,
+                    "zone_struct": float(z_struct[i0]) if i0 < N else 0.0,
+                    "resolution": ze.get("resolution"),
+                    "mtf_close_time": int(ev.get("mtf_close_time") or 0),
+                })
+            zone_entry_section = {
+                "enabled": True,
+                "spec": ZONE_ENTRY_MTF_SPEC,
+                "resolution": ze.get("resolution"),
+                "htf_kind": ze.get("htf_kind"),
+                "length": ze.get("length"),
+                "mtf_bars": ze.get("mtf_bars"),
+                "htf_step_ms": ze.get("htf_step_ms"),
+                "base_step_ms": ze.get("base_step_ms"),
+                "resolution_clamped_to_chart_tf": ze.get(
+                    "resolution_clamped_to_chart_tf", False),
+                "ltf_real_context": ze.get("ltf_real_context", False),
+                "counts": ze.get("counts") or {},
+                "events": ze.get("events") or [],
+                "rule": "المنطقة المسموحة للدخول (HH+HL) محسوبة على فريم "
+                        f"{ze.get('resolution')} (زقزاق length={ze.get('length')}) "
+                        "ومسقطة سببياً على شموع القاعدة — الحالة تُقرأ من آخر "
+                        "شريط مستقل مُغلق فقط (بلا أي استشراف). النسخة الأصلية "
+                        "على فريم الشارت في أعمدة zzfetq_zone_*_base.",
+            }
+        else:
+            zone_entry_section = {
+                "enabled": False,
+                "spec": ZONE_ENTRY_MTF_SPEC,
+                "requested_resolution": zr_raw,
+                "rule": "تعطّلت المنطقة المسموحة HTF دفاعياً — السلوك التاريخي "
+                        "على فريم الشارت يسود بت-بت.",
+            }
+
+    # ------------------------------------------------------------------
     # 3) البوابة الرباعية على الدخول — فوق مخرجات الترندية مباشرة
     # ------------------------------------------------------------------
     def _base_col(name: str) -> List[Optional[float]]:
@@ -349,6 +833,10 @@ def zigzag_fib_e2e_trendy_quantum(
     quantum_series["zzfetq_zone_struct"] = z_struct
     quantum_series["zzfetq_zone_enter"] = z_enter
     quantum_series["zzfetq_zone_exit"] = z_exit
+    # (ج-1-ب) ✅ ZONE-ENTRY-MTF1 — مرايا النسخة الأصلية على فريم الشارت
+    #      (شفافية A/B والرسم) — تُضاف فقط عند تفعيل الفريم المستقل.
+    if zone_entry_section.get("enabled"):
+        quantum_series.update(zone_entry_base_mirror)
 
     # (ج-2) ✅ ZONE-EXIT-TF1 — فريم هيكل الخروج (CHoCH على أي فريم):
     #      حساب حدث إغلاق المنطقة (LL+LH) على فريم HTF مستقل وإسقاطه
@@ -491,6 +979,14 @@ def zigzag_fib_e2e_trendy_quantum(
 
     params_echo = dict(base.get("params") or {})
     params_echo["zone_gate"] = [f"s{x}" for x in zone_cells]
+    # ✅ ZONE-ENTRY-MTF1 — صدى فريم المنطقة المسموحة للدخول (None = الشارت)
+    params_echo["zone_resolution"] = (
+        zone_entry_section.get("resolution") if zone_entry_section.get("enabled") else None)
+    try:
+        params_echo["zone_length"] = (
+            int(zone_entry_section.get("length")) if zone_entry_section.get("enabled") else None)
+    except (TypeError, ValueError):
+        params_echo["zone_length"] = None
     # ✅ ZONE-EXIT-TF1 — صدى فريم هيكل الخروج (None = فريم الشارت)
     params_echo["zone_exit_resolution"] = (
         zone_exit_section.get("resolution") if zone_exit_section.get("enabled") else None)
@@ -520,6 +1016,8 @@ def zigzag_fib_e2e_trendy_quantum(
         # + zzfet_* (47 تمريراً ترندياً حرفياً) = 109 أعمدة لكل شمعة
         "series": full_series,
         "trend": base_trend,
+        # ✅ ZONE-ENTRY-MTF1 — قسم فريم المنطقة المسموحة للدخول (HH+HL):
+        "zone_entry": zone_entry_section,
         # ✅ ZONE-EXIT-TF1 — قسم فريم هيكل الخروج (CHoCH على أي فريم):
         "zone_exit": zone_exit_section,
         "zone": {
